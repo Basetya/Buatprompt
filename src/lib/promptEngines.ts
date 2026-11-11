@@ -1040,12 +1040,6 @@ export function buildKineticMotionPrompt(params: KineticMotionParams): KineticMo
 }
 
 // H. Multi-Scene Kinetic Video Story Engine (Full-Length 24-30s)
-export interface MultiSceneStoryParams {
-  topicIdea: string;
-  targetNiche?: string;
-  motionStyle?: "apple-keynote" | "fintech-alpha" | "cyber-hud" | "stoic-gold";
-}
-
 import { matchDomainVault, getCombinatorialSeed, KNOWLEDGE_VAULT } from "./knowledgeVault";
 
 export interface KineticStoryScene {
@@ -1067,7 +1061,7 @@ export interface MultiSceneStoryParams {
   targetNiche?: string;
   vaultDomain?: string;
   variantSeed?: number;
-  motionStyle?: "apple-keynote" | "fintech-alpha" | "cyber-hud" | "stoic-gold";
+  motionStyle?: "apple-keynote" | "fintech-alpha" | "cyber-hud" | "stoic-gold" | "swiss-minimalist" | "retro-arcade";
   durationTarget?: "55s" | "26s";
   inputTab?: "idea" | "script";
   rawScriptText?: string;

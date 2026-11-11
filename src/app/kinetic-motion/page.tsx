@@ -135,7 +135,9 @@ export default function KineticMotionPage() {
   const [singleSubtext, setSingleSubtext] = useState("Bukan karena kurang modal, tapi karena salah eksekusi di detik awal.");
   const [singleDuration, setSingleDuration] = useState(6);
 
-  const [motionStyle, setMotionStyle] = useState<"apple-keynote" | "fintech-alpha" | "cyber-hud" | "stoic-gold">("apple-keynote");
+  const [motionStyle, setMotionStyle] = useState<
+    "apple-keynote" | "fintech-alpha" | "cyber-hud" | "stoic-gold" | "swiss-minimalist" | "retro-arcade"
+  >("apple-keynote");
   const [isPlaying, setIsPlaying] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [recordProgress, setRecordProgress] = useState(0);
@@ -339,6 +341,75 @@ export default function KineticMotionPage() {
           ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
           ctx.fill();
         });
+      } else if (motionStyle === "swiss-minimalist") {
+        ctx.fillStyle = "#09090b";
+        ctx.fillRect(0, 0, W, H);
+
+        // Swiss architectural grid
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.035)";
+        ctx.lineWidth = 1;
+        for (let x = 60; x < W; x += 60) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, H);
+          ctx.stroke();
+        }
+        for (let y = 60; y < H; y += 60) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(W, y);
+          ctx.stroke();
+        }
+
+        // Precision Corner Crosshairs (+)
+        ctx.strokeStyle = "#ef4444";
+        ctx.lineWidth = 2;
+        const cross = (cx: number, cy: number) => {
+          ctx.beginPath();
+          ctx.moveTo(cx - 8, cy);
+          ctx.lineTo(cx + 8, cy);
+          ctx.moveTo(cx, cy - 8);
+          ctx.lineTo(cx, cy + 8);
+          ctx.stroke();
+        };
+        cross(50, 140);
+        cross(W - 50, 140);
+        cross(50, H - 140);
+        cross(W - 50, H - 140);
+      } else if (motionStyle === "retro-arcade") {
+        ctx.fillStyle = "#0a0718";
+        ctx.fillRect(0, 0, W, H);
+
+        // Synthwave perspective grid floor at bottom
+        const horizonY = H * 0.74;
+        ctx.strokeStyle = "rgba(236, 72, 153, 0.18)";
+        ctx.lineWidth = 1.5;
+
+        // Radiating perspective lines from horizon
+        for (let x = -W; x <= W * 2; x += 70) {
+          ctx.beginPath();
+          ctx.moveTo(W / 2, horizonY);
+          ctx.lineTo(x, H);
+          ctx.stroke();
+        }
+
+        // Moving horizontal grid lines
+        const gridOffset = (elapsed * 35) % 25;
+        for (let y = horizonY; y < H; y += 25) {
+          const actualY = y + gridOffset;
+          if (actualY <= H) {
+            ctx.beginPath();
+            ctx.moveTo(0, actualY);
+            ctx.lineTo(W, actualY);
+            ctx.stroke();
+          }
+        }
+
+        // Subtle CRT scanlines
+        ctx.fillStyle = "rgba(139, 92, 246, 0.03)";
+        for (let y = 0; y < H; y += 3) {
+          ctx.fillRect(0, y, W, 1);
+        }
       }
 
       // 2. Floating 3D Geometric Accents (After Effects Style)
@@ -483,8 +554,10 @@ export default function KineticMotionPage() {
 
       if (motionStyle === "stoic-gold") {
         ctx.font = "bold 48px serif";
-      } else if (motionStyle === "cyber-hud") {
+      } else if (motionStyle === "cyber-hud" || motionStyle === "retro-arcade") {
         ctx.font = "900 46px monospace";
+      } else if (motionStyle === "swiss-minimalist") {
+        ctx.font = "900 50px sans-serif";
       } else {
         ctx.font = "800 50px sans-serif";
       }
@@ -522,12 +595,22 @@ export default function KineticMotionPage() {
             ? "rgba(16, 185, 129, 0.18)"
             : motionStyle === "stoic-gold"
             ? "rgba(245, 158, 11, 0.2)"
+            : motionStyle === "swiss-minimalist"
+            ? "rgba(239, 68, 68, 0.2)"
+            : motionStyle === "retro-arcade"
+            ? "rgba(236, 72, 153, 0.25)"
             : "rgba(56, 189, 248, 0.2)";
+
           ctx.strokeStyle = motionStyle === "fintech-alpha"
             ? "rgba(16, 185, 129, 0.5)"
             : motionStyle === "stoic-gold"
             ? "rgba(245, 158, 11, 0.5)"
+            : motionStyle === "swiss-minimalist"
+            ? "rgba(239, 68, 68, 0.7)"
+            : motionStyle === "retro-arcade"
+            ? "rgba(236, 72, 153, 0.7)"
             : "rgba(56, 189, 248, 0.5)";
+
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.roundRect(-textW / 2 - 14, lineY - boxH / 2, textW + 28, boxH, 12);
@@ -535,9 +618,21 @@ export default function KineticMotionPage() {
           ctx.stroke();
           ctx.restore();
 
-          ctx.fillStyle = motionStyle === "fintech-alpha" ? "#10b981" : motionStyle === "stoic-gold" ? "#f59e0b" : "#38bdf8";
+          ctx.fillStyle = motionStyle === "fintech-alpha"
+            ? "#10b981"
+            : motionStyle === "stoic-gold"
+            ? "#f59e0b"
+            : motionStyle === "swiss-minimalist"
+            ? "#ef4444"
+            : motionStyle === "retro-arcade"
+            ? "#ec4899"
+            : "#38bdf8";
         } else {
-          ctx.fillStyle = motionStyle === "cyber-hud" ? "#38bdf8" : "#ffffff";
+          ctx.fillStyle = motionStyle === "cyber-hud"
+            ? "#38bdf8"
+            : motionStyle === "retro-arcade"
+            ? "#f8fafc"
+            : "#ffffff";
         }
 
         ctx.fillText(lineText, 0, lineY);
@@ -570,6 +665,14 @@ export default function KineticMotionPage() {
           ctx.fillStyle = "#f59e0b";
           ctx.shadowColor = "rgba(245, 158, 11, 0.3)";
           ctx.shadowBlur = 15;
+        } else if (motionStyle === "swiss-minimalist") {
+          ctx.fillStyle = "#ffffff";
+          ctx.shadowColor = "rgba(239, 68, 68, 0.4)";
+          ctx.shadowBlur = 12;
+        } else if (motionStyle === "retro-arcade") {
+          ctx.fillStyle = "#06b6d4";
+          ctx.shadowColor = "rgba(236, 72, 153, 0.6)";
+          ctx.shadowBlur = 20;
         } else {
           ctx.fillStyle = "#38bdf8";
         }
@@ -612,7 +715,15 @@ export default function KineticMotionPage() {
       ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
       ctx.fillRect(80, H - 110, W - 160, 6);
 
-      ctx.fillStyle = motionStyle === "fintech-alpha" ? "#10b981" : motionStyle === "stoic-gold" ? "#f59e0b" : "#ffffff";
+      ctx.fillStyle = motionStyle === "fintech-alpha"
+        ? "#10b981"
+        : motionStyle === "stoic-gold"
+        ? "#f59e0b"
+        : motionStyle === "swiss-minimalist"
+        ? "#ef4444"
+        : motionStyle === "retro-arcade"
+        ? "#ec4899"
+        : "#ffffff";
       ctx.fillRect(80, H - 110, (W - 160) * globalProgress, 6);
       ctx.restore();
 
@@ -1295,20 +1406,22 @@ export default function KineticMotionPage() {
             <label className="block text-xs font-mono font-semibold text-zinc-300">
               GAYA VISUAL ARSITEKTUR
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {[
                 { id: "apple-keynote", name: "Apple Keynote Luxury" },
                 { id: "fintech-alpha", name: "Wall St / FinTech Alpha" },
                 { id: "cyber-hud", name: "Cyberpunk Tech HUD" },
-                { id: "stoic-gold", name: "Dark Stoic & Warm Ember" }
+                { id: "stoic-gold", name: "Dark Stoic & Warm Ember" },
+                { id: "swiss-minimalist", name: "Swiss Bauhaus Minimalist" },
+                { id: "retro-arcade", name: "Retro Arcade & Neon Synth" }
               ].map((st) => (
                 <button
                   key={st.id}
                   type="button"
                   onClick={() => setMotionStyle(st.id as any)}
-                  className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${
+                  className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all cursor-pointer ${
                     motionStyle === st.id
-                      ? "border-emerald-400 bg-emerald-500/10 text-white font-bold"
+                      ? "border-emerald-400 bg-emerald-500/10 text-white font-bold shadow-md shadow-emerald-500/10"
                       : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
                   }`}
                 >
