@@ -1,9 +1,132 @@
 /**
- * Prompt Engine Suite - Core Prompt Generators for CARI PROMPT
- * Specifically optimized for Google Flow (Veo & Imagen 3), Midjourney, Kling, Sora, and LLMs.
+ * BuatPrompt Engine Suite - Core Intelligent Prompt Engines
+ * Advanced orchestration specialized for Google Flow (Veo 2 & Imagen 3), Midjourney v6.1, Kling, and Claude.
  */
 
-// 1. Google Flow / Video & Image Vision Prompt System Instruction
+// 1. Google Flow Multi-Shot Director Engine (NEW FLAGSHIP)
+export interface GoogleFlowDirectorParams {
+  projectName: string;
+  genre: string; // 'commercial' | 'cinematic' | 'documentary' | 'cyberpunk' | 'vlog'
+  characterAnchor?: string;
+  setting: string;
+  lightingTheme: string;
+  pacing: string;
+  includeAudio?: boolean;
+}
+
+export function buildGoogleFlowDirectorPrompt(params: GoogleFlowDirectorParams): string {
+  const { projectName, genre, characterAnchor, setting, lightingTheme, pacing, includeAudio = true } = params;
+
+  return `[BUATPROMPT STUDIO — GOOGLE FLOW (VEO 2) MULTI-SHOT MASTER DIRECTIVE]
+Project: "${projectName}"
+Visual Genre: ${genre.toUpperCase()} | Pacing: ${pacing}
+Environment Setting: ${setting}
+Master Lighting Setup: ${lightingTheme}
+${characterAnchor ? `Character / Subject Anchor: ${characterAnchor} (Maintain strict physical consistency across all shots)` : ""}
+
+=======================================================
+SHOT 1 — THE ESTABLISHING FRAME (0:00 - 0:03)
+Shot Type: Wide Cinematic Establishing Shot | Lens: 24mm Anamorphic Prime (f/2.8)
+Camera Dynamics: Slow high-angle push-in tracking shot gliding smoothly towards the focal area.
+Visual Staging: ${setting}, drenched in ${lightingTheme}. Volumetric atmospheric depth with soft dust motes and subtle motion in the background.
+${characterAnchor ? `Focal Action: ${characterAnchor} emerges into frame, establishing presence with confident, natural momentum.` : "Focal Action: The environment awakens with subtle natural elements moving in continuous physical realism."}
+${includeAudio ? `Synchronized Soundscape: Deep resonant ambient sub-bass drone layered with authentic environmental room tone and subtle wind resonance.` : ""}
+
+=======================================================
+SHOT 2 — THE ACTION & REACTION (0:03 - 0:07)
+Shot Type: Medium Tracking Shot (Over-the-Shoulder / 45-degree angle) | Lens: 50mm Prime (f/1.8)
+Camera Dynamics: Dynamic orbital pan maintaining tight synchronization with the primary movement, gradual acceleration.
+Visual Staging: Sharp depth of field. Highlighting realistic textures, reflective surfaces, and specular highlights consistent with ${lightingTheme}.
+${characterAnchor ? `Focal Action: ${characterAnchor} executes primary decisive action; hands and facial micro-expressions captured in high-fidelity motion.` : "Focal Action: The core event unfolds with heightened mechanical/fluid dynamics and dynamic particle motion."}
+${includeAudio ? `Synchronized Soundscape: Crisp foley sound effects, tactile mechanical clicks/fluid splashes, rising harmonic synth swell.` : ""}
+
+=======================================================
+SHOT 3 — THE CLIMACTIC RESOLUTION & DETAIL (0:07 - 0:10)
+Shot Type: Tight Cinematic Macro / Hero Close-Up | Lens: 85mm Prime (f/1.4)
+Camera Dynamics: Ultra-smooth slow-motion dolly zoom (Vertigo effect) with creamy circular bokeh in background.
+Visual Staging: Extreme close-up on the hero subject. High micro-contrast, subsurface scattering on skin/materials, pristine optical reflections.
+Focal Action: Climax of the motion sequence, settling into a powerful, iconic, memorable resting frame.
+${includeAudio ? `Synchronized Soundscape: Climax tonal release, pristine acoustic decay, reverberant impactful bass hit.` : ""}
+
+=======================================================
+NEGATIVE PROMPT & RENDER GUARDS (FOR GOOGLE FLOW):
+blur, low resolution, warped hands, erratic camera jerkiness, floating artifacts, digital noise, unnatural face deformation, overexposed blown highlights, watermark, oversaturated colors.
+
+OUTPUT RESOLUTION: 4K Ultra-HD 24fps, Aspect Ratio 16:9 Cinematic, Master Director Grade.`;
+}
+
+// 2. Universal Prompt Matrix (NEW FLAGSHIP)
+export interface PromptMatrixResult {
+  googleFlow: string;
+  midjourney: string;
+  klingAi: string;
+  claudeGpt: string;
+}
+
+export function buildUniversalPromptMatrix(concept: string, visualMood: string = "Cinematic Hyper-Realistic"): PromptMatrixResult {
+  const cleanConcept = concept.trim();
+
+  return {
+    googleFlow: `[GOOGLE FLOW (VEO & IMAGEN 3) NATIVE DIRECTIVE]
+Subject & Motion: ${cleanConcept}, meticulously detailed with physical motion dynamics.
+Optics & Camera: Shot on 35mm anamorphic cinema lens, slow cinematic push-in dolly movement with smooth motion blur and subtle handheld authenticity.
+Lighting: Volumetric studio rim lighting paired with soft diffused fill light, natural reflections and specular highlights.
+Atmosphere: ${visualMood}, 8k UHD, rich cinematic color grade with deep obsidian shadows and warm specular highlights. Clean, photorealistic commercial masterpiece.`,
+
+    midjourney: `/imagine prompt: ${cleanConcept}, ${visualMood}, master commercial photography, shot on Hasselblad H6D-100c, 85mm f/1.4 lens, dynamic rim lighting, dramatic chiaroscuro, volumetric haze, hyper-detailed textures, award winning composition --ar 16:9 --style raw --v 6.1 --stylize 250`,
+
+    klingAi: `[KLING AI & RUNWAY GEN-3 MOTION PROMPT]
+Camera Movement: Slow forward dolly tracking, camera orbit 15 degrees.
+Motion Intensity: 6/10 (smooth natural flow without deformation).
+Prompt: ${cleanConcept}, continuous physical motion, ${visualMood}, realistic physics, steady lighting continuity, 4K 60fps cinematic render.`,
+
+    claudeGpt: `You are an elite creative director and visual architect.
+Role: Produce a world-class production brief based on: "${cleanConcept}".
+Format: Provide (1) Scene Concept, (2) Camera Framing & Lenses, (3) Color Grading Palette, and (4) Emotional Resonance for modern digital audiences.`
+  };
+}
+
+// 3. Viral Hook & Retention Engineer (NEW FLAGSHIP)
+export interface ViralHookParams {
+  productOrTopic: string;
+  targetPlatform: "tiktok" | "reels" | "shorts";
+  hookStyle: "curiosity-gap" | "pattern-interrupt" | "controversy" | "transformation";
+}
+
+export function buildViralHookPrompt(params: ViralHookParams): string {
+  const { productOrTopic, targetPlatform, hookStyle } = params;
+
+  return `[BUATPROMPT STUDIO — VIRAL RETENTION & HOOK BLUEPRINT]
+Target Platform: ${targetPlatform.toUpperCase()}
+Topic / Product: "${productOrTopic}"
+Selected Hook Strategy: ${hookStyle.toUpperCase()}
+
+=======================================================
+VARIASI 1: THE CURIOSITY GAP (Penahan Scroll 0-3 Detik)
+- Hook Verbal (Voiceover): "Kebanyakan orang salah mengira [masalah umum], padahal rahasianya ada di sini..."
+- Visual Action (Frame 1): Kamera zoom-in mendadak ke ekspresi terkejut / objek yang disembunyikan di balik tangan.
+- On-Screen Text (Bold Typography): "JANGAN SCROLL DULU! 🛑"
+- Sound Design: Sound effect 'Record Scratch' atau 'Whoosh Sub-Bass'.
+- Mengapa Efektif: Membuka 'open-loop' di otak audiens sehingga mereka terdorong menonton hingga terjawab di detik 10.
+
+=======================================================
+VARIASI 2: THE PATTERN INTERRUPT (Anti-Boring Visual)
+- Hook Verbal (Voiceover): "Stop buang-buang uang untuk ${productOrTopic} sebelum kamu tahu trik ini!"
+- Visual Action (Frame 1): Aksi dramatis yang tidak biasa (misal: melempar produk lama ke keranjang, atau gesture tangan 'stop' langsung ke lensa).
+- On-Screen Text (Neon Text): "STOP KETIPU LAGI! ⚠️"
+- Sound Design: Sound effect 'Glitch' atau 'Impact Thud'.
+- Mengapa Efektif: Menghentikan refleks jempol pengguna yang terbiasa scroll cepat dengan visual kontras tinggi.
+
+=======================================================
+VARIASI 3: THE BEFORE/AFTER TRANSFORMATION
+- Hook Verbal (Voiceover): "Dari kondisi kayak gini... jadi kayak gini cuma dalam hitungan hari?!"
+- Visual Action (Frame 1): Layar split-screen tajam menunjukkan kontras problem vs hasil nyata.
+- On-Screen Text: "HASILNYA BIKIN KAGET 😱"
+- Sound Design: Sound effect 'Ting!' ceria di detik kedua.
+- Call To Action (Detik 10-15): "Cek link keranjang kuning sekarang sebelum kehabisan batch hari ini!"`;
+}
+
+// 4. Vision System Prompt for Reverse Engineering
 export function getVisionSystemPrompt(params: {
   mediaType: "image" | "video";
   targetModel?: "veo" | "imagen3" | "midjourney" | "kling" | "sora" | "runway";
@@ -13,49 +136,33 @@ export function getVisionSystemPrompt(params: {
   const { mediaType, targetModel = "veo", language = "id", mode = "short" } = params;
 
   if (mediaType === "video") {
-    return `You are a world-class AI Director and Video Reverse-Engineering Prompt Engineer specialized in Google Flow (Google Veo), Kling AI, Sora, and Runway Gen-3.
+    return `You are a world-class AI Director and Cinematic Prompt Architect specialized in Google Flow (Google Veo 2), Kling AI, Sora, and Runway Gen-3.
 
-Your mission is to analyze the user's video or video keyframes and reconstruct an ultra-precise cinematic prompt that can recreate this exact video in Google Flow (Veo) or other generative video engines.
+Your mission is to deconstruct the uploaded video into an authoritative, director-level prompt tailored for Google Flow (Veo 2).
 
-### Video Generation Architecture & Google Flow (Veo) Prompting Protocol:
-1. **Core Subject & Temporal Action**: Detail what is moving, how it transforms over time, and its interaction with the surrounding environment. Describe continuous motion dynamics (e.g. hands assembling pieces, steam rising, fluid pouring, hair fluttering).
-2. **Camera Direction & Optics**: Explicitly state camera movements using professional cinematography terms:
-   - "Top-down overhead static shot"
-   - "Slow push-in dolly zoom on 35mm anamorphic lens"
-   - "Orbital panning shot with shallow depth of field (f/1.8)"
-   - "Handheld POV dynamic tracking shot"
-3. **Lighting & Atmosphere**: Specify lighting setup: studio softbox, volumetric god-rays, rim light, golden hour, neon edge glows, realistic specular highlights and ambient occlusion.
-4. **Color Palette & Visual Texture**: State color harmony (e.g. warm earth tones, deep matte black with metallic silver accents, saturated vibrant pastels) and physical textures (wood grain, clear glass reflections, tactile craft cardboard).
-5. **Format & Duration**: Optimized for short reels / timelapse (${mode === "long" ? "multi-scene cinematic breakdown" : "coherent 5–10 second continuous sequence"}).
+### Protocol:
+1. **Core Subject & Temporal Momentum**: What moves, how it evolves, interaction with physical environment.
+2. **Camera Direction**: Exact professional moves (Dolly zoom, 35mm anamorphic, orbital pan, top-down static).
+3. **Lighting & Specular Quality**: Volumetric lighting, rim light, ambient occlusion, realistic reflections.
+4. **Color Grading & Textures**: Material realism, tactile feel, deep blacks, rich highlights.
+5. **Format & Duration**: Optimized for Google Veo 1080p/4K 24fps cinematic master shot.
 
-Output format:
-${language === "id" ? 
-`Berikan deskripsi prompt final yang kaya, terstruktur rapi, dan langsung siap pakai untuk Google Flow (Veo) atau Kling/Sora.
-Sertakan juga versi prompt Bahasa Inggris sinematik di bagian akhir yang siap disalin ke dalam AI video generator.` :
-`Provide the rich cinematic director prompt ready for Google Flow (Veo) and cinematic video engines.`}
-`;
+Provide a comprehensive, high-fidelity prompt in English for copying into Google Flow, accompanied by an Indonesian structural summary.`;
   }
 
-  // Image Prompt System Instruction
-  return `You are an elite AI Visual Analyst and Reverse-Prompting Specialist specialized in Google Flow (Google Imagen 3), Midjourney v6.1, and FLUX.1.
+  return `You are an elite AI Visual Analyst and Optical Prompt Engineer specialized in Google Flow (Imagen 3) and Midjourney v6.1.
 
-Your mission is to deconstruct any uploaded image and synthesize a comprehensive, high-fidelity prompt capable of reproducing the exact visual style, composition, lighting, subject matter, and emotional resonance.
+Deconstruct the uploaded image into:
+1. Subject & Anatomical Precision
+2. Environment, Layers & Scenic Depth
+3. Photographic / Digital Medium (Octane render, 35mm film, commercial product macro)
+4. Lighting Rig (3-point studio softbox, rim light, chiaroscuro)
+5. Camera, Lens & Framing (85mm f/1.4, 24mm wide, ratio)
 
-### Image Prompting Protocol for Google Imagen 3 & Midjourney:
-1. **Subject & Pose**: Anatomical detail, focal subject, clothing, materials, facial expression, micro-details.
-2. **Environment & Background**: Background elements, depth layers (foreground, midground, background), scenic setting.
-3. **Artistic Style & Medium**: Is it digital 3D render (Octane / Unreal Engine 5), 2D vector graphic, vintage analog film photo (Kodak Portra 400), commercial product photography, or watercolor?
-4. **Lighting & Shadowing**: Three-point studio lighting, rim light, dramatic chiaroscuro, natural diffused sunlight, neon luminescence.
-5. **Camera, Lens & Framing**: Wide angle 24mm, portrait 85mm f/1.4, macro extreme close-up, aspect ratio (16:9, 9:16, 1:1, 4:5).
-
-Output format:
-${language === "id" ?
-`Berikan analisis visual komprehensif dalam Bahasa Indonesia yang menjelaskan komposisi, warna, dan pencahayaan, diikuti dengan satu prompt utama berbahasa Inggris yang sangat deskriptif dan siap disalin langsung ke Google Flow (Imagen 3) atau Midjourney.` :
-`Provide a detailed visual deconstruction followed by the final production-ready prompt optimized for Google Imagen 3 and Midjourney v6.1.`}
-`;
+Output a production-grade descriptive prompt ready for Google Flow (Imagen 3) and Midjourney.`;
 }
 
-// 2. Poster Infografis (Extracted 20-point structure)
+// 5. Poster Infografis (20-point structure)
 export interface InfographicParams {
   title: string;
   subtitle?: string;
@@ -69,31 +176,31 @@ export interface InfographicParams {
 }
 
 export function buildInfographicPrompt(params: InfographicParams): string {
-  return `Kamu adalah SEMI-AUTOMATIC CONTENT ENGINE untuk infografis. Buatkan SATU prompt final siap salin untuk menghasilkan GAMBAR INFOGRAFIS berkualitas tinggi.
+  return `[BUATPROMPT STUDIO — INFOGRAPHIC 20-POINT ARCHITECTURE]
+Buatkan SATU prompt final siap salin untuk menghasilkan GAMBAR INFOGRAFIS berkualitas tinggi.
 
-## INPUT DARI USER (prioritas tertinggi)
-- Judul (headline): "${params.title}"
-- Subjudul: ${params.subtitle ? `"${params.subtitle}" (WAJIB dipakai apa adanya)` : "(generate otomatis: 5–15 kata, menarik & relevan)"}
-- Tujuan konten: ${params.purpose}
-- Format layout: ${params.format}
-- Gaya visual: ${params.style}
-- Rasio/ukuran: ${params.ratio}
-- CTA: ${params.cta ? `"${params.cta}"` : "Pesan Sekarang / Simpan untuk Nanti"}
-- Kredit/watermark: "${params.credit || ""}"
-- Poin isi dari user: ${params.points?.trim() || "(generate 3–5 poin informatif berbobot sesuai judul)"}
+## INPUT DATA PROYEK
+- Headline Utama: "${params.title}"
+- Subheadline: ${params.subtitle ? `"${params.subtitle}"` : "(generate otomatis: 5–15 kata informatif)"}
+- Tujuan Konten: ${params.purpose}
+- Format Layout: ${params.format}
+- Gaya Visual: ${params.style}
+- Rasio Aspek: ${params.ratio}
+- Call To Action: ${params.cta ? `"${params.cta}"` : "Simpan untuk Nanti / Cek Selengkapnya →"}
+- Watermark/Brand: "${params.credit || ""}"
+- Poin Isi: ${params.points?.trim() || "(generate 3–5 poin bernilai tinggi sesuai topik)"}
 
-## TUGAS KAMU:
-Hasilkan prompt gambar infografis lengkap yang memetakan:
-1. Header & Typography: Font style, hierarchy, visual weight
-2. Hero element / Icon center
-3. Content cards: Susunan poin terstruktur dengan icon visual pendukung
-4. Color scheme & contrast (minimal 3 warna harmonis)
-5. Background & decorative graphic accents
-6. Footer CTA box dan watermark
+## CETAK BIRU LAYOUT VISUAL:
+1. Header Card dengan tipografi bold kontras tinggi
+2. Hero Icon / Visual Anchor terpusat
+3. Grid Kartu Konten terstruktur dengan visual pendukung di setiap poin
+4. Palet warna harmonis (maksimal 3 warna utama + aksen)
+5. Background bersih bertekstur halus tanpa elemen yang mengganggu keterbacaan
+6. Footer CTA Box yang tegas dan profesional.
 Rasio ${params.ratio}, clean vector layout, high contrast, crisp readable typography.`;
 }
 
-// 3. Sales Page Generator (Extracted 16-section structure)
+// 6. Sales Page Copywriting Engine (16-section conversion)
 export interface SalesPageParams {
   namaProduk: string;
   jenisProduk: string;
@@ -107,31 +214,40 @@ export interface SalesPageParams {
 }
 
 export function buildSalesPagePrompt(params: SalesPageParams): string {
-  return `Kamu adalah AI Sales Page Copywriter & Conversion Strategist khusus untuk UMKM, bisnis lokal, reseller, creator, dan produk digital.
+  return `[BUATPROMPT STUDIO — HIGH-CONVERSION SALES ARCHITECTURE]
+Anda adalah Conversion Copywriter & Brand Strategist tingkat internasional.
 
-## INPUT DATA PRODUK
-- Nama Produk/Bisnis: "${params.namaProduk}"
-- Jenis Produk: ${params.jenisProduk}
-- Tujuan Sales Page: ${params.tujuan}
-- Deskripsi Produk: ${params.deskripsi?.trim() || "Solusi praktis dan berkualitas untuk kebutuhan pelanggan"}
-- Target Customer: ${params.target?.trim() || "Konsumen modern yang menginginkan kemudahan dan hasil nyata"}
-- Harga: ${params.harga?.trim() || "Hubungi Admin / Penawaran Terbaik"}
-- Promo/Penawaran: ${params.promo?.trim() || "Diskon Khusus & Bonus Eksklusif"}
+## DATA PRODUK
+- Nama Brand / Produk: "${params.namaProduk}"
+- Kategori Produk: ${params.jenisProduk}
+- Tujuan Halaman: ${params.tujuan}
+- Deskripsi: ${params.deskripsi?.trim() || "Solusi premium teruji untuk kebutuhan pelanggan"}
+- Target Audiens: ${params.target?.trim() || "Konsumen yang mencari kemudahan dan hasil terbukti"}
+- Skema Harga: ${params.harga?.trim() || "Penawaran Khusus Terbatas"}
+- Bonus / Promo: ${params.promo?.trim() || "Bonus Akses Eksklusif"}
 - CTA: ${params.cta?.trim() || "Dapatkan Penawaran Sekarang"}
-- Gaya Sales Page: ${params.gaya || "Modern & Persuasif"}
+- Formula Copywriting: ${params.gaya || "AIDA & PAS Hybrid"}
 
-## STRUKTUR SALES PAGE CONVERSION:
-1. **HOOK & HEADLINE**: Pain point hook + Strong promise headline + subheadline penguat
-2. **PROBLEM AGITATION**: 3 masalah umum yang dialami calon pembeli saat ini
-3. **THE SOLUTION**: Memperkenalkan ${params.namaProduk} sebagai jawaban tuntas
-4. **KEY BENEFITS**: 4–5 manfaat utama berfokus pada hasil akhir (bukan sekadar fitur)
-5. **HOW IT WORKS**: 3 langkah mudah menggunakan produk
-6. **OFFER & PRICING**: Penawaran bundling/diskon + bonus pendukung
-7. **OBJECTION HANDLING & FAQ**: 4 pertanyaan penting yang sering membuat ragu
-8. **FINAL CALL TO ACTION**: Tombol ajakan bertindak yang mendesak dan meyakinkan.`;
+## STRUKTUR SALES PAGE 16-BAGIAN:
+1. THE SCROLL-STOPPING HOOK & HEADLINE
+2. SUBHEADLINE PENGUAT PROPOSISI NILAI
+3. PROBLEM AGITATION: 3 Frustrasi Nyata yang Dihadapi Calon Pembeli
+4. THE PIVOT: Mengapa Cara Lama Tidak Lagi Efektif
+5. INTRODUCING THE SOLUTION: Lahirnya ${params.namaProduk}
+6. 4 CORE PILLARS OF BENEFITS (Fokus pada Transformasi Hidup)
+7. PRODUCT ANATOMY / HOW IT WORKS (3 Langkah Mudah)
+8. SOCIAL PROOF & LOGICAL EVIDENCE (Tanpa Klaim Palsu)
+9. COMPARISON TABLE: ${params.namaProduk} vs Alternatif Biasa
+10. WHO IS THIS FOR (Kualifikasi Pembeli Tepat)
+11. WHO IS THIS NOT FOR (Filter Eksklusivitas)
+12. THE IRRESISTIBLE OFFER: Harga, Diskon & Bonus Spesial
+13. ZERO-RISK GUARANTEE (Jaminan Kepuasan & Keamanan)
+14. FREQUENTLY ASKED QUESTIONS (Objection Handling)
+15. THE URGENCY TRIGGER (Batas Waktu / Kuota)
+16. FINAL CALL TO ACTION (Tombol Penutup yang Menentukan).`;
 }
 
-// 4. Buku Mewarnai (Extracted HTML/SVG PDF printable)
+// 7. Coloring Book Printable PDF Engine
 export interface ColoringBookParams {
   theme: string;
   age: string;
@@ -140,25 +256,23 @@ export interface ColoringBookParams {
 
 export function buildColoringBookPrompt(params: ColoringBookParams): string {
   const count = parseInt(params.pageCount, 10) || 10;
-  return `Buatkan sebuah buku mewarnai anak dalam SATU file HTML yang bisa langsung dijalankan di browser dan bisa dicetak/diunduh sebagai PDF.
+  return `[BUATPROMPT STUDIO — PRINTABLE COLORING BOOK ENGINE]
+Buatkan satu dokumen HTML utuh yang memuat buku mewarnai anak siap cetak/simpan sebagai PDF.
 
-## Spesifikasi Buku Mewarnai
-- **Tema**: ${params.theme}
-- **Usia target**: ${params.age}
-- **Jumlah halaman**: ${count} halaman (1 cover berwarna + ${count - 1} sketsa isi)
-- **Bahasa**: Bahasa Indonesia (sederhana & ramah anak)
+## Spesifikasi Teknis:
+- Tema: ${params.theme}
+- Target Usia: ${params.age}
+- Total Halaman: ${count} halaman (1 Cover Berwarna Penuh + ${count - 1} Sketsa Isi Line-Art Tebal)
+- Bahasa: Bahasa Indonesia ramah anak
 
-## Struktur Halaman
-1. **Halaman 1 — Cover (BERWARNA)**: Ilustrasi utama yang penuh warna cerah, judul buku besar menarik.
-2. **Halaman 2 sampai ${count} — Isi (SKETSA)**: Garis luar (bold outline) hitam-putih tanpa fill warna, siap diwarnai anak, lengkap dengan label nama objek di bawahnya.
-
-## Persyaratan Teknis:
-- Inline SVG untuk ilustrasi tebal tanpa gambar eksternal.
-- Tombol "Download / Cetak PDF" yang memanggil window.print().
-- CSS @media print { page-break-after: always; } agar tiap halaman pas dicetak A4.`;
+## Persyaratan Kode:
+1. Seluruh kode HTML, CSS, dan JavaScript dalam SATU file tanpa dependensi luar.
+2. Gunakan inline SVG untuk semua ilustrasi (garis luar hitam tebal, tanpa isian warna pada halaman sketsa).
+3. Tombol interaktif "Unduh / Cetak PDF" yang memanggil window.print().
+4. Rule CSS @media print { page-break-after: always; } agar setiap halaman tercetak rapi satu per satu di kertas A4.`;
 }
 
-// 5. Game Prompt (Extracted HTML5 interactive game)
+// 8. Game Prompt Interactive Canvas Engine
 export interface GamePromptParams {
   theme?: string;
   age: string;
@@ -168,41 +282,20 @@ export interface GamePromptParams {
 }
 
 export function buildGamePrompt(params: GamePromptParams): string {
-  return `Buatkan sebuah game interaktif HTML/CSS/JavaScript dalam SATU file HTML yang bisa langsung dijalankan di browser, untuk anak-anak.
+  return `[BUATPROMPT STUDIO — HTML5 CANVAS MINI-GAME ENGINE]
+Buatkan sebuah mini-game interaktif berbasis HTML/CSS/JavaScript dalam SATU file mandiri untuk anak-anak.
 
-## Spesifikasi Game
-- **Tema**: ${params.theme || "Hewan Lucu Petualang"}
-- **Usia target**: ${params.age}
-- **Jenis game**: ${params.gameType}
-- **Gaya visual**: ${params.style}
-- **Bahasa**: Bahasa Indonesia (sederhana, ramah anak)
+- Tema: ${params.theme || "Petualangan Hewan Ceria"}
+- Target Usia: ${params.age}
+- Gameplay: ${params.gameType}
+- Visual Style: ${params.style}
+- Fitur Wajib: Touch-friendly (layar HP & tablet), efek suara Web Audio API, sistem skor bintang, tombol restart.
+- Instruksi Tambahan: ${params.extra || "Tampilkan instruksi bermain sederhana di awal game."}
 
-## Persyaratan Teknis
-1. Semua kode (HTML, CSS, JavaScript) dalam satu file HTML mandiri tanpa library eksternal.
-2. Tombol besar ramah sentuhan (touch-friendly untuk smartphone & tablet).
-3. Animasi visual cerah, efek suara Web Audio API (beep/ding ramah), dan reward bintang.
-4. Skor interaktif dan pesan selamat di akhir permainan.
-5. Responsif mobile-first.
-
-Instruksi Tambahan: ${params.extra || "Tambahkan tombol Restart dan instruksi cara main singkat."}`;
+Output: Berikan satu blok kode HTML utuh siap jalan di browser atau Gemini Canvas.`;
 }
 
-// 6. Style Detection Attribute Replicator
-export interface StyleAttributes {
-  subject: string;
-  artStyle: string;
-  lighting: string;
-  colorPalette: string[];
-  cameraAngle: string;
-  renderingEngine: string;
-  mood: string;
-}
-
-export function synthesizeStylePrompt(attrs: StyleAttributes, similarityPercent: number = 90): string {
-  return `${attrs.artStyle} style featuring ${attrs.subject}, illuminated by ${attrs.lighting}, shot from ${attrs.cameraAngle}, rendered in ${attrs.renderingEngine}. Color palette dominated by ${attrs.colorPalette.join(", ")}. Atmospheric ${attrs.mood} mood, high dynamic range, intricate textures, masterpiece, 8k resolution, cinematic composition.`;
-}
-
-// 7. Storyboard Generator
+// 9. Storyboard Affiliate Video Engine
 export interface StoryboardParams {
   productName: string;
   targetAudience: string;
@@ -213,63 +306,54 @@ export interface StoryboardParams {
 }
 
 export function buildStoryboardPrompt(params: StoryboardParams): string {
-  return `Buatkan Storyboard Video Promosi Affiliasi 3-Beat untuk platform ${params.platform.toUpperCase()}.
+  return `[BUATPROMPT STUDIO — COMMERCE STORYBOARD BLUEPRINT]
+Platform: ${params.platform.toUpperCase()} Video Commerce
+Produk: "${params.productName}"
+Audience: ${params.targetAudience}
+Tone: ${params.tone} | Durasi: ${params.duration}
+Catatan Keunggulan: ${params.productNote || "Tunjukkan kemudahan pemakaian dan hasil nyata"}
 
-## Informasi Produk
-- Nama Produk: "${params.productName}"
-- Target Audience: ${params.targetAudience}
-- Tone / Suasana: ${params.tone}
-- Durasi Total: ${params.duration}
-- Catatan Produk: ${params.productNote || "Tunjukkan keunggulan dan kemudahan pemakaian produk"}
-
-## Format Output Terstruktur:
 STORYBOARD — ${params.productName}
 Audience: ${params.targetAudience}
-Big Idea: [Inti pesan promosi menarik]
-Hook: [3 detik pertama penahan scroll]
-Durasi: ${params.duration}
+Big Idea: [Inti pesan penarik pembeli]
+Hook Utama: [3 detik pertama penahan scroll]
 
-SCENE 1 (0-3s) — The Hook
-Shot & Kamera: [e.g. POV Close-up / Handheld quick zoom]
-Visual: [Aksi pembuka yang mengundang rasa penasaran]
-Voiceover: [Kalimat hook]
-Text On Screen: [Headline tebal]
-SFX: [Sound effect hook]
+SCENE 1 (0-3s) — THE HOOK
+Kamera & Visual: [Framing kamera + ekspresi/masalah pembuka]
+Voiceover: [Kalimat hook penahan scroll]
+On-Screen Text: [Teks headline tebal di layar]
+Sound Effect: [SFX penarik perhatian]
 
-SCENE 2 (3-8s) — The Demonstration & Benefit
-Shot & Kamera: [Medium shot / Smooth push-in]
-Visual: [Demo produk sedang dipakai atau diulas]
-Voiceover: [Penjelasan benefit utama]
-Text On Screen: [Poin keunggulan]
-SFX: [Musik upbeat]
+SCENE 2 (3-8s) — THE PROOF & DEMO
+Kamera & Visual: [Penggunaan produk secara nyata / tekstur produk]
+Voiceover: [Penjelasan benefit utama dan kemudahan]
+On-Screen Text: [Poin manfaat kunci]
+Sound Effect: [Musik latar upbeat]
 
-SCENE 3 (8-10s) — Call to Action
-Shot & Kamera: [Close-up produk + gesture menunjuk ke keranjang]
-Visual: [Produk ditampilkan jelas, ekspresi puas]
-Voiceover: [Ajakan klik keranjang kuning / beli sekarang]
-Text On Screen: [CEK KERANJANG KUNING SEKARANG]
-SFX: [Sound effect ding / klik ceria]
+SCENE 3 (8-10s) — CALL TO ACTION
+Kamera & Visual: [Produk close-up + gesture ajakan klik keranjang]
+Voiceover: [Ajakan beli sebelum kehabisan]
+On-Screen Text: [KLIK KERANJANG KUNING SEKARANG]
+Sound Effect: [Sound klik / ding ceria]
 
-CTA: [Ajakan beli final]
-Caption: [Rekomendasi caption menarik beserta hashtag relevan]`;
+CTA: [Ajakan beli penutup]
+Rekomendasi Caption & Hashtag: [Caption persuasi tinggi + hashtag relevan]`;
 }
 
-// 8. Prompt Optimizer
-export function buildOptimizerPrompt(rawPrompt: string, targetAi: string = "ChatGPT & Gemini"): string {
-  return `Kamu adalah AI Prompt Engineer Master. Analisis prompt mentah berikut dan ubah menjadi instruksi AI tingkat profesional yang komprehensif.
+// 10. Master Prompt Optimizer
+export function buildOptimizerPrompt(rawPrompt: string, targetAi: string = "Google Flow & Gemini"): string {
+  return `[BUATPROMPT STUDIO — MASTER PROMPT REFINERY]
+Analisis prompt mentah berikut dan ubah menjadi instruksi tingkat profesional bertingkat tinggi:
 
-Prompt Mentah User:
-"${rawPrompt}"
-
+Prompt Mentah: "${rawPrompt}"
 Target AI: ${targetAi}
 
-Tugas Kamu:
-1. Analisis kelemahan prompt awal (kekurangan konteks, batasan, persona, atau format output).
-2. Tulis ulang menjadi **OPTIMIZED PROMPT** yang mencakup:
-   - Role / Persona AI (siapa AI yang bertindak)
-   - Context & Background (konteks latar belakang)
-   - Specific Task & Goal (tugas mendetail langkah demi langkah)
-   - Constraints & Rules (apa yang boleh dan tidak boleh dilakukan)
-   - Output Format & Examples (struktur output yang diharapkan)
-3. Sertakan tips singkat untuk user tentang cara memaksimalkan hasil prompt ini.`;
+Tugas:
+1. Bedah kelemahan prompt (kurang spesifik, tidak ada role, ketiadaan batasan/guards).
+2. Tulis ulang menjadi OPTIMIZED PROMPT lengkap dengan:
+   - System Role / Expert Persona
+   - Context & Operational Boundaries
+   - Step-by-Step Execution Plan
+   - Output Quality Constraints & Edge Cases
+3. Tips praktis bagi kreator untuk mendapatkan variasi terbaik.`;
 }

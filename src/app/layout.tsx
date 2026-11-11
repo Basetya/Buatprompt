@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Roboto_Mono } from "next/font/google";
+import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -9,14 +9,14 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
-const robotoMono = Roboto_Mono({
-  variable: "--font-roboto-mono",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "CARI PROMPT — AI Prompt Reverse Engineering & Generation Studio",
-  description: "Ekstrak prompt gambar dan video secara presisi. Siap pakai untuk Google Flow (Veo & Imagen 3), Midjourney, Kling, Sora, Runway, dan chatbot AI.",
+  title: "BuatPrompt — Studio Orkestrasi & Rekayasa Prompt AI untuk Google Flow",
+  description: "Rancang, fabrikasi, dan orkestrasi instruksi prompt AI sinematik tingkat sutradara. Dioptimalkan khusus untuk Google Flow (Google Veo & Imagen 3), Midjourney v6.1, Kling AI, dan video komersial.",
   icons: {
     icon: "/favicon.ico",
   },
@@ -30,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="id" className="dark">
       <body
-        className={`${inter.variable} ${robotoMono.variable} font-sans antialiased bg-[#0a0a0c] text-zinc-100 min-h-screen flex flex-col selection:bg-[#d4f933] selection:text-black`}
+        className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased bg-[#07080c] text-slate-100 min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white`}
       >
         <Navbar />
         <main className="flex-1 w-full">{children}</main>

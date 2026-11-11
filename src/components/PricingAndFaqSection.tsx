@@ -2,28 +2,28 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, Sparkles, Zap, HelpCircle } from "lucide-react";
+import { Check, ChevronDown, Sparkles, Zap, HelpCircle, ShieldCheck } from "lucide-react";
 
 const FAQS = [
   {
-    q: "Bagaimana cara kerja CariPrompt dengan Google Flow (Google Veo & Imagen 3)?",
-    a: "CariPrompt secara spesifik dirancang untuk mengekstrak deskripsi visual menjadi bahasa sutradara (director's prompt) alami yang sangat disukai oleh Google Veo dan Imagen 3 di Google Flow. Kami mengekstrak aksi gerakan temporal (subject motion over time), pergerakan kamera (pan, tracking, dolly-in, focal length), pencahayaan (volumetric rim light, softbox), dan tekstur realistis."
+    q: "Apa yang membuat BuatPrompt jauh lebih unggul dibanding platform pencari prompt biasa?",
+    a: "Platform biasa umumnya hanya memberikan teks deskripsi pasif atau tag kata kunci terputus. BuatPrompt adalah studio orkestrasi aktif yang dirancang untuk sutradara dan kreator modern. Kami menyediakan multi-shot scene sequencing dengan Character Anchor (menjaga karakter tetap konsisten antar shot), rancangan audio soundscape sinkron untuk Google Veo, serta Universal Prompt Matrix yang mengonversi satu ide ke dalam 4 dialek mesin AI secara simultan."
   },
   {
-    q: "Apakah prompt hasil ekstraksi bisa dipakai di Midjourney, Kling, dan Sora?",
-    a: "Tentu saja! Setiap hasil ekstraksi video atau gambar menyertakan prompt dalam format sinematik universal Bahasa Inggris teknis dan Bahasa Indonesia. Anda tinggal menyalin prompt tersebut dan menempelkannya ke Google Flow, Midjourney (--v 6.1), Kling AI, Runway Gen-3, maupun OpenAI Sora."
+    q: "Bagaimana cara kerja integrasi BuatPrompt dengan Google Flow (Google Veo & Imagen 3)?",
+    a: "Google Veo 2 dan Imagen 3 di Google Flow bekerja paling optimal dengan deskripsi narasi berbobot sutradara (director's prompt). BuatPrompt menyusun kontinuitas gerak fisik (temporal momentum), pergerakan kamera nyata (35mm anamorphic, dolly-in, orbital pan), pencahayaan studio terkalibrasi, hingga negative prompt guardrails bawaan."
   },
   {
-    q: "Berapa lama proses pembuatan prompt dari video atau gambar?",
-    a: "Hanya butuh 3–5 detik! Model AI vision kami langsung membaca frame media yang Anda unggah, membedah style visual, komposisi objek, palet warna, dan menyusun instruksi prompt tingkat lanjut."
+    q: "Apakah prompt untuk Midjourney v6.1 sudah siap pakai dengan parameter resmi?",
+    a: "Ya! Universal Prompt Matrix kami otomatis menambahkan parameter teknis Midjourney v6.1 seperti rasio aspek (--ar 16:9), mode rendering (--style raw), dan bobot estetika (--stylize 250) sehingga hasil generate langsung konsisten tanpa perlu penyesuaian manual."
   },
   {
-    q: "Apakah saya perlu kemampuan prompt engineering yang rumit?",
-    a: "Tidak perlu sama sekali! Anda cukup mengunggah gambar/video referensi atau memasukkan data produk sederhana. CariPrompt mengotomatisasi seluruh struktur prompt engineering secara profesional di latar belakang."
+    q: "Mengapa ada fitur panduan Audio dan Soundscape pada video prompt?",
+    a: "Generasi terbaru AI video seperti Google Veo 2 dan Sora kini mengintegrasikan pemahaman audio spasial. BuatPrompt menyertakan instruksi foley, room tone, dan tempo musik agar audio latar menyatu sempurna dengan dinamika visual adegan Anda."
   },
   {
-    q: "Apa saja 11 tools yang tersedia di platform ini?",
-    a: "Cari Prompt Gambar, Shorts Video Prompt, Long Video Prompt, Storyboard Produk (TikTok/Shopee), Poster Infografis 20-Poin, Sales Page Generator, Buku Mewarnai (PDF printable), Game Interaktif (HTML5), Style Detection, Prompt Optimizer, dan Prompt to Image Studio."
+    q: "Apakah seluruh 14 tools bisa diakses dari perangkat smartphone (HP)?",
+    a: "100% Ya! BuatPrompt dibangun dengan arsitektur mobile-first. Seluruh proses dekonstruksi visual, copy prompt satu klik, hingga preview storyboard dirancang sangat ergonomis di layar ponsel."
   }
 ];
 
@@ -35,63 +35,63 @@ export default function PricingAndFaqSection() {
       {/* Pricing Section */}
       <section id="pricing" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-mono font-medium text-[#d4f933] mb-3">
-            <Zap className="h-3.5 w-3.5" />
-            <span>PILIHAN PAKET TERBAIK</span>
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-mono font-medium text-indigo-300 mb-3">
+            <Zap className="h-3.5 w-3.5 text-cyan-400" />
+            <span>AKSES PRODUKSI STUDIO</span>
           </div>
           <h2 className="font-mono text-3xl sm:text-4xl font-extrabold text-white">
-            Harga Fleksibel untuk <span className="text-[#d4f933]">Kreator & Pebisnis</span>
+            Investasi Terukur untuk <span className="text-gradient">Kreator & Sutradara</span>
           </h2>
           <p className="mt-3 text-sm text-zinc-400">
-            Mulai gratis sekarang dan tingkatkan paket kapan saja sesuai intensitas produksi konten Anda.
+            Akses instan ke seluruh 14 engine tanpa biaya tersembunyi. Tingkatkan skala produksi konten Anda kapan saja.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {/* Free Starter */}
-          <div className="rounded-2xl border border-white/10 bg-[#12141a]/60 p-6 flex flex-col justify-between">
+          {/* Creator Pass */}
+          <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-6 flex flex-col justify-between shadow-xl">
             <div>
               <span className="font-mono text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                STARTER
+                CREATOR PASS
               </span>
               <div className="mt-4 flex items-baseline gap-1">
                 <span className="font-mono text-3xl font-extrabold text-white">Rp 0</span>
                 <span className="text-xs text-zinc-500">/ selamanya</span>
               </div>
               <p className="mt-3 text-xs text-zinc-400">
-                Cocok untuk eksplorasi dan mencoba kemampuan ekstraksi prompt AI.
+                Ideal untuk pemula yang ingin mengeksplorasi kekuatan prompt sinematik.
               </p>
               <ul className="mt-6 space-y-3 text-xs font-mono text-zinc-300">
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-[#d4f933]" />
+                  <Check className="h-4 w-4 text-cyan-400" />
                   <span>5x Generate Harian</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-[#d4f933]" />
-                  <span>Akses Cari Prompt Gambar</span>
+                  <Check className="h-4 w-4 text-cyan-400" />
+                  <span>Akses Visual Prompt Foundry</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-[#d4f933]" />
-                  <span>Format Google Flow & Midjourney</span>
+                  <Check className="h-4 w-4 text-cyan-400" />
+                  <span>Akses Universal Prompt Matrix</span>
                 </li>
               </ul>
             </div>
             <Link
-              href="/gambar"
+              href="/prompt-matrix"
               className="mt-8 flex items-center justify-center rounded-xl border border-white/15 bg-white/5 py-2.5 text-xs font-mono font-semibold text-white hover:bg-white/10 transition-colors"
             >
-              Coba Sekarang
+              Mulai Gratis
             </Link>
           </div>
 
-          {/* Pro Creator (Featured) */}
-          <div className="relative rounded-2xl border border-[#d4f933] bg-[#141820] p-6 flex flex-col justify-between shadow-2xl shadow-[#d4f933]/10">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#d4f933] px-3 py-0.5 text-[10px] font-mono font-black text-black uppercase tracking-wider">
-              PALING POPULER
+          {/* Studio Pro Director (Featured) */}
+          <div className="relative rounded-2xl border border-indigo-500 bg-[#121622] p-6 flex flex-col justify-between shadow-2xl shadow-indigo-500/15">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500 px-3 py-0.5 text-[10px] font-mono font-bold text-white uppercase tracking-wider">
+              PILIHAN SUTRADARA
             </div>
             <div>
-              <span className="font-mono text-xs font-bold text-[#d4f933] uppercase tracking-wider">
-                PRO CREATOR
+              <span className="font-mono text-xs font-bold text-cyan-300 uppercase tracking-wider">
+                STUDIO PRO DIRECTOR
               </span>
               <div className="mt-4 flex items-baseline gap-1">
                 <span className="font-mono text-3xl font-extrabold text-white">Rp 49.000</span>
@@ -102,64 +102,64 @@ export default function PricingAndFaqSection() {
               </p>
               <ul className="mt-6 space-y-3 text-xs font-mono text-zinc-200">
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-[#d4f933]" />
-                  <span>Akses Seluruh 11 AI Tools</span>
+                  <Check className="h-4 w-4 text-cyan-400" />
+                  <span>Akses Penuh 14 Engine BuatPrompt</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-[#d4f933]" />
-                  <span>Google Flow Veo & Imagen 3 Specialist</span>
+                  <Check className="h-4 w-4 text-indigo-400" />
+                  <span>Google Flow Multi-Shot Director</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-[#d4f933]" />
-                  <span>Storyboard TikTok Shop & Shopee</span>
+                  <Check className="h-4 w-4 text-rose-400" />
+                  <span>Viral Hook & Retention Blueprint</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-[#d4f933]" />
-                  <span>Poster Infografis 20-Poin & Sales Page</span>
+                  <Check className="h-4 w-4 text-cyan-400" />
+                  <span>Storyboard Commerce 3-Beat TikTok/Shopee</span>
                 </li>
               </ul>
             </div>
             <Link
-              href="/gambar"
-              className="mt-8 flex items-center justify-center rounded-xl bg-[#d4f933] py-2.5 text-xs font-mono font-bold text-black shadow-lg shadow-[#d4f933]/20 hover:bg-[#e2fb5f] transition-all"
+              href="/google-flow-director"
+              className="mt-8 flex items-center justify-center rounded-xl studio-btn-primary py-2.5 text-xs font-mono font-bold shadow-lg shadow-indigo-500/25"
             >
-              Pilih Paket Pro
+              Buka Akses Pro Director
             </Link>
           </div>
 
-          {/* Agency */}
-          <div className="rounded-2xl border border-white/10 bg-[#12141a]/60 p-6 flex flex-col justify-between">
+          {/* Agency Unlimited */}
+          <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-6 flex flex-col justify-between shadow-xl">
             <div>
               <span className="font-mono text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                STUDIO & AGENCY
+                ENTERPRISE AGENCY
               </span>
               <div className="mt-4 flex items-baseline gap-1">
                 <span className="font-mono text-3xl font-extrabold text-white">Rp 129.000</span>
                 <span className="text-xs text-zinc-500">/ bulan</span>
               </div>
               <p className="mt-3 text-xs text-zinc-400">
-                Solusi tanpa batas untuk tim agensi dan studio produksi video skala besar.
+                Untuk agensi kreatif, rumah produksi, dan tim pemasaran skala tinggi.
               </p>
               <ul className="mt-6 space-y-3 text-xs font-mono text-zinc-300">
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-[#d4f933]" />
-                  <span>Unlimited Video & Image Extractions</span>
+                  <Check className="h-4 w-4 text-cyan-400" />
+                  <span>Unlimited Video & Image Orchestrations</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-[#d4f933]" />
-                  <span>Prioritas Antrian Pemrosesan Cepat</span>
+                  <Check className="h-4 w-4 text-cyan-400" />
+                  <span>Prioritas Antrian Pemrosesan Tercepat</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-[#d4f933]" />
-                  <span>Akses Script HTML5 Game & Printable PDF</span>
+                  <Check className="h-4 w-4 text-cyan-400" />
+                  <span>Multi-Team License & Export API</span>
                 </li>
               </ul>
             </div>
             <Link
-              href="/gambar"
+              href="/google-flow-director"
               className="mt-8 flex items-center justify-center rounded-xl border border-white/15 bg-white/5 py-2.5 text-xs font-mono font-semibold text-white hover:bg-white/10 transition-colors"
             >
-              Pilih Agency
+              Pilih Paket Agency
             </Link>
           </div>
         </div>
@@ -168,9 +168,9 @@ export default function PricingAndFaqSection() {
       {/* FAQ Section */}
       <section id="faqs" className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-mono font-medium text-[#d4f933] mb-3">
-            <HelpCircle className="h-3.5 w-3.5" />
-            <span>TANYA JAWAB UMUM</span>
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-mono font-medium text-indigo-300 mb-3">
+            <HelpCircle className="h-3.5 w-3.5 text-cyan-400" />
+            <span>FAQ & PANDUAN TEKNIS</span>
           </div>
           <h2 className="font-mono text-2xl sm:text-3xl font-extrabold text-white">
             Pertanyaan yang Sering Diajukan
@@ -183,11 +183,11 @@ export default function PricingAndFaqSection() {
             return (
               <div
                 key={idx}
-                className="rounded-xl border border-white/10 bg-[#12141a]/80 overflow-hidden transition-colors"
+                className="rounded-2xl border border-white/10 bg-[#0d1017] overflow-hidden transition-colors"
               >
                 <button
                   onClick={() => setOpenFaq(isOpen ? null : idx)}
-                  className="w-full flex items-center justify-between p-4 text-left font-mono text-sm font-semibold text-white hover:text-[#d4f933] transition-colors"
+                  className="w-full flex items-center justify-between p-4 text-left font-mono text-sm font-semibold text-white hover:text-cyan-300 transition-colors cursor-pointer"
                 >
                   <span>{faq.q}</span>
                   <ChevronDown className={`h-4 w-4 text-zinc-400 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
