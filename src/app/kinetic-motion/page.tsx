@@ -26,7 +26,10 @@ import {
   Clock,
   FileText,
   Lightbulb,
-  Scissors
+  Scissors,
+  BookOpen,
+  Shuffle,
+  Database
 } from "lucide-react";
 
 interface StoryScene {
@@ -111,6 +114,15 @@ export default function KineticMotionPage() {
   const [creationTab, setCreationTab] = useState<"idea" | "script">("idea");
   const [durationTarget, setDurationTarget] = useState<"55s" | "26s">("55s");
   const [targetNiche, setTargetNiche] = useState("General Creator");
+  const [vaultDomain, setVaultDomain] = useState("stoic_motivation");
+  const [variantSeed, setVariantSeed] = useState(0);
+  const [activeVaultInfo, setActiveVaultInfo] = useState<{
+    id: string;
+    name: string;
+    badge: string;
+    quoteSnippet?: string;
+    authorSnippet?: string;
+  } | null>(null);
   const [topicIdea, setTopicIdea] = useState("Kenapa 99% orang gagal menabung & cara memperbaikinya");
   const [rawScriptInput, setRawScriptInput] = useState("");
   const [scenes, setScenes] = useState<StoryScene[]>(DEFAULT_SCENES);
@@ -149,11 +161,13 @@ export default function KineticMotionPage() {
     : singleDuration;
 
   // Auto Arrange & Script Breakdown Handler
-  const handleGenerateStory = async (overrideTab?: "idea" | "script", customScript?: string) => {
+  const handleGenerateStory = async (overrideTab?: "idea" | "script", customScript?: string, seedOffset?: number) => {
     const activeTab = overrideTab || creationTab;
     const targetScript = customScript !== undefined ? customScript : rawScriptInput;
     const targetText = activeTab === "script" ? targetScript.trim() : topicIdea.trim();
     if (!targetText) return;
+
+    const currentSeed = seedOffset !== undefined ? seedOffset : variantSeed;
 
     setIsGeneratingStory(true);
     setWarningMessage(null);
@@ -168,6 +182,8 @@ export default function KineticMotionPage() {
           topicIdea: topicIdea || "Strategi Konten",
           rawScriptText: activeTab === "script" ? targetScript : "",
           targetNiche,
+          vaultDomain,
+          variantSeed: currentSeed,
           motionStyle,
           durationTarget,
         }),
@@ -176,6 +192,9 @@ export default function KineticMotionPage() {
       const data = await res.json();
       if (data.scenes && Array.isArray(data.scenes)) {
         setScenes(data.scenes);
+        if (data.vaultUsed) {
+          setActiveVaultInfo(data.vaultUsed);
+        }
         if (data.warningNotice) {
           setWarningMessage(data.warningNotice);
         }
@@ -893,7 +912,7 @@ export default function KineticMotionPage() {
                     </div>
                   </div>
 
-                  {/* Target Duration & Niche Selector */}
+                  {/* Target Duration & Knowledge Vault Selector */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                     <div>
                       <label className="block text-[10px] font-mono text-zinc-400 mb-1">
@@ -927,41 +946,79 @@ export default function KineticMotionPage() {
 
                     <div>
                       <label className="block text-[10px] font-mono text-zinc-400 mb-1">
-                        NICHE / TONE AUDIENS
+                        AIR-GAP KNOWLEDGE VAULT (LOCAL BRAIN)
                       </label>
                       <select
-                        value={targetNiche}
-                        onChange={(e) => setTargetNiche(e.target.value)}
+                        value={vaultDomain}
+                        onChange={(e) => {
+                          setVaultDomain(e.target.value);
+                          setTargetNiche(e.target.value);
+                        }}
                         className="w-full rounded-lg border border-white/10 bg-black/40 px-2.5 py-2 text-xs text-white font-mono focus:border-emerald-400 focus:outline-none"
                       >
-                        <option value="General Creator">Umum & Edukasi</option>
-                        <option value="Affiliate & Jualan">Affiliate & Jualan</option>
-                        <option value="Finansial & Investasi">Finansial & Investasi</option>
-                        <option value="Kuliner & Kopi">Kuliner & Kopi</option>
-                        <option value="Skincare & Beauty">Skincare & Beauty</option>
-                        <option value="Gadget & Tech">Gadget & Tech</option>
+                        <option value="stoic_motivation">🏛️ Stoic & Motivasi (Kutipan Barat & Timur)</option>
+                        <option value="financial_wealth">📈 Finansial & Wealth (Warren Buffett, 50/30/20)</option>
+                        <option value="affiliate_conversion">💼 Affiliate & Persuasion (Cialdini, Story-Selling)</option>
+                        <option value="culinary_coffee">☕ Kuliner & Kopi (Fisika Ekstraksi & 90°C)</option>
+                        <option value="skincare_beauty">✨ Skincare & Beauty (Dermatologi & Sandwich)</option>
+                        <option value="tech_productivity">⚡ Tech & Productivity (Steve Jobs, Pareto 80/20)</option>
                       </select>
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleGenerateStory("idea")}
-                    disabled={isGeneratingStory || !topicIdea.trim()}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 px-4 py-3 font-mono text-xs font-bold text-white transition-opacity hover:opacity-95 cursor-pointer disabled:opacity-50 mt-2 shadow-lg shadow-emerald-950/40"
-                  >
-                    {isGeneratingStory ? (
-                      <>
-                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                        <span>MENYUSUN NASKAH {durationTarget === "55s" ? "52-55s" : "26s"} & 4 SCENE...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="h-3.5 w-3.5" />
-                        <span>🪄 BUAT NASKAH LENGKAP & SUSUN 4 SCENE OTOMATIS</span>
-                      </>
-                    )}
-                  </button>
+                  {/* Active Knowledge Vault Info Display */}
+                  {activeVaultInfo && (
+                    <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs font-mono space-y-1 animate-in fade-in">
+                      <div className="flex items-center justify-between text-emerald-300 font-bold">
+                        <div className="flex items-center gap-1.5">
+                          <Database className="h-3.5 w-3.5" />
+                          <span>VAULT LOKAL: {activeVaultInfo.name.toUpperCase()}</span>
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          AIR-GAP DETERMINISTIC
+                        </span>
+                      </div>
+                      {activeVaultInfo.quoteSnippet && (
+                        <p className="text-[11px] text-zinc-300 italic leading-relaxed">
+                          {activeVaultInfo.quoteSnippet}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextSeed = variantSeed + 1;
+                        setVariantSeed(nextSeed);
+                        handleGenerateStory("idea", undefined, nextSeed);
+                      }}
+                      title="Eksplorasi sudut pandang lain dari vault yang sama (Kreativitas Kombinatorial)"
+                      className="px-3.5 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 font-mono text-xs font-bold text-zinc-300 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Shuffle className="h-3.5 w-3.5 text-cyan-400" />
+                      <span className="hidden sm:inline">VARIASI #{variantSeed + 1}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateStory("idea")}
+                      disabled={isGeneratingStory || !topicIdea.trim()}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 px-4 py-3 font-mono text-xs font-bold text-white transition-opacity hover:opacity-95 cursor-pointer disabled:opacity-50 shadow-lg shadow-emerald-950/40"
+                    >
+                      {isGeneratingStory ? (
+                        <>
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                          <span>MENYUSUN NASKAH {durationTarget === "55s" ? "52-55s" : "26s"} & 4 SCENE...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="h-3.5 w-3.5" />
+                          <span>🪄 BUAT NASKAH LENGKAP & SUSUN 4 SCENE OTOMATIS</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 /* TAB 2: PASTE CUSTOM SCRIPT */

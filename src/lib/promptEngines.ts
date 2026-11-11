@@ -1046,6 +1046,8 @@ export interface MultiSceneStoryParams {
   motionStyle?: "apple-keynote" | "fintech-alpha" | "cyber-hud" | "stoic-gold";
 }
 
+import { matchDomainVault, getCombinatorialSeed, KNOWLEDGE_VAULT } from "./knowledgeVault";
+
 export interface KineticStoryScene {
   sceneNumber: number;
   stageName: string;
@@ -1063,6 +1065,8 @@ export interface KineticStoryScene {
 export interface MultiSceneStoryParams {
   topicIdea: string;
   targetNiche?: string;
+  vaultDomain?: string;
+  variantSeed?: number;
   motionStyle?: "apple-keynote" | "fintech-alpha" | "cyber-hud" | "stoic-gold";
   durationTarget?: "55s" | "26s";
   inputTab?: "idea" | "script";
@@ -1071,6 +1075,13 @@ export interface MultiSceneStoryParams {
 
 export interface MultiSceneStoryResult {
   topic: string;
+  vaultUsed?: {
+    id: string;
+    name: string;
+    badge: string;
+    quoteSnippet?: string;
+    authorSnippet?: string;
+  };
   wordCount: number;
   estimatedVoiceSeconds: number;
   isTooLong: boolean;
@@ -1186,437 +1197,58 @@ export function buildMultiSceneStoryPrompt(params: MultiSceneStoryParams): Multi
   }
 
   // --- IDEA-TO-SCRIPT GENERATION ENGINE (50-55s Sweet Spot or 26s Express) ---
-  const lowerIdea = (topicIdea + " " + targetNiche).toLowerCase();
+  // Uses Local Air-Gap Knowledge Vault & Combinatorial Permutation
+  const vault = matchDomainVault(params.vaultDomain || targetNiche || topicIdea);
+  const seed = getCombinatorialSeed(topicIdea, params.variantSeed || 0);
 
-  // Niche 1: Affiliate / Jualan / Cuan / Bisnis Online
-  if (lowerIdea.includes("affiliate") || lowerIdea.includes("komisi") || lowerIdea.includes("shopee") || lowerIdea.includes("tiktok shop") || lowerIdea.includes("jualan") || lowerIdea.includes("closing") || lowerIdea.includes("cuan")) {
-    if (is55s) {
-      return {
-        topic: topicIdea,
-        wordCount: 132,
-        estimatedVoiceSeconds: 53,
-        isTooLong: false,
-        totalDurationSec: 52,
-        retentionFormula: "3 Hukum Fisika Visual + Character Emotion Resonance + Word-by-Word Highlight",
-        scenes: [
-          {
-            sceneNumber: 1,
-            stageName: "THE SHOCK HOOK",
-            timeRange: "0:00 - 0:10",
-            headline: "STOP SCROLL! KENAPA 99% AFFILIATE GAGAL?",
-            subtext: "Bukan karena followers kamu sedikit, tapi karena cara promosi kamu bikin calon pembeli langsung kabur dalam 3 detik pertama.",
-            metric: "0 CLOSING ❌",
-            highlightKeyword: "GAGAL",
-            durationSec: 10,
-            characterEmotion: "shocked",
-            kineticFx: "Spring Punch Scale 1.2x + Alert Aura Halo",
-            foleyCue: "0:00 Fast Whoosh + Heavy Sub-Bass Thud"
-          },
-          {
-            sceneNumber: 2,
-            stageName: "THE PAIN AGITATION",
-            timeRange: "0:10 - 0:25",
-            headline: "SPAM LINK DI KOMENTAR ITU BUKAN JUALAN",
-            subtext: "Algoritma sekarang otomatis menghukum akun yang cuma sebar link tanpa edukasi. Kamu buang waktu seharian tapi komisi tetap nol rupiah.",
-            metric: "-92% REACH",
-            highlightKeyword: "SPAM",
-            durationSec: 15,
-            characterEmotion: "skeptical",
-            kineticFx: "Wipe Push Left + Floating Red Question Particles",
-            foleyCue: "0:10 Low Vinyl Scratch + Bass Drop"
-          },
-          {
-            sceneNumber: 3,
-            stageName: "THE BREAKTHROUGH REVEAL",
-            timeRange: "0:25 - 0:40",
-            headline: "GUNAKAN METODE STORY-SELLING 3 BABAK",
-            subtext: "Mulai dari masalah pribadi yang relate, ceritakan momen frustrasi, lalu tunjukkan transformasi nyata produk ini. Penonton beli tanpa merasa dijualin.",
-            metric: "+450% OMSET",
-            highlightKeyword: "TRANSFORMASI",
-            durationSec: 15,
-            characterEmotion: "celebrate",
-            kineticFx: "Dynamic Glowing SVG Curve Path + Rocket Sparkles",
-            foleyCue: "0:25 Cash Register Chime + Rising Synth"
-          },
-          {
-            sceneNumber: 4,
-            stageName: "THE INFINITE LOOP CTA",
-            timeRange: "0:40 - 0:52",
-            headline: "SIMPAN VIDEO INI BIAR NGGAK BINGUNG",
-            subtext: "Biar kamu bisa tiru polanya pas bikin konten besok pagi... Dan kamu bakal paham kenapa...",
-            metric: "ACTION! 🚀",
-            highlightKeyword: "SIMPAN",
-            durationSec: 12,
-            characterEmotion: "point-cta",
-            kineticFx: "Pulsating Bookmark Ring + Seamless Loop Match Cut",
-            foleyCue: "0:40 Clean Glass Bell Ding + Ambient Fade Out"
-          }
-        ]
-      };
-    } else {
-      return {
-        topic: topicIdea,
-        wordCount: 68,
-        estimatedVoiceSeconds: 27,
-        isTooLong: false,
-        totalDurationSec: 26,
-        retentionFormula: "3 Hukum Fisika Visual + Character Emotion Resonance + Word-by-Word Highlight",
-        scenes: [
-          {
-            sceneNumber: 1,
-            stageName: "THE SHOCK HOOK",
-            timeRange: "0:00 - 0:06",
-            headline: "KENAPA AFFILIATE KAMU MASIH SEPI?",
-            subtext: "Bukan kurang produk, tapi caramu promosi bikin orang bosan.",
-            metric: "STOP! 🛑",
-            highlightKeyword: "SEPI",
-            durationSec: 6,
-            characterEmotion: "shocked",
-            kineticFx: "Spring Punch Scale 1.2x + Alert Aura Halo",
-            foleyCue: "0:00 Fast Whoosh + Heavy Sub-Bass Thud"
-          },
-          {
-            sceneNumber: 2,
-            stageName: "THE PAIN AGITATION",
-            timeRange: "0:06 - 0:13",
-            headline: "JANGAN CUMA SPAM LINK DI KOMENTAR",
-            subtext: "Penonton butuh alasan kuat kenapa mereka harus beli sekarang juga.",
-            metric: "-80% REPUTASI",
-            highlightKeyword: "SPAM",
-            durationSec: 7,
-            characterEmotion: "skeptical",
-            kineticFx: "Wipe Push Left + Floating Red Question Particles",
-            foleyCue: "0:06 Low Vinyl Scratch"
-          },
-          {
-            sceneNumber: 3,
-            stageName: "THE BREAKTHROUGH REVEAL",
-            timeRange: "0:13 - 0:20",
-            headline: "PAKAI POLA CERITA SEBELUM JUALAN",
-            subtext: "Tunjukkan masalah nyata, lalu beri solusi produk sebagai penyelamat.",
-            metric: "+320% CONVERSION",
-            highlightKeyword: "SOLUSI",
-            durationSec: 7,
-            characterEmotion: "celebrate",
-            kineticFx: "Dynamic Glowing SVG Curve Path + Rocket Sparkles",
-            foleyCue: "0:13 Cash Chime"
-          },
-          {
-            sceneNumber: 4,
-            stageName: "THE INFINITE LOOP CTA",
-            timeRange: "0:20 - 0:26",
-            headline: "SIMPAN VIDEO INI DAN COBA BESOK",
-            subtext: "Biar kamu nggak bingung lagi pas mau upload video baru...",
-            metric: "SAVE! ✨",
-            highlightKeyword: "SIMPAN",
-            durationSec: 6,
-            characterEmotion: "point-cta",
-            kineticFx: "Pulsating Bookmark Ring + Loop Cut",
-            foleyCue: "0:20 Clean Glass Bell"
-          }
-        ]
-      };
-    }
-  }
+  const selectedQuote = vault.legendaryQuotes[seed % vault.legendaryQuotes.length];
+  const selectedFact = vault.authorityFacts[(seed + 1) % vault.authorityFacts.length];
+  const selectedHook = vault.psychologicalHooks[(seed + 2) % vault.psychologicalHooks.length];
+  const selectedSolution = vault.actionSolutions[(seed + 3) % vault.actionSolutions.length];
+  const selectedCta = vault.ctaLoops[(seed + 4) % vault.ctaLoops.length];
 
-  // Niche 2: Kopi / Kuliner / F&B
-  if (lowerIdea.includes("kopi") || lowerIdea.includes("coffee") || lowerIdea.includes("barista") || lowerIdea.includes("seduh") || lowerIdea.includes("kuliner") || lowerIdea.includes("masak")) {
-    if (is55s) {
-      return {
-        topic: topicIdea,
-        wordCount: 130,
-        estimatedVoiceSeconds: 52,
-        isTooLong: false,
-        totalDurationSec: 52,
-        retentionFormula: "3 Hukum Fisika Visual + Character Emotion Resonance + Word-by-Word Highlight",
-        scenes: [
-          {
-            sceneNumber: 1,
-            stageName: "THE SHOCK HOOK",
-            timeRange: "0:00 - 0:10",
-            headline: "RAHASIA KOPI CAFE TANPA MESIN MAHAL",
-            subtext: "Banyak orang buang uang jutaan beli alat mahal, padahal rasa kopinya tetap pahit gosong dan asam nggak seimbang.",
-            metric: "STOP BOROS! ☕",
-            highlightKeyword: "RAHASIA",
-            durationSec: 10,
-            characterEmotion: "shocked",
-            kineticFx: "Spring Punch Scale 1.2x + Alert Aura Halo",
-            foleyCue: "0:00 Fast Whoosh + Water Kettle Steam"
-          },
-          {
-            sceneNumber: 2,
-            stageName: "THE PAIN AGITATION",
-            timeRange: "0:10 - 0:25",
-            headline: "SUHU AIR MENDIDIH MERUSAK BIJI KOPI",
-            subtext: "Air 100 derajat Celsius membakar minyak alami kopi. Hasilnya aroma wangi hilang total dan cuma menyisakan rasa getir di tenggorokan.",
-            metric: "90°C IDEAL",
-            highlightKeyword: "MENDIDIH",
-            durationSec: 15,
-            characterEmotion: "skeptical",
-            kineticFx: "Wipe Push Left + Floating Ember Particles",
-            foleyCue: "0:10 Low Hum + Ceramic Cup Clink"
-          },
-          {
-            sceneNumber: 3,
-            stageName: "THE BREAKTHROUGH REVEAL",
-            timeRange: "0:25 - 0:40",
-            headline: "GUNAKAN METODE BLOOMING 45 DETIK",
-            subtext: "Tuang 30ml air suhu 90 derajat, diamkan 45 detik agar gas karbon dioksida keluar. Rasa kopi kamu bakal manis alami, fruity, dan bertekstur lembut.",
-            metric: "100% SWEETNESS",
-            highlightKeyword: "BLOOMING",
-            durationSec: 15,
-            characterEmotion: "celebrate",
-            kineticFx: "Dynamic Glowing SVG Curve Path + Coffee Aroma Swirls",
-            foleyCue: "0:25 Harmonic Bell + Warm Ambient Swell"
-          },
-          {
-            sceneNumber: 4,
-            stageName: "THE INFINITE LOOP CTA",
-            timeRange: "0:40 - 0:52",
-            headline: "SIMPAN CARA INI SEBELUM NYEDUH BESOK",
-            subtext: "Biar kamu nggak gagal lagi waktu bikin kopi di rumah... Karena rahasia sebenarnya...",
-            metric: "SAVE! ✨",
-            highlightKeyword: "SIMPAN",
-            durationSec: 12,
-            characterEmotion: "point-cta",
-            kineticFx: "Pulsating Bookmark Ring + Seamless Loop Match Cut",
-            foleyCue: "0:40 Clean Glass Bell Ding + Ambient Fade Out"
-          }
-        ]
-      };
-    }
-  }
+  const duration1 = is55s ? 10 : 6;
+  const duration2 = is55s ? 15 : 7;
+  const duration3 = is55s ? 15 : 7;
+  const duration4 = is55s ? 12 : 6;
+  const totalDuration = duration1 + duration2 + duration3 + duration4;
 
-  // Niche 3: Finansial / Investasi / Gaji / Menabung
-  if (lowerIdea.includes("gaji") || lowerIdea.includes("investasi") || lowerIdea.includes("uang") || lowerIdea.includes("menabung") || lowerIdea.includes("saham") || lowerIdea.includes("finansial") || lowerIdea.includes("kaya") || lowerIdea.includes("hemat")) {
-    if (is55s) {
-      return {
-        topic: topicIdea,
-        wordCount: 134,
-        estimatedVoiceSeconds: 54,
-        isTooLong: false,
-        totalDurationSec: 52,
-        retentionFormula: "3 Hukum Fisika Visual + Character Emotion Resonance + Word-by-Word Highlight",
-        scenes: [
-          {
-            sceneNumber: 1,
-            stageName: "THE SHOCK HOOK",
-            timeRange: "0:00 - 0:10",
-            headline: "KENAPA GAJI SELALU HABIS DI TANGGAL 10?",
-            subtext: "Bukan karena penghasilan kamu kekecilan, tapi karena ada kebocoran halus di rekeningmu yang nggak pernah kamu catat.",
-            metric: "STOP BOCOR! 🛑",
-            highlightKeyword: "HABIS",
-            durationSec: 10,
-            characterEmotion: "shocked",
-            kineticFx: "Spring Punch Scale 1.2x + Alert Aura Halo",
-            foleyCue: "0:00 Fast Whoosh + Heavy Sub-Bass Thud"
-          },
-          {
-            sceneNumber: 2,
-            stageName: "THE PAIN AGITATION",
-            timeRange: "0:10 - 0:25",
-            headline: "LIFESTYLE INFLATION MENJEBAK TABUNGAN",
-            subtext: "Gaji naik 1 juta, pengeluaran kopi dan nongkrong ikut naik 1.5 juta. Di akhir bulan saldo kembali nol dan kamu tetap merasa miskin.",
-            metric: "-85% BOCOR",
-            highlightKeyword: "JEBAKAN",
-            durationSec: 15,
-            characterEmotion: "skeptical",
-            kineticFx: "Wipe Push Left + Floating Red Question Particles",
-            foleyCue: "0:10 Camera Shutter Snap + Low Vinyl Scratch"
-          },
-          {
-            sceneNumber: 3,
-            stageName: "THE BREAKTHROUGH REVEAL",
-            timeRange: "0:25 - 0:40",
-            headline: "TERAPKAN SISTEM 3 REKENING OTOMATIS",
-            subtext: "Begitu gajian masuk: 50% pos hidup, 30% investasi autodebet, 20% uang senang-senang. Rekening tabungan dikunci tanpa kartu debit fisik.",
-            metric: "+300% AMAN",
-            highlightKeyword: "AUTODEBET",
-            durationSec: 15,
-            characterEmotion: "celebrate",
-            kineticFx: "Dynamic Glowing SVG Curve Path + Rocket Sparkles",
-            foleyCue: "0:25 Harmonic Synth Swell + Crisp Cash Chime"
-          },
-          {
-            sceneNumber: 4,
-            stageName: "THE INFINITE LOOP CTA",
-            timeRange: "0:40 - 0:52",
-            headline: "SIMPAN VIDEO INI BIAR GAJI AMAN",
-            subtext: "Biar kamu nggak panik lagi pas mulai awal bulan depan... Karena kalau kamu perhatikan lagi...",
-            metric: "SAVE! ✨",
-            highlightKeyword: "SIMPAN",
-            durationSec: 12,
-            characterEmotion: "point-cta",
-            kineticFx: "Pulsating Bookmark Ring + Seamless Loop Match Cut",
-            foleyCue: "0:40 Clean Glass Bell Ding + Ambient Fade Out"
-          }
-        ]
-      };
-    }
-  }
-
-  // Niche 4: Skincare / Beauty / Glowing
-  if (lowerIdea.includes("skincare") || lowerIdea.includes("kulit") || lowerIdea.includes("jerawat") || lowerIdea.includes("retinol") || lowerIdea.includes("glowing") || lowerIdea.includes("serum") || lowerIdea.includes("wajah") || lowerIdea.includes("beauty")) {
-    if (is55s) {
-      return {
-        topic: topicIdea,
-        wordCount: 128,
-        estimatedVoiceSeconds: 52,
-        isTooLong: false,
-        totalDurationSec: 52,
-        retentionFormula: "3 Hukum Fisika Visual + Character Emotion Resonance + Word-by-Word Highlight",
-        scenes: [
-          {
-            sceneNumber: 1,
-            stageName: "THE SHOCK HOOK",
-            timeRange: "0:00 - 0:10",
-            headline: "STOP PAKAI RETINOL KALAU MASIH KELIRU",
-            subtext: "Alih-alih kulit halus glowing, skin barrier kamu malah bisa rusak parah, mengelupas, dan memicu breakout jerawat semuka.",
-            metric: "BAHAYA! ⚠️",
-            highlightKeyword: "KELIRU",
-            durationSec: 10,
-            characterEmotion: "shocked",
-            kineticFx: "Spring Punch Scale 1.2x + Alert Aura Halo",
-            foleyCue: "0:00 Fast Whoosh + Heartbeat Sub-Bass"
-          },
-          {
-            sceneNumber: 2,
-            stageName: "THE PAIN AGITATION",
-            timeRange: "0:10 - 0:25",
-            headline: "KULIT DEHIDRASI TIDAK BOLEH DIAKTIFKAN",
-            subtext: "Memakai bahan aktif konsentrasi tinggi pada kulit yang belum terhidrasi sama saja membakar benteng pertahanan alami kulitmu sendiri.",
-            metric: "RUSAK TOTAL",
-            highlightKeyword: "DEHIDRASI",
-            durationSec: 15,
-            characterEmotion: "skeptical",
-            kineticFx: "Wipe Push Left + Warning Flare Particles",
-            foleyCue: "0:10 Low Drone + Crackle Audio"
-          },
-          {
-            sceneNumber: 3,
-            stageName: "THE BREAKTHROUGH REVEAL",
-            timeRange: "0:25 - 0:40",
-            headline: "GUNAKAN METODE SANDWICH TECHNIQUE",
-            subtext: "Oles pelembab tipis dahulu, beri satu tetes bahan aktif, lalu tutup rapat kembali dengan ceramide moisturizer. Hasilnya halus tanpa purging!",
-            metric: "+400% GLOW",
-            highlightKeyword: "SANDWICH",
-            durationSec: 15,
-            characterEmotion: "celebrate",
-            kineticFx: "Dynamic Glowing SVG Curve Path + Sparkle Glow",
-            foleyCue: "0:25 Crystalline Water Drop Chime"
-          },
-          {
-            sceneNumber: 4,
-            stageName: "THE INFINITE LOOP CTA",
-            timeRange: "0:40 - 0:52",
-            headline: "SIMPAN INI SEBELUM RUTINITAS MALAM",
-            subtext: "Biar skin barrier kamu tetap aman dan terlindungi setiap malam... Karena kesalahan terbesarnya...",
-            metric: "GLOW! 🌸",
-            highlightKeyword: "SIMPAN",
-            durationSec: 12,
-            characterEmotion: "point-cta",
-            kineticFx: "Pulsating Bookmark Ring + Seamless Loop Match Cut",
-            foleyCue: "0:40 Clean Glass Bell Ding + Ambient Fade Out"
-          }
-        ]
-      };
-    }
-  }
-
-  // Niche 5: Gadget / Tech / HP / AI
-  if (lowerIdea.includes("gadget") || lowerIdea.includes("hp") || lowerIdea.includes("iphone") || lowerIdea.includes("android") || lowerIdea.includes("laptop") || lowerIdea.includes("tech") || lowerIdea.includes("ai")) {
-    if (is55s) {
-      return {
-        topic: topicIdea,
-        wordCount: 130,
-        estimatedVoiceSeconds: 52,
-        isTooLong: false,
-        totalDurationSec: 52,
-        retentionFormula: "3 Hukum Fisika Visual + Character Emotion Resonance + Word-by-Word Highlight",
-        scenes: [
-          {
-            sceneNumber: 1,
-            stageName: "THE SHOCK HOOK",
-            timeRange: "0:00 - 0:10",
-            headline: "JANGAN BELI HP FLAGSHIP KARENA GENGSI",
-            subtext: "Banyak orang rela bayar 15 juta demi embel-embel kamera pro, padahal kebutuhan hariannya cuma untuk scroll medsos dan video call.",
-            metric: "RUGI! 📱",
-            highlightKeyword: "GENGSI",
-            durationSec: 10,
-            characterEmotion: "shocked",
-            kineticFx: "Spring Punch Scale 1.2x + Alert Aura Halo",
-            foleyCue: "0:00 Fast Whoosh + Heavy Sub-Bass Thud"
-          },
-          {
-            sceneNumber: 2,
-            stageName: "THE PAIN AGITATION",
-            timeRange: "0:10 - 0:25",
-            headline: "FITUR MAHAL SERINGKALI CUMA GIMMICK",
-            subtext: "Chipset flagship sering panas dan menguras baterai cepat. Kamu buang jutaan rupiah untuk performa grafis yang nggak pernah kamu pakai.",
-            metric: "75% GIMMICK",
-            highlightKeyword: "BOROS",
-            durationSec: 15,
-            characterEmotion: "skeptical",
-            kineticFx: "Wipe Push Left + Glitch Static Scanlines",
-            foleyCue: "0:10 Digital Glitch + Low Electric Hum"
-          },
-          {
-            sceneNumber: 3,
-            stageName: "THE BREAKTHROUGH REVEAL",
-            timeRange: "0:25 - 0:40",
-            headline: "PILIH MID-RANGE DENGAN CHIPSET EFISIEN",
-            subtext: "Layar AMOLED 120Hz, baterai 5000 mAh, dan optimasi software stabil adalah kombinasi sempurna. Hemat 8 juta rupiah dengan performa tetap ngebut!",
-            metric: "BEST VALUE",
-            highlightKeyword: "EFISIEN",
-            durationSec: 15,
-            characterEmotion: "celebrate",
-            kineticFx: "Dynamic Glowing SVG Curve Path + Cyber Circuit Sparks",
-            foleyCue: "0:25 High-Tech Confirmation Chime"
-          },
-          {
-            sceneNumber: 4,
-            stageName: "THE INFINITE LOOP CTA",
-            timeRange: "0:40 - 0:52",
-            headline: "SIMPAN INI SEBELUM KAMU KELUAR DUIT",
-            subtext: "Biar kamu nggak nyesel salah beli gadget di tanggal gajian nanti... Karena kalau kamu pikir lagi...",
-            metric: "CERDAS! 💡",
-            highlightKeyword: "SIMPAN",
-            durationSec: 12,
-            characterEmotion: "point-cta",
-            kineticFx: "Pulsating Bookmark Ring + Seamless Loop Match Cut",
-            foleyCue: "0:40 Clean Glass Bell Ding + Ambient Fade Out"
-          }
-        ]
-      };
-    }
-  }
-
-  // --- GENERAL DYNAMIC CREATOR SYNTHESIZER (55s & 26s) ---
-  const cleanTopicUpper = topicIdea.toUpperCase().trim();
-  const titleWords = cleanTopicUpper.split(/\s+/);
-  const hookHeadline = titleWords.length > 5 
-    ? `STOP! ${titleWords.slice(0, 5).join(" ")}?`
-    : `STOP! RAHASIA ${cleanTopicUpper}`;
-  const keyWord = titleWords[0] || "RAHASIA";
+  const hookKeywords = topicIdea.toUpperCase().split(/\s+/).filter(w => w.length > 2);
+  const primeKeyword = hookKeywords[0] || "RAHASIA";
 
   if (is55s) {
+    const s1Text = `Banyak orang gagal paham tentang ${topicIdea}. Mereka membuang waktu dan biaya karena terjebak pada cara lama sejak detik pertama.`;
+    const s2Text = `${selectedFact} Kesalahan terbesar adalah memaksakan hasil instan tanpa memahami sistem dan pola kerja yang benar.`;
+    const s3Text = `Seperti kata ${selectedQuote.author}: "${selectedQuote.quote}". ${selectedSolution}`;
+    const s4Text = `${selectedCta}`;
+
+    const fullScript = `${selectedHook} ${s1Text} ${s2Text} ${s3Text} ${s4Text}`;
+    const totalWords = fullScript.split(/\s+/).filter(Boolean).length;
+
     return {
       topic: topicIdea,
-      wordCount: 129,
-      estimatedVoiceSeconds: 52,
+      vaultUsed: {
+        id: vault.id,
+        name: vault.name,
+        badge: vault.badge,
+        quoteSnippet: `"${selectedQuote.quote}" — ${selectedQuote.author}`,
+        authorSnippet: selectedQuote.author
+      },
+      wordCount: totalWords,
+      estimatedVoiceSeconds: Math.round(totalWords / 2.4),
       isTooLong: false,
-      totalDurationSec: 52,
+      totalDurationSec: totalDuration,
       retentionFormula: "3 Hukum Fisika Visual + Character Emotion Resonance + Word-by-Word Highlight",
       scenes: [
         {
           sceneNumber: 1,
           stageName: "THE SHOCK HOOK",
-          timeRange: "0:00 - 0:10",
-          headline: hookHeadline.length > 34 ? hookHeadline.slice(0, 34) + "..." : hookHeadline,
-          subtext: `Hampir 90% orang salah langkah waktu memulai ${topicIdea}, karena mereka fokus pada hal yang keliru sejak detik pertama.`,
+          timeRange: `0:00 - 0:${duration1 < 10 ? "0" + duration1 : duration1}`,
+          headline: selectedHook,
+          subtext: s1Text,
           metric: "PERHATIKAN! 🛑",
-          highlightKeyword: keyWord,
-          durationSec: 10,
+          highlightKeyword: primeKeyword,
+          durationSec: duration1,
           characterEmotion: "shocked",
           kineticFx: "Spring Punch Scale 1.2x + Alert Aura Halo",
           foleyCue: "0:00 Fast Whoosh + Heavy Sub-Bass Thud"
@@ -1624,62 +1256,77 @@ export function buildMultiSceneStoryPrompt(params: MultiSceneStoryParams): Multi
         {
           sceneNumber: 2,
           stageName: "THE PAIN AGITATION",
-          timeRange: "0:10 - 0:25",
-          headline: "KESALAHAN FATAL YANG MEMBUAT GAGAL",
-          subtext: "Terlalu banyak teori rumit yang bikin kamu overwhelm dan berhenti di tengah jalan. Padahal kuncinya ada pada konsistensi sistem sederhana.",
-          metric: "-80% HAMBATAN",
-          highlightKeyword: "FATAL",
-          durationSec: 15,
+          timeRange: `0:${duration1 < 10 ? "0" + duration1 : duration1} - 0:${duration1 + duration2}`,
+          headline: "FAKTA YANG SERING DIABAIKAN",
+          subtext: s2Text,
+          metric: "JEBAKAN! ⚠️",
+          highlightKeyword: "JEBAKAN",
+          durationSec: duration2,
           characterEmotion: "skeptical",
           kineticFx: "Wipe Push Left + Floating Red Question Particles",
-          foleyCue: "0:10 Camera Shutter Snap + Low Vinyl Scratch"
+          foleyCue: `0:${duration1} Camera Shutter Snap + Low Vinyl Scratch`
         },
         {
           sceneNumber: 3,
           stageName: "THE BREAKTHROUGH REVEAL",
-          timeRange: "0:25 - 0:40",
-          headline: "TERAPKAN ATURAN 80/20 HARI INI",
-          subtext: "Fokus hanya pada 20% tindakan inti yang mendatangkan 80% dampak terbesar. Kurangi distraksi, eksekusi setiap hari tanpa alasan.",
+          timeRange: `0:${duration1 + duration2} - 0:${duration1 + duration2 + duration3}`,
+          headline: "SOLUSI DAN PRINSIP EMAS",
+          subtext: s3Text,
           metric: "+350% HASIL",
-          highlightKeyword: "ATURAN",
-          durationSec: 15,
+          highlightKeyword: "SOLUSI",
+          durationSec: duration3,
           characterEmotion: "celebrate",
           kineticFx: "Dynamic Glowing SVG Curve Path + Rocket Sparkles",
-          foleyCue: "0:25 Harmonic Synth Swell + Crisp Cash Chime"
+          foleyCue: `0:${duration1 + duration2} Harmonic Synth Swell + Crisp Cash Chime`
         },
         {
           sceneNumber: 4,
           stageName: "THE INFINITE LOOP CTA",
-          timeRange: "0:40 - 0:52",
-          headline: "SIMPAN VIDEO INI DAN MULAI SEKARANG",
-          subtext: "Biar kamu nggak bingung lagi waktu mau mulai besok pagi... Dan kamu bakal sadar...",
+          timeRange: `0:${duration1 + duration2 + duration3} - 0:${totalDuration}`,
+          headline: "SIMPAN VIDEO INI SEKARANG",
+          subtext: s4Text,
           metric: "SAVE! ✨",
           highlightKeyword: "SIMPAN",
-          durationSec: 12,
+          durationSec: duration4,
           characterEmotion: "point-cta",
           kineticFx: "Pulsating Bookmark Ring + Seamless Loop Match Cut",
-          foleyCue: "0:40 Clean Glass Bell Ding + Ambient Fade Out"
+          foleyCue: `0:${duration1 + duration2 + duration3} Clean Glass Bell Ding + Ambient Fade Out`
         }
       ]
     };
   } else {
     // 26s Express Mode
+    const s1Text = `90% orang salah langkah tentang ${topicIdea} sebelum nonton video ini.`;
+    const s2Text = `${selectedFact.slice(0, 75)}...`;
+    const s3Text = `${selectedQuote.author}: "${selectedQuote.quote.slice(0, 55)}..." ${selectedSolution.slice(0, 50)}...`;
+    const s4Text = `${selectedCta}`;
+
+    const fullScript = `${selectedHook} ${s1Text} ${s2Text} ${s3Text} ${s4Text}`;
+    const totalWords = fullScript.split(/\s+/).filter(Boolean).length;
+
     return {
       topic: topicIdea,
-      wordCount: 65,
-      estimatedVoiceSeconds: 26,
+      vaultUsed: {
+        id: vault.id,
+        name: vault.name,
+        badge: vault.badge,
+        quoteSnippet: `"${selectedQuote.quote}" — ${selectedQuote.author}`,
+        authorSnippet: selectedQuote.author
+      },
+      wordCount: totalWords,
+      estimatedVoiceSeconds: Math.round(totalWords / 2.4),
       isTooLong: false,
-      totalDurationSec: 26,
+      totalDurationSec: totalDuration,
       retentionFormula: "3 Hukum Fisika Visual + Character Emotion Resonance + Word-by-Word Highlight",
       scenes: [
         {
           sceneNumber: 1,
           stageName: "THE SHOCK HOOK",
-          timeRange: "0:00 - 0:06",
-          headline: hookHeadline.length > 30 ? hookHeadline.slice(0, 30) + "..." : hookHeadline,
-          subtext: `90% orang salah paham tentang ${topicIdea} sebelum nonton video ini sampai habis.`,
+          timeRange: `0:00 - 0:06`,
+          headline: selectedHook.length > 32 ? selectedHook.slice(0, 32) + "..." : selectedHook,
+          subtext: s1Text,
           metric: "STOP! 🛑",
-          highlightKeyword: keyWord,
+          highlightKeyword: primeKeyword,
           durationSec: 6,
           characterEmotion: "shocked",
           kineticFx: "Spring Punch Scale 1.2x + Alert Aura Halo",
@@ -1688,11 +1335,11 @@ export function buildMultiSceneStoryPrompt(params: MultiSceneStoryParams): Multi
         {
           sceneNumber: 2,
           stageName: "THE PAIN AGITATION",
-          timeRange: "0:06 - 0:13",
-          headline: "BUKAN KARENA KURANG KERJA KERAS",
-          subtext: "Tapi karena metodemu salah arah dan membuang banyak waktu percuma.",
-          metric: "-85% BOCOR",
-          highlightKeyword: "SALAH",
+          timeRange: `0:06 - 0:13`,
+          headline: "KENDALA DAN JEBAKAN",
+          subtext: s2Text,
+          metric: "-80% RISIKO",
+          highlightKeyword: "JEBAKAN",
           durationSec: 7,
           characterEmotion: "skeptical",
           kineticFx: "Wipe Push Left + Floating Red Question Particles",
@@ -1701,11 +1348,11 @@ export function buildMultiSceneStoryPrompt(params: MultiSceneStoryParams): Multi
         {
           sceneNumber: 3,
           stageName: "THE BREAKTHROUGH REVEAL",
-          timeRange: "0:13 - 0:20",
-          headline: "UBAH CARA KERJA JADI LEBIH CERDAS",
-          subtext: "Otomasi hal-hal kecil, fokus pada hasil akhir bernilai tinggi.",
+          timeRange: `0:13 - 0:20`,
+          headline: "KUNCI SOLUSI CERDAS",
+          subtext: s3Text,
           metric: "+300% HASIL",
-          highlightKeyword: "CERDAS",
+          highlightKeyword: "SOLUSI",
           durationSec: 7,
           characterEmotion: "celebrate",
           kineticFx: "Dynamic Glowing SVG Curve Path + Rocket Sparkles",
@@ -1714,9 +1361,9 @@ export function buildMultiSceneStoryPrompt(params: MultiSceneStoryParams): Multi
         {
           sceneNumber: 4,
           stageName: "THE INFINITE LOOP CTA",
-          timeRange: "0:20 - 0:26",
-          headline: "SIMPAN VIDEO INI BIAR NGGAK LUPA",
-          subtext: "Biar kamu bisa praktekkan langsung pas mulai besok pagi...",
+          timeRange: `0:20 - 0:26`,
+          headline: "SIMPAN BIAR NGGAK LUPA",
+          subtext: s4Text,
           metric: "SAVE! ✨",
           highlightKeyword: "SIMPAN",
           durationSec: 6,
