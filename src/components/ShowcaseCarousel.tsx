@@ -1,0 +1,279 @@
+"use client";
+
+import { useState } from "react";
+import { SHOWCASE_ITEMS, ShowcaseItem } from "@/data/showcase";
+import {
+  Copy,
+  Check,
+  Play,
+  Pause,
+  Sparkles,
+  Maximize2,
+  X,
+  ExternalLink,
+  ChevronLeft,
+  ChevronRight
+} from "lucide-react";
+
+export default function ShowcaseCarousel() {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [activeItem, setActiveItem] = useState<ShowcaseItem | null>(null);
+  const [activePlaying, setActivePlaying] = useState<Record<string, boolean>>({
+    [SHOWCASE_ITEMS[0].id]: true
+  });
+
+  const handleCopy = async (id: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2500);
+    } catch (err) {
+      console.error("Gagal menyalin:", err);
+    }
+  };
+
+  const togglePlay = (id: string) => {
+    setActivePlaying((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  return (
+    <section id="showcase" className="py-12 md:py-20 relative">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Section Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-[#d4f933]/30 bg-[#d4f933]/10 px-3 py-1 text-xs font-mono font-medium text-[#d4f933] mb-3">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>LIVE REVERSE-ENGINEERED SHOWCASE</span>
+            </div>
+            <h2 className="font-mono text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight">
+              Populer di <span className="text-[#d4f933]">Cariprompt</span>
+            </h2>
+            <p className="mt-2 text-sm text-zinc-400 max-w-xl">
+              Lihat bagaimana AI vision kami mengekstrak video dan poster menjadi instruksi prompt sinematik siap eksekusi di Google Flow (Veo & Imagen 3) dan AI tools lainnya.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 self-start md:self-auto text-xs font-mono text-zinc-400">
+            <span>Geser untuk eksplorasi</span>
+            <ChevronRight className="h-4 w-4 text-[#d4f933]" />
+          </div>
+        </div>
+
+        {/* Carousel Container (Horizontal Scroll with Snap) */}
+        <div className="flex gap-5 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+          {SHOWCASE_ITEMS.map((item) => {
+            const isCopied = copiedId === item.id;
+            const isPlaying = activePlaying[item.id] ?? false;
+
+            return (
+              <div
+                key={item.id}
+                className="w-[280px] sm:w-[320px] md:w-[340px] shrink-0 snap-start rounded-2xl border border-white/10 bg-[#12141a]/90 overflow-hidden flex flex-col group hover:border-[#d4f933]/40 transition-all duration-300 shadow-xl"
+              >
+                {/* Media Container (9:16 Aspect) */}
+                <div className="relative aspect-[9/13] w-full bg-zinc-950 overflow-hidden">
+                  {item.media_type === "video" ? (
+                    <video
+                      src={item.media_url}
+                      className="h-full w-full object-cover"
+                      playsInline
+                      muted
+                      loop
+                      autoPlay={isPlaying}
+                      onClick={() => togglePlay(item.id)}
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={item.media_url}
+                      alt={item.label}
+                      className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  )}
+
+                  {/* Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#12141a] via-transparent to-black/40 pointer-events-none" />
+
+                  {/* Label Badge */}
+                  <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 px-2.5 py-1 text-[11px] font-mono text-white">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#d4f933] animate-pulse" />
+                    <span>{item.label}</span>
+                  </div>
+
+                  {/* Expand / View Details Button */}
+                  <button
+                    onClick={() => setActiveItem(item)}
+                    className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 backdrop-blur-md text-white border border-white/10 hover:bg-[#d4f933] hover:text-black transition-colors"
+                    title="Buka detail prompt"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  </button>
+
+                  {/* Play / Pause Toggle for Video */}
+                  {item.media_type === "video" && (
+                    <button
+                      onClick={() => togglePlay(item.id)}
+                      className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/70 backdrop-blur-md text-white border border-white/10 hover:scale-110 transition-transform"
+                    >
+                      {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 fill-white ml-0.5" />}
+                    </button>
+                  )}
+                </div>
+
+                {/* Content Container */}
+                <div className="p-4 flex-1 flex flex-col justify-between border-t border-white/5 bg-[#12141a]">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+                        PROMPT PREVIEW
+                      </span>
+                      <span className="text-[10px] font-mono text-[#d4f933]">
+                        Google Flow Ready
+                      </span>
+                    </div>
+                    <p className="line-clamp-3 text-xs leading-relaxed text-zinc-300 font-mono">
+                      {item.prompt}
+                    </p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="mt-4 pt-3 border-t border-white/5 flex items-center gap-2">
+                    <button
+                      onClick={() => handleCopy(item.id, item.prompt)}
+                      className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 px-3 text-xs font-mono font-semibold transition-all ${
+                        isCopied
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                          : "bg-[#d4f933] text-black hover:bg-[#e2fb5f] shadow-md shadow-[#d4f933]/15"
+                      }`}
+                    >
+                      {isCopied ? (
+                        <>
+                          <Check className="h-3.5 w-3.5" />
+                          <span>Disalin!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3.5 w-3.5" />
+                          <span>Salin Prompt</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setActiveItem(item)}
+                      className="flex items-center justify-center rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 text-xs text-zinc-300 hover:bg-white/10"
+                      title="Lihat detail lengkap"
+                    >
+                      Detail
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Full Detail Modal */}
+      {activeItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-4xl max-h-[90vh] rounded-2xl border border-white/15 bg-[#12141a] shadow-2xl overflow-hidden flex flex-col md:flex-row">
+            {/* Media Column */}
+            <div className="relative md:w-1/2 aspect-[9/13] md:aspect-auto bg-black flex items-center justify-center overflow-hidden">
+              {activeItem.media_type === "video" ? (
+                <video
+                  src={activeItem.media_url}
+                  className="h-full w-full object-contain max-h-[60vh] md:max-h-full"
+                  controls
+                  autoPlay
+                  playsInline
+                  loop
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={activeItem.media_url}
+                  alt={activeItem.label}
+                  className="h-full w-full object-contain max-h-[60vh] md:max-h-full"
+                />
+              )}
+            </div>
+
+            {/* Prompt & Info Column */}
+            <div className="p-6 md:w-1/2 flex flex-col justify-between overflow-y-auto max-h-[50vh] md:max-h-[85vh]">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded bg-[#d4f933]/10 border border-[#d4f933]/30 px-2 py-0.5 text-xs font-mono font-bold text-[#d4f933]">
+                      {activeItem.label}
+                    </span>
+                    <span className="text-xs font-mono text-zinc-400">
+                      Format: {activeItem.media_type.toUpperCase()}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setActiveItem(null)}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-zinc-300 hover:text-white"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="mb-4">
+                  <h3 className="font-mono text-sm font-bold text-white mb-2 flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4 text-[#d4f933]" />
+                    <span>Hasil Rekonstruksi Prompt Sinematik:</span>
+                  </h3>
+                  <div className="rounded-xl border border-white/10 bg-black/60 p-4 font-mono text-xs leading-relaxed text-zinc-200 select-all whitespace-pre-wrap max-h-72 overflow-y-auto">
+                    {activeItem.prompt}
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-xl bg-white/5 p-3 text-[11px] font-mono text-zinc-400">
+                  <div className="flex items-center justify-between">
+                    <span>Target Generator Utama:</span>
+                    <span className="text-[#d4f933] font-bold">Google Flow (Veo / Imagen 3)</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Kompatibilitas Tambahan:</span>
+                    <span className="text-zinc-300">Kling AI, Midjourney v6.1, Sora</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="mt-6 pt-4 border-t border-white/10 flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => handleCopy("modal-" + activeItem.id, activeItem.prompt)}
+                  className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-mono font-bold transition-all ${
+                    copiedId === "modal-" + activeItem.id
+                      ? "bg-emerald-500 text-black shadow-lg"
+                      : "bg-[#d4f933] text-black hover:bg-[#e2fb5f] shadow-lg shadow-[#d4f933]/20"
+                  }`}
+                >
+                  {copiedId === "modal-" + activeItem.id ? (
+                    <>
+                      <Check className="h-4 w-4" />
+                      <span>Prompt Berhasil Disalin!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4" />
+                      <span>Salin Seluruh Prompt</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveItem(null)}
+                  className="rounded-xl border border-white/10 bg-white/5 py-3 px-4 text-xs font-mono text-zinc-300 hover:bg-white/10"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
