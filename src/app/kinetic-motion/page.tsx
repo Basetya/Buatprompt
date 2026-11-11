@@ -18,7 +18,13 @@ import {
   Eye,
   Film,
   Layers,
-  Wand2
+  Wand2,
+  AlertTriangle,
+  Smile,
+  Zap,
+  Volume2,
+  Clock,
+  FileText
 } from "lucide-react";
 
 interface StoryScene {
@@ -30,6 +36,9 @@ interface StoryScene {
   metric: string;
   highlightKeyword: string;
   durationSec: number;
+  characterEmotion: "shocked" | "skeptical" | "celebrate" | "point-cta";
+  kineticFx: string;
+  foleyCue: string;
 }
 
 const DEFAULT_SCENES: StoryScene[] = [
@@ -41,7 +50,10 @@ const DEFAULT_SCENES: StoryScene[] = [
     subtext: "Hampir semua orang salah paham sebelum nonton video ini sampai habis.",
     metric: "STOP! 🛑",
     highlightKeyword: "HABIS",
-    durationSec: 6
+    durationSec: 6,
+    characterEmotion: "shocked",
+    kineticFx: "Spring Punch Scale 1.2x + Alert Aura Halo",
+    foleyCue: "0:00 Fast Whoosh + Heavy Sub-Bass Thud"
   },
   {
     sceneNumber: 2,
@@ -51,7 +63,10 @@ const DEFAULT_SCENES: StoryScene[] = [
     subtext: "Tapi karena sistem keuanganmu bocor halus tanpa pernah kamu catat.",
     metric: "-85% BOCOR",
     highlightKeyword: "BOCOR",
-    durationSec: 7
+    durationSec: 7,
+    characterEmotion: "skeptical",
+    kineticFx: "Wipe Push Left + Floating Red Question Particles",
+    foleyCue: "0:06 Camera Shutter Snap + Low Vinyl Scratch"
   },
   {
     sceneNumber: 3,
@@ -61,25 +76,33 @@ const DEFAULT_SCENES: StoryScene[] = [
     subtext: "Pisahkan rekening di menit pertama gajian masuk. Tabungan aman 100%.",
     metric: "+300% AMAN",
     highlightKeyword: "OTOMATIS",
-    durationSec: 7
+    durationSec: 7,
+    characterEmotion: "celebrate",
+    kineticFx: "Dynamic Glowing SVG Curve Path + Rocket Sparkles",
+    foleyCue: "0:13 Harmonic Synth Swell + Crisp Cash Chime"
   },
   {
     sceneNumber: 4,
     stageName: "THE INFINITE LOOP CTA",
     timeRange: "0:20 - 0:26",
-    headline: "SAVE VIDEO INI BIAR NGGAK LUPA",
+    headline: "SIMPAN VIDEO INI BIAR NGGAK LUPA",
     subtext: "Biar kamu nggak bingung lagi pas mulai awal bulan depan...",
     metric: "SAVE! ✨",
-    highlightKeyword: "SAVE",
-    durationSec: 6
+    highlightKeyword: "SIMPAN",
+    durationSec: 6,
+    characterEmotion: "point-cta",
+    kineticFx: "Pulsating Bookmark Ring + Seamless Loop Match Cut",
+    foleyCue: "0:20 Clean Glass Bell Ding + Ambient Fade Out"
   }
 ];
 
 export default function KineticMotionPage() {
   const [mode, setMode] = useState<"multi" | "single">("multi");
   const [topicIdea, setTopicIdea] = useState("Kenapa 99% orang gagal menabung & cara memperbaikinya");
+  const [rawScriptInput, setRawScriptInput] = useState("");
   const [scenes, setScenes] = useState<StoryScene[]>(DEFAULT_SCENES);
   const [activeSceneTab, setActiveSceneTab] = useState(0);
+  const [showMascot, setShowMascot] = useState(true);
 
   // Single mode state
   const [singleHeadline, setSingleHeadline] = useState("90% ORANG GAGAL KARENA HAL INI");
@@ -92,30 +115,42 @@ export default function KineticMotionPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordProgress, setRecordProgress] = useState(0);
   const [isGeneratingStory, setIsGeneratingStory] = useState(false);
+  const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
 
-  // Calculate total duration
+  // Word count & pacing calculation
+  const textWords = rawScriptInput.trim()
+    ? rawScriptInput.trim().split(/\s+/).filter((w) => w.length > 0)
+    : topicIdea.trim().split(/\s+/).filter((w) => w.length > 0);
+  const wordCount = textWords.length;
+  const estimatedSeconds = Math.round(wordCount / 2.4);
+  const isPacingOverLimit = wordCount > 135 || estimatedSeconds > 55;
+
   const totalDurationSec = mode === "multi"
     ? scenes.reduce((acc, s) => acc + s.durationSec, 0)
     : singleDuration;
 
-  // Generate 4-Scene Story from 1 Idea
-  const handleGenerateStory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!topicIdea.trim()) return;
+  // Auto Arrange & Script Breakdown
+  const handleArrangeScript = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const targetText = rawScriptInput.trim() || topicIdea.trim();
+    if (!targetText) return;
 
     setIsGeneratingStory(true);
+    setWarningMessage(null);
+
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "multi-scene-story",
-          topicIdea,
+          topicIdea: topicIdea || "Strategi Konten",
+          rawScriptText: rawScriptInput,
           motionStyle,
         }),
       });
@@ -123,7 +158,10 @@ export default function KineticMotionPage() {
       const data = await res.json();
       if (data.scenes && Array.isArray(data.scenes)) {
         setScenes(data.scenes);
-        startTimeRef.current = Date.now(); // restart canvas
+        if (data.warningNotice) {
+          setWarningMessage(data.warningNotice);
+        }
+        startTimeRef.current = Date.now(); // reset animation to 0
       }
     } catch (err) {
       console.error(err);
@@ -132,7 +170,7 @@ export default function KineticMotionPage() {
     }
   };
 
-  // Canvas drawing loop
+  // Canvas drawing loop with Mascot & Dynamic Kinetic Typography
   useEffect(() => {
     if (startTimeRef.current === 0) {
       startTimeRef.current = Date.now();
@@ -173,6 +211,7 @@ export default function KineticMotionPage() {
       let currentHighlight = "";
       let sceneBadge = "● BUATPROMPT KINETIC";
       let sceneLocalProgress = globalProgress;
+      let currentEmotion: "shocked" | "skeptical" | "celebrate" | "point-cta" = "shocked";
       let sceneIndex = 0;
 
       if (mode === "multi") {
@@ -185,6 +224,7 @@ export default function KineticMotionPage() {
             currentSubtext = s.subtext;
             currentMetric = s.metric;
             currentHighlight = s.highlightKeyword;
+            currentEmotion = s.characterEmotion || "shocked";
             sceneBadge = `SCENE ${i + 1}/${scenes.length}: ${s.stageName}`;
             const timeInScene = loopTime - accumulatedTime;
             sceneLocalProgress = timeInScene / s.durationSec;
@@ -194,20 +234,21 @@ export default function KineticMotionPage() {
         }
       }
 
-      // Transition Ease Calculation (Fluid Ease-in / Ease-out across cuts)
-      // When sceneLocalProgress is in the first 0.15, scale from 0.95 -> 1.0
-      const enterEase = Math.min(sceneLocalProgress / 0.15, 1);
+      // Spring overshoot calculation for kinetic entrance
+      const springT = Math.min(sceneLocalProgress * 3.5, 1);
+      const springBounce = 0.88 + Math.sin(springT * Math.PI) * 0.14 * Math.exp(-springT * 2);
+      const enterEase = Math.min(sceneLocalProgress / 0.14, 1);
       const exitEase = sceneLocalProgress > 0.88 ? (1 - sceneLocalProgress) / 0.12 : 1;
-      const transitionScale = 0.96 + enterEase * 0.04 * exitEase;
+      const transitionScale = 0.95 + springBounce * 0.05 * exitEase;
       const transitionAlpha = Math.min(enterEase * exitEase * 1.5, 1);
 
       // 1. Background rendering based on style
       if (motionStyle === "apple-keynote") {
-        ctx.fillStyle = "#090a0f";
+        ctx.fillStyle = "#08090d";
         ctx.fillRect(0, 0, W, H);
 
-        const radial = ctx.createRadialGradient(W / 2, H * 0.4, 10, W / 2, H * 0.4, W * 0.7);
-        radial.addColorStop(0, "rgba(255, 255, 255, 0.05)");
+        const radial = ctx.createRadialGradient(W / 2, H * 0.35, 10, W / 2, H * 0.35, W * 0.7);
+        radial.addColorStop(0, "rgba(255, 255, 255, 0.06)");
         radial.addColorStop(1, "rgba(0, 0, 0, 0)");
         ctx.fillStyle = radial;
         ctx.fillRect(0, 0, W, H);
@@ -254,22 +295,140 @@ export default function KineticMotionPage() {
         });
       }
 
-      // 2. Top Scene Badge & Progress Indicator
+      // 2. Floating 3D Geometric Accents (After Effects Style)
+      const rotAngle = elapsed * 0.8;
+      ctx.save();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+      ctx.lineWidth = 1.5;
+      ctx.translate(W * 0.85, H * 0.22);
+      ctx.rotate(rotAngle);
+      ctx.strokeRect(-25, -25, 50, 50);
+      ctx.restore();
+
+      // 3. Top Scene Badge & Progress Indicator
       ctx.save();
       ctx.font = "600 18px monospace";
-      ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
-      ctx.fillText(sceneBadge, 60, 100);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+      ctx.fillText(sceneBadge, 60, 95);
 
       if (motionStyle === "cyber-hud") {
         const timecode = `TC 00:0${Math.floor(elapsed)}:${Math.floor((elapsed % 1) * 30).toString().padStart(2, "0")}`;
         ctx.textAlign = "right";
-        ctx.fillText(timecode, W - 60, 100);
+        ctx.fillText(timecode, W - 60, 95);
       }
       ctx.restore();
 
-      // 3. Dynamic Animated Headline with Word-by-Word Highlight
+      // 4. ANIMATED MASCOT / 3D VECTOR AVATAR (Interactive & Reactive)
+      if (showMascot) {
+        ctx.save();
+        const mascotX = W / 2;
+        // Floating hover bobbing motion
+        const mascotBob = Math.sin(elapsed * 3.5) * 8;
+        const mascotY = H * 0.25 + mascotBob;
+
+        ctx.translate(mascotX, mascotY);
+        ctx.globalAlpha = transitionAlpha;
+
+        // Aura halo ring
+        const auraColor = currentEmotion === "shocked"
+          ? "rgba(244, 63, 94, 0.2)"
+          : currentEmotion === "celebrate"
+          ? "rgba(16, 185, 129, 0.25)"
+          : currentEmotion === "point-cta"
+          ? "rgba(245, 158, 11, 0.25)"
+          : "rgba(56, 189, 248, 0.2)";
+
+        ctx.beginPath();
+        ctx.arc(0, 0, 68, 0, Math.PI * 2);
+        ctx.fillStyle = auraColor;
+        ctx.fill();
+
+        // Mascot Head (Rounded Glass Capsule)
+        ctx.beginPath();
+        ctx.arc(0, 0, 52, 0, Math.PI * 2);
+        const headGrad = ctx.createLinearGradient(-30, -30, 30, 30);
+        headGrad.addColorStop(0, "#232838");
+        headGrad.addColorStop(1, "#12141d");
+        ctx.fillStyle = headGrad;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+        ctx.lineWidth = 2.5;
+        ctx.fill();
+        ctx.stroke();
+
+        // Visor / Face Screen
+        ctx.beginPath();
+        ctx.roundRect(-36, -18, 72, 36, 12);
+        ctx.fillStyle = "#08090f";
+        ctx.fill();
+
+        // Animated Eyes & Emotion Expressions
+        const blinkPhase = Math.sin(elapsed * 2.2);
+        const isBlinking = blinkPhase > 0.96;
+
+        ctx.fillStyle = currentEmotion === "shocked"
+          ? "#f43f5e"
+          : currentEmotion === "celebrate"
+          ? "#10b981"
+          : currentEmotion === "point-cta"
+          ? "#f59e0b"
+          : "#38bdf8";
+
+        if (isBlinking) {
+          // Closed eye slits
+          ctx.fillRect(-22, 0, 14, 3);
+          ctx.fillRect(8, 0, 14, 3);
+        } else if (currentEmotion === "shocked") {
+          // Wide surprised eyes
+          ctx.beginPath();
+          ctx.arc(-15, 0, 7, 0, Math.PI * 2);
+          ctx.arc(15, 0, 7, 0, Math.PI * 2);
+          ctx.fill();
+          // Exclamation Mark above mascot head
+          ctx.font = "bold 28px sans-serif";
+          ctx.fillStyle = "#f43f5e";
+          ctx.textAlign = "center";
+          ctx.fillText("!", 0, -68);
+        } else if (currentEmotion === "skeptical") {
+          // Narrow squinting eyes
+          ctx.fillRect(-22, -2, 14, 4);
+          ctx.fillRect(8, -2, 14, 4);
+          // Question mark
+          ctx.font = "bold 24px sans-serif";
+          ctx.fillStyle = "#38bdf8";
+          ctx.textAlign = "center";
+          ctx.fillText("?", 25, -60);
+        } else if (currentEmotion === "celebrate") {
+          // Happy smiling arc eyes
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "#10b981";
+          ctx.beginPath();
+          ctx.arc(-15, 2, 7, Math.PI, 0);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(15, 2, 7, Math.PI, 0);
+          ctx.stroke();
+          // Floating stars
+          ctx.fillStyle = "#facc15";
+          ctx.font = "18px sans-serif";
+          ctx.fillText("★", -35, -50);
+          ctx.fillText("★", 35, -50);
+        } else if (currentEmotion === "point-cta") {
+          // Energetic open eyes
+          ctx.beginPath();
+          ctx.arc(-15, 0, 6, 0, Math.PI * 2);
+          ctx.arc(15, 0, 6, 0, Math.PI * 2);
+          ctx.fill();
+          // Bookmark/Save icon badge
+          ctx.font = "22px sans-serif";
+          ctx.fillText("🔖", 0, -62);
+        }
+
+        ctx.restore();
+      }
+
+      // 5. DYNAMIC KINETIC HEADLINE WITH WORD-BY-WORD HIGHLIGHT BOX
       ctx.save();
-      ctx.translate(W / 2, H * 0.42);
+      ctx.translate(W / 2, showMascot ? H * 0.46 : H * 0.42);
       ctx.scale(transitionScale, transitionScale);
       ctx.globalAlpha = transitionAlpha;
 
@@ -277,14 +436,14 @@ export default function KineticMotionPage() {
       ctx.textBaseline = "middle";
 
       if (motionStyle === "stoic-gold") {
-        ctx.font = "bold 52px serif";
+        ctx.font = "bold 48px serif";
       } else if (motionStyle === "cyber-hud") {
-        ctx.font = "900 48px monospace";
+        ctx.font = "900 46px monospace";
       } else {
-        ctx.font = "800 52px sans-serif";
+        ctx.font = "800 50px sans-serif";
       }
 
-      // Split headline into lines
+      // Word wrapping for headline
       const words = currentHeadline.toUpperCase().split(" ");
       let line = "";
       const lines = [];
@@ -305,17 +464,41 @@ export default function KineticMotionPage() {
 
       lines.forEach((l, idx) => {
         const lineText = l.trim();
-        // Check if highlight keyword is in this line
+        const lineY = startY + idx * lineHeight;
+
+        // Kinetic Highlight Box if line contains target keyword
         if (currentHighlight && lineText.includes(currentHighlight.toUpperCase())) {
+          const textW = ctx.measureText(lineText).width;
+          const boxH = 56;
+
+          ctx.save();
+          ctx.fillStyle = motionStyle === "fintech-alpha"
+            ? "rgba(16, 185, 129, 0.18)"
+            : motionStyle === "stoic-gold"
+            ? "rgba(245, 158, 11, 0.2)"
+            : "rgba(56, 189, 248, 0.2)";
+          ctx.strokeStyle = motionStyle === "fintech-alpha"
+            ? "rgba(16, 185, 129, 0.5)"
+            : motionStyle === "stoic-gold"
+            ? "rgba(245, 158, 11, 0.5)"
+            : "rgba(56, 189, 248, 0.5)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(-textW / 2 - 14, lineY - boxH / 2, textW + 28, boxH, 12);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+
           ctx.fillStyle = motionStyle === "fintech-alpha" ? "#10b981" : motionStyle === "stoic-gold" ? "#f59e0b" : "#38bdf8";
         } else {
           ctx.fillStyle = motionStyle === "cyber-hud" ? "#38bdf8" : "#ffffff";
         }
-        ctx.fillText(lineText, 0, startY + idx * lineHeight);
+
+        ctx.fillText(lineText, 0, lineY);
       });
       ctx.restore();
 
-      // 4. Dynamic Metric Counter or FinTech Trendline
+      // 6. DYNAMIC METRIC COUNTER OR FINTECH CURVE
       if (currentMetric.trim()) {
         ctx.save();
         ctx.globalAlpha = transitionAlpha;
@@ -331,11 +514,11 @@ export default function KineticMotionPage() {
           ctx.strokeStyle = "#10b981";
           ctx.lineWidth = 4;
           ctx.beginPath();
-          const startGraphY = H * 0.65;
+          const startGraphY = H * 0.69;
           ctx.moveTo(100, startGraphY);
           const currentGraphX = 100 + (W - 200) * sceneLocalProgress;
-          const currentGraphY = startGraphY - Math.sin(sceneLocalProgress * Math.PI) * 120;
-          ctx.quadraticCurveTo(W / 2, startGraphY - 140 * sceneLocalProgress, currentGraphX, currentGraphY);
+          const currentGraphY = startGraphY - Math.sin(sceneLocalProgress * Math.PI) * 110;
+          ctx.quadraticCurveTo(W / 2, startGraphY - 130 * sceneLocalProgress, currentGraphX, currentGraphY);
           ctx.stroke();
         } else if (motionStyle === "stoic-gold") {
           ctx.fillStyle = "#f59e0b";
@@ -345,11 +528,11 @@ export default function KineticMotionPage() {
           ctx.fillStyle = "#38bdf8";
         }
 
-        ctx.fillText(currentMetric, W / 2, H * 0.68);
+        ctx.fillText(currentMetric, W / 2, H * 0.72);
         ctx.restore();
       }
 
-      // 5. Supporting Subtext
+      // 7. SUPPORTING SUBTEXT
       if (currentSubtext.trim()) {
         ctx.save();
         ctx.globalAlpha = transitionAlpha;
@@ -373,18 +556,18 @@ export default function KineticMotionPage() {
         subLines.push(subLine);
 
         subLines.forEach((sl, idx) => {
-          ctx.fillText(sl.trim(), W / 2, H * 0.78 + idx * 34);
+          ctx.fillText(sl.trim(), W / 2, H * 0.82 + idx * 34);
         });
         ctx.restore();
       }
 
-      // 6. Global Timeline Progress Line (Bottom)
+      // 8. GLOBAL TIMELINE PROGRESS LINE
       ctx.save();
       ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
-      ctx.fillRect(80, H - 120, W - 160, 6);
+      ctx.fillRect(80, H - 110, W - 160, 6);
 
       ctx.fillStyle = motionStyle === "fintech-alpha" ? "#10b981" : motionStyle === "stoic-gold" ? "#f59e0b" : "#ffffff";
-      ctx.fillRect(80, H - 120, (W - 160) * globalProgress, 6);
+      ctx.fillRect(80, H - 110, (W - 160) * globalProgress, 6);
       ctx.restore();
 
       if (isPlaying) {
@@ -399,9 +582,9 @@ export default function KineticMotionPage() {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [mode, scenes, singleHeadline, singleMetric, singleSubtext, motionStyle, totalDurationSec, isPlaying]);
+  }, [mode, scenes, singleHeadline, singleMetric, singleSubtext, motionStyle, totalDurationSec, isPlaying, showMascot]);
 
-  // In-Browser Native Video Recorder (Full Length 24-30s or Single Clip)
+  // In-Browser Native Video Recorder
   const recordAndDownloadVideo = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -469,6 +652,12 @@ export default function KineticMotionPage() {
     setScenes(updated);
   };
 
+  const copyToClipboard = async (key: string, text: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
   return (
     <div className="py-8 sm:py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
       <Link
@@ -482,45 +671,106 @@ export default function KineticMotionPage() {
       <div className="mb-8">
         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-mono font-medium text-emerald-300 mb-2">
           <Film className="h-3.5 w-3.5" />
-          <span>MULTI-SCENE KINETIC STORY DIRECTOR (FULL 26s MOVIE)</span>
+          <span>MULTI-SCENE KINETIC DIRECTOR & AFTER EFFECTS ENGINE</span>
         </div>
         <h1 className="font-mono text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
           Multi-Scene Kinetic Video Studio
         </h1>
         <p className="mt-2 text-sm text-zinc-400 max-w-3xl">
-          Bukan cuma potongan 5 detik! Susun **alur cerita 4-scene komplit (Hook ➔ Agitasi ➔ Solusi ➔ CTA Loop)** berdurasi 26 detik penuh dengan transisi mulus, lalu rekam dan unduh langsung jadi 1 file video tanpa CapCut!
+          Hasil sekelas biro iklan internasional! Lengkap dengan **Karakter Maskot 3D Animasi Responsif**, tipografi kinetic membesar-mengecil berpegas (*spring physics*), kalkulator durasi naskah otomatis, dan unduh langsung video 26 detik utuh tanpa CapCut.
         </p>
       </div>
 
       {/* Mode Switcher */}
-      <div className="flex items-center gap-3 mb-6">
-        <button
-          type="button"
-          onClick={() => setMode("multi")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
-            mode === "multi"
-              ? "bg-white text-black shadow-lg"
-              : "bg-white/5 border border-white/10 text-zinc-400 hover:text-white"
-          }`}
-        >
-          <Layers className="h-4 w-4" />
-          <span>FULL 4-SCENE STORY MOVIE (26 DETIK)</span>
-          <span className="bg-emerald-500/20 text-emerald-800 text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase ml-1">Rekomendasi</span>
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMode("multi")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+              mode === "multi"
+                ? "bg-white text-black shadow-lg"
+                : "bg-white/5 border border-white/10 text-zinc-400 hover:text-white"
+            }`}
+          >
+            <Layers className="h-4 w-4" />
+            <span>FULL 4-SCENE STORY MOVIE (26 DETIK)</span>
+            <span className="bg-emerald-500/20 text-emerald-800 text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase ml-1">Rekomendasi</span>
+          </button>
 
+          <button
+            type="button"
+            onClick={() => setMode("single")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+              mode === "single"
+                ? "bg-white text-black shadow-lg"
+                : "bg-white/5 border border-white/10 text-zinc-400 hover:text-white"
+            }`}
+          >
+            <Play className="h-4 w-4 fill-current" />
+            <span>SINGLE HOOK CLIP (6 DETIK)</span>
+          </button>
+        </div>
+
+        {/* Mascot Toggle Button */}
         <button
           type="button"
-          onClick={() => setMode("single")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
-            mode === "single"
-              ? "bg-white text-black shadow-lg"
-              : "bg-white/5 border border-white/10 text-zinc-400 hover:text-white"
+          onClick={() => setShowMascot(!showMascot)}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${
+            showMascot
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+              : "border-white/10 bg-black/40 text-zinc-400 hover:text-white"
           }`}
         >
-          <Play className="h-4 w-4 fill-current" />
-          <span>SINGLE HOOK CLIP (6 DETIK)</span>
+          <Smile className="h-3.5 w-3.5" />
+          <span>Maskot 3D Avatar: {showMascot ? "AKTIF ✓" : "NONAKTIF"}</span>
         </button>
       </div>
+
+      {/* Word Count & Duration Pacing Alert */}
+      <div className="mb-6 rounded-2xl border border-white/10 bg-[#0d1017] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Clock className="h-4 w-4 text-cyan-400 shrink-0" />
+          <div className="text-xs font-mono">
+            <span className="text-zinc-400">Analisis Naskah: </span>
+            <span className="text-white font-bold">{wordCount} Kata</span>
+            <span className="text-zinc-500 mx-2">•</span>
+            <span className="text-zinc-400">Estimasi Bicara: </span>
+            <span className="text-emerald-300 font-bold">~{estimatedSeconds} Detik</span>
+            <span className="text-zinc-500 mx-2">•</span>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+              isPacingOverLimit ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"
+            }`}>
+              {isPacingOverLimit ? "TERLALU PANJANG (>55s)" : "RETENSI OPTIMAL ✓"}
+            </span>
+          </div>
+        </div>
+
+        <span className="text-[10px] font-mono text-zinc-500">
+          Standar Shorts/TikTok: Maks. 135 kata (55s)
+        </span>
+      </div>
+
+      {/* Warning Box if Script is too long */}
+      {(isPacingOverLimit || warningMessage) && (
+        <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-2 backdrop-blur-xl animate-in fade-in">
+          <div className="flex items-center gap-2 text-amber-300 font-mono text-xs font-bold">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>PANDUAN RETENSI ALGORITMA: NASKAH TERLALU PANJANG</span>
+          </div>
+          <p className="text-xs font-mono text-zinc-300 leading-relaxed">
+            {warningMessage || `Naskah Anda (${wordCount} kata / ~${estimatedSeconds} detik) melebihi batas retensi optimal 55-60 detik. Menonton video vertikal terlalu lama berpotensi meningkatkan drop-off penonton.`}
+          </p>
+          <button
+            type="button"
+            onClick={() => handleArrangeScript()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 font-mono text-xs font-bold text-white transition-colors cursor-pointer"
+          >
+            <Zap className="h-3.5 w-3.5" />
+            <span>RINGKAS OTOMATIS JADI 4 SCENE 26 DETIK TAJAM</span>
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Form & Scene Controls */}
@@ -528,43 +778,53 @@ export default function KineticMotionPage() {
           {mode === "multi" ? (
             /* Multi-Scene Controls */
             <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-6 space-y-5 shadow-xl">
-              {/* Auto Storyboard Form from 1 Idea */}
-              <form onSubmit={handleGenerateStory} className="space-y-3 pb-4 border-b border-white/10">
-                <label className="block text-xs font-mono font-semibold text-zinc-300">
-                  MASUKKAN 1 IDE / TOPIK CERITA *
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    required
-                    value={topicIdea}
-                    onChange={(e) => setTopicIdea(e.target.value)}
-                    placeholder="Contoh: Kenapa 99% orang gagal nabung & solusinya"
-                    className="flex-1 rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:border-emerald-400 focus:outline-none font-mono"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isGeneratingStory}
-                    className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2.5 font-mono text-xs font-bold text-white transition-colors cursor-pointer shrink-0 disabled:opacity-50"
-                  >
-                    {isGeneratingStory ? (
-                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Wand2 className="h-3.5 w-3.5" />
-                    )}
-                    <span>SUSUN 4 SCENE</span>
-                  </button>
+              {/* Long Script / Idea Input Form */}
+              <form onSubmit={handleArrangeScript} className="space-y-3 pb-4 border-b border-white/10">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-mono font-semibold text-zinc-300">
+                    MASUKKAN NASKAH PANJANG / IDE CERITA *
+                  </label>
+                  <span className="text-[10px] font-mono text-cyan-400">
+                    Bisa naskah mentah 1 paragraf
+                  </span>
                 </div>
+                <textarea
+                  rows={3}
+                  value={rawScriptInput || topicIdea}
+                  onChange={(e) => {
+                    setRawScriptInput(e.target.value);
+                    setTopicIdea(e.target.value);
+                  }}
+                  placeholder="Paste naskah panjang Anda di sini, BuatPrompt akan otomatis memecah dan mengatur durasi..."
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:border-emerald-400 focus:outline-none font-mono"
+                />
+                <button
+                  type="submit"
+                  disabled={isGeneratingStory}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 font-mono text-xs font-bold text-white transition-opacity hover:opacity-95 cursor-pointer disabled:opacity-50"
+                >
+                  {isGeneratingStory ? (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      <span>MENYUSUN & MENGKALKULASI DURASI SCENE...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="h-3.5 w-3.5" />
+                      <span>BEDAH NASKAH & SUSUN 4 SCENE SINEMATIK</span>
+                    </>
+                  )}
+                </button>
               </form>
 
               {/* Scene Tabs */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-mono font-semibold text-zinc-300">
-                    EDIT SCENE STORYBOARD
+                    EDITOR 4 SCENE STORYBOARD
                   </span>
                   <span className="text-[10px] font-mono text-zinc-400">
-                    Total Durasi: {totalDurationSec}s
+                    Total: {totalDurationSec}s • 4 Babak
                   </span>
                 </div>
                 <div className="grid grid-cols-4 gap-1.5 p-1 bg-black/40 rounded-xl border border-white/5 mb-3">
@@ -593,7 +853,7 @@ export default function KineticMotionPage() {
 
                   <div>
                     <label className="block text-[10px] font-mono text-zinc-400 mb-1">
-                      HEADLINE TEKS (HURUF BESAR)
+                      HEADLINE TEKS (KINETIC POP-IN)
                     </label>
                     <textarea
                       rows={2}
@@ -603,7 +863,7 @@ export default function KineticMotionPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="block text-[10px] font-mono text-zinc-400 mb-1">
                         METRIC BADGE
@@ -626,6 +886,21 @@ export default function KineticMotionPage() {
                         className="w-full rounded-lg border border-white/10 bg-black/50 px-3 py-1.5 text-xs text-emerald-300 font-mono focus:border-emerald-400 focus:outline-none"
                       />
                     </div>
+                    <div>
+                      <label className="block text-[10px] font-mono text-zinc-400 mb-1">
+                        EMOSI MASKOT
+                      </label>
+                      <select
+                        value={scenes[activeSceneTab].characterEmotion || "shocked"}
+                        onChange={(e) => updateSceneField(activeSceneTab, "characterEmotion", e.target.value)}
+                        className="w-full rounded-lg border border-white/10 bg-black/50 px-2 py-1.5 text-xs text-white font-mono focus:border-emerald-400 focus:outline-none"
+                      >
+                        <option value="shocked">😱 Kaget / Hook</option>
+                        <option value="skeptical">🤔 Ragu / Masalah</option>
+                        <option value="celebrate">🎉 Senang / Solusi</option>
+                        <option value="point-cta">👉 Menunjuk / CTA</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div>
@@ -638,6 +913,18 @@ export default function KineticMotionPage() {
                       onChange={(e) => updateSceneField(activeSceneTab, "subtext", e.target.value)}
                       className="w-full rounded-lg border border-white/10 bg-black/50 px-3 py-1.5 text-xs text-zinc-300 font-mono focus:border-emerald-400 focus:outline-none"
                     />
+                  </div>
+
+                  {/* Director Blueprint Metadata */}
+                  <div className="pt-2 border-t border-white/5 grid grid-cols-2 gap-2 text-[10px] font-mono text-zinc-400">
+                    <div>
+                      <span className="text-zinc-500">FX Animasi:</span>{" "}
+                      <span className="text-cyan-300">{scenes[activeSceneTab].kineticFx}</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500">SFX Audio:</span>{" "}
+                      <span className="text-amber-300">{scenes[activeSceneTab].foleyCue}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -731,7 +1018,7 @@ export default function KineticMotionPage() {
                 {isRecording ? (
                   <>
                     <RefreshCw className="h-4 w-4 animate-spin" />
-                    <span>MEREKAM FULL VIDEO ({recordProgress}%)...</span>
+                    <span>MEREKAM CANVAS SECARA NATIVE ({recordProgress}%)...</span>
                   </>
                 ) : (
                   <>
