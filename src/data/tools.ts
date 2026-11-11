@@ -16,6 +16,27 @@ export interface ToolItem {
 }
 
 export const ALL_TOOLS: ToolItem[] = [
+  // --- VIRAL MO-GRAPH FLAGSHIP ---
+  {
+    id: "kinetic-motion",
+    tool_key: "kinetic-motion",
+    title: "KINETIC MOTION GRAPHIC & VIDEO EXPORTER",
+    name: "Kinetic Motion & Video Exporter",
+    path: "/kinetic-motion",
+    icon: "Play",
+    color: "text-emerald-400",
+    iconBg: "bg-emerald-500/15",
+    badge: "IN-BROWSER MP4",
+    badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+    featured: true,
+    category: "cinematic-video",
+    description: "Rancang motion graphic 9:16 berkelas tinggi (Apple Keynote, FinTech Alpha, Cyber HUD, Stoic Gold), lalu rekam dan download langsung jadi file video tanpa ribet screen record!",
+    samples: [
+      "Animasi kinetic typography Apple-style 9:16 siap posting",
+      "Live counter metric bertambah dinamis dengan grafik SVG"
+    ]
+  },
+
   // --- FLAGSHIP 1: GOOGLE FLOW SUITE ---
   {
     id: "google-flow-director",

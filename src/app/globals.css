@@ -2,97 +2,101 @@
 
 @layer base {
   :root {
-    --background: 240 10% 4%;
+    --background: 240 10% 3.5%;
     --foreground: 210 20% 98%;
-    --card: 240 10% 7%;
+    --card: 240 9% 6%;
     --card-foreground: 210 20% 98%;
-    --popover: 240 10% 7%;
+    --popover: 240 9% 6%;
     --popover-foreground: 210 20% 98%;
-    --primary: 262 83% 58%;
+    --primary: 215 25% 27%;
     --primary-foreground: 210 20% 98%;
-    --accent-cyan: 190 95% 50%;
-    --accent-emerald: 155 85% 45%;
-    --accent-amber: 38 92% 50%;
-    --border: 240 8% 16%;
-    --muted: 240 8% 13%;
-    --muted-foreground: 240 5% 65%;
+    --border: 240 6% 14%;
+    --muted: 240 6% 11%;
+    --muted-foreground: 240 5% 60%;
   }
 }
 
 body {
-  background-color: #07080c;
-  color: #f1f5f9;
+  background-color: #08090d;
+  color: #f3f4f6;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   min-height: 100vh;
   overflow-x: hidden;
   background-image: 
-    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(6, 182, 212, 0.07) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(139, 92, 246, 0.05) 0px, transparent 60%);
+    radial-gradient(at 0% 0%, rgba(255, 255, 255, 0.03) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.04) 0px, transparent 40%),
+    radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.03) 0px, transparent 60%);
   background-attachment: fixed;
 }
 
-/* Custom Studio Scrollbar */
+/* Custom Studio Precision Scrollbar */
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #07080c;
+  background: #08090d;
 }
 ::-webkit-scrollbar-thumb {
-  background: #232734;
+  background: #1f2330;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3b4256;
+  background: #31374a;
 }
 
-/* Studio Glass & Cyberpunk Glows */
+/* Artisan Studio Glass (Sophisticated, Non-AI-Slop) */
 .studio-glass {
-  background: rgba(13, 16, 23, 0.72);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(14, 16, 22, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .studio-glass:hover {
-  border-color: rgba(99, 102, 241, 0.35);
-  box-shadow: 0 0 30px -5px rgba(99, 102, 241, 0.15);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
 }
 
 .glow-pill {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(6, 182, 212, 0.1));
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .studio-btn-primary {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
-  color: #ffffff;
+  background: #ffffff;
+  color: #090a0f;
   font-weight: 600;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .studio-btn-primary:hover {
-  opacity: 0.95;
-  box-shadow: 0 0 25px rgba(99, 102, 241, 0.45);
+  background: #f1f5f9;
+  box-shadow: 0 0 25px rgba(255, 255, 255, 0.2);
   transform: translateY(-1px);
 }
 
-.studio-btn-cyan {
-  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+.studio-btn-accent {
+  background: #1e2230;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: #ffffff;
   font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.studio-btn-accent:hover {
+  background: #282e42;
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
 .text-gradient {
-  background: linear-gradient(135deg, #ffffff 30%, #a5b4fc 70%, #38bdf8 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.text-gradient-purple {
-  background: linear-gradient(135deg, #c084fc 0%, #818cf8 50%, #38bdf8 100%);
+.text-gradient-subtle {
+  background: linear-gradient(180deg, #f8fafc 0%, #94a3b8 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }

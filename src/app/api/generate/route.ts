@@ -23,6 +23,7 @@ import {
   buildHookSplitterPrompt,
   buildCashCowStoryPrompt,
   buildThumbnailArchitectPrompt,
+  buildKineticMotionPrompt,
 } from "@/lib/promptEngines";
 
 export async function POST(req: NextRequest) {
@@ -142,6 +143,11 @@ export async function POST(req: NextRequest) {
 
     if (type === "thumbnail-architect") {
       const data = buildThumbnailArchitectPrompt(extraParams as any);
+      return NextResponse.json(data);
+    }
+
+    if (type === "kinetic-motion") {
+      const data = buildKineticMotionPrompt(extraParams as any);
       return NextResponse.json(data);
     }
 

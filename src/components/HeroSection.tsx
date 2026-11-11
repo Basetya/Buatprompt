@@ -1,77 +1,79 @@
 import Link from "next/link";
 import {
-  Sparkles,
   ArrowRight,
   Video,
   Layers,
-  Flame,
+  Sparkles,
   CheckCircle2,
-  ShieldCheck,
-  Clapperboard,
-  Cpu
+  Film,
+  Zap,
+  Play
 } from "lucide-react";
 
 export default function HeroSection() {
   return (
-    <section className="relative pt-12 pb-16 md:pt-24 md:pb-24 overflow-hidden">
-      {/* Background ambient lighting */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] sm:w-[700px] h-[350px] bg-indigo-600/10 blur-[140px] rounded-full pointer-events-none" />
-      <div className="absolute top-1/3 right-10 w-[250px] h-[250px] bg-cyan-500/10 blur-[110px] rounded-full pointer-events-none" />
+    <section className="relative pt-12 pb-16 md:pt-20 md:pb-24 overflow-hidden border-b border-white/[0.05]">
+      {/* Subtle organic studio vignette */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-white/[0.02] blur-[100px] rounded-full pointer-events-none" />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-        {/* Top Tag */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-xs font-mono font-medium text-zinc-300 mb-6 backdrop-blur-md">
-          <span className="flex h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
-          <span className="text-cyan-300 font-bold">BUATPROMPT STUDIO:</span>
-          <span>Google Flow (Veo 2 & Imagen 3) Engine Suite</span>
+        {/* Top Tag: Artisan Production Suite */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1 text-xs font-mono font-medium text-zinc-300 mb-6 backdrop-blur-md">
+          <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <span className="text-white font-semibold">BUATPROMPT STUDIO</span>
+          <span className="text-zinc-500">•</span>
+          <span className="text-zinc-400">Cinematic Engine & Motion Suite</span>
         </div>
 
         {/* Main Headline */}
         <h1 className="font-mono text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white max-w-4xl mx-auto leading-tight sm:leading-none">
-          Bukan Sekadar Mencari Prompt. <br className="hidden sm:inline" />
+          Bukan Sekadar Prompt AI. <br className="hidden sm:inline" />
           <span className="text-gradient">
-            Rancang & Orkestrasi Video AI Sinematik Kelas Atas
+            Studio Orkestrasi Konten & Sutradara Sinematik
           </span>
         </h1>
 
         {/* Subtitle */}
-        <p className="mt-6 text-sm sm:text-base lg:text-lg text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-          Platform orkestrasi instruksi AI profesional untuk kreator video komersial dan filmmaker. Ditenagai secara khusus untuk ekosistem{" "}
-          <strong className="text-indigo-300">Google Flow (Veo 2 & Imagen 3)</strong>, Midjourney v6.1, Kling AI, dan video commerce berkonversi tinggi.
+        <p className="mt-5 text-sm sm:text-base text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+          Tinggalkan hasil generik murahan. Bangun video komersial kelas bioskop dengan optik kamera nyata, karakter 100% konsisten di <strong className="text-zinc-200">Google Flow (Veo 2 & Imagen 3)</strong>, naskah audio berjiwa, hingga video Kinetic Motion Graphic instan.
         </p>
 
         {/* Primary CTA Buttons */}
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 max-w-lg mx-auto">
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 max-w-md mx-auto">
           <Link
-            href="/google-flow-director"
-            className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl studio-btn-primary px-6 py-3.5 text-sm font-mono font-bold shadow-xl shadow-indigo-500/20"
+            href="/kinetic-motion"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl studio-btn-primary px-6 py-3.5 text-xs font-mono font-bold shadow-lg"
           >
-            <Video className="h-4 w-4" />
-            <span>Google Flow Director</span>
-            <ArrowRight className="h-4 w-4 ml-1" />
+            <Play className="h-4 w-4 fill-current" />
+            <span>Kinetic Motion Studio</span>
+            <span className="bg-emerald-500/20 text-emerald-700 text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase ml-1">New</span>
           </Link>
           <Link
-            href="/prompt-matrix"
-            className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-6 py-3.5 text-sm font-mono font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-all"
+            href="/batch-angles"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl studio-btn-accent px-6 py-3.5 text-xs font-mono font-semibold"
           >
-            <Layers className="h-4 w-4" />
-            <span>Universal Prompt Matrix</span>
+            <Zap className="h-4 w-4 text-amber-400" />
+            <span>5 Viral Angles Multiplier</span>
           </Link>
         </div>
 
         {/* Feature Highlights Bar */}
         <div className="mt-12 flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-xs font-mono text-zinc-400">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-cyan-400" />
-            <span>Multi-Shot Character Anchoring</span>
+            <CheckCircle2 className="h-3.5 w-3.5 text-zinc-300" />
+            <span>Zero AI-Slop Guarantees</span>
           </div>
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-indigo-400" />
-            <span>Simultaneous 4-Engine Matrix</span>
+            <CheckCircle2 className="h-3.5 w-3.5 text-zinc-300" />
+            <span>4-Angle Character Anchor</span>
           </div>
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-rose-400" />
-            <span>Viral Hook & Retention Blueprint</span>
+            <CheckCircle2 className="h-3.5 w-3.5 text-zinc-300" />
+            <span>The Holy Trinity Export</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-3.5 w-3.5 text-zinc-300" />
+            <span>In-Browser 9:16 Video Exporter</span>
           </div>
         </div>
       </div>

@@ -62,24 +62,22 @@ export default function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-white/[0.08] bg-[#07080c]/85 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 w-full border-b border-white/[0.07] bg-[#08090d]/90 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand Logo: BuatPrompt */}
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-cyan-400 p-[1px] shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
-            <div className="flex h-full w-full items-center justify-center rounded-[11px] bg-[#07080c]">
-              <Sparkles className="h-4 w-4 text-cyan-300 stroke-[2.2]" />
-            </div>
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.08] border border-white/10 group-hover:border-white/25 transition-all shadow-sm">
+            <Sparkles className="h-4 w-4 text-white stroke-[2.2]" />
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1 font-mono tracking-wider font-extrabold text-base text-white">
               <span>BUAT</span>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-cyan-300">
+              <span className="text-zinc-400 group-hover:text-white transition-colors">
                 PROMPT
               </span>
             </div>
             <span className="text-[9px] font-mono tracking-widest text-zinc-500 uppercase -mt-1">
-              AI Studio & Foundry
+              Production Studio
             </span>
           </div>
         </Link>

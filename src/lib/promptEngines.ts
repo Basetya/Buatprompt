@@ -894,3 +894,147 @@ Composition: Rule-of-thirds facial gaze looking slightly off-camera with intense
     opticalFramingAdvice: "Letakkan teks judul 3-kata di sepertiga atas gambar (Y: 20-35%) dengan font sans-serif ultra-bold ber-outline hitam tebal untuk keterbacaan 100% pada layar HP ukuran 5 inci."
   };
 }
+
+// G. Kinetic Motion Graphic Studio & In-Browser Video Exporter
+export interface KineticMotionParams {
+  headlineText: string;
+  subText?: string;
+  metricValue?: string;
+  motionStyle: "apple-keynote" | "fintech-alpha" | "cyber-hud" | "stoic-gold";
+  durationSec?: number;
+}
+
+export interface KineticMotionResult {
+  headline: string;
+  motionStyle: string;
+  standaloneHtmlCode: string;
+  designRationale: string;
+  capcutOverlayGuide: string;
+}
+
+export function buildKineticMotionPrompt(params: KineticMotionParams): KineticMotionResult {
+  const {
+    headlineText,
+    subText = "Formula rahasia yang tidak pernah dibagikan di kelas gratisan.",
+    metricValue = "+340%",
+    motionStyle,
+    durationSec = 6
+  } = params;
+
+  const styleNames = {
+    "apple-keynote": "Apple Keynote Minimalist (Pure Luxury & Typography Shift)",
+    "fintech-alpha": "Wall Street / FinTech Alpha (Dynamic Live Chart & Counting Metric)",
+    "cyber-hud": "Cyberpunk HUD Terminal (Typewriter Glitch & Data Scanlines)",
+    "stoic-gold": "Dark Stoic & Warm Ember (Floating Organic Fireflies & Bronze Serif)"
+  };
+
+  const standaloneHtml = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kinetic Motion Graphic - BuatPrompt</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #08090d;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    .viewport-9-16 {
+      width: 360px;
+      height: 640px;
+      background: radial-gradient(circle at 50% 30%, #151824 0%, #08090d 80%);
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.08);
+      position: relative;
+      overflow: hidden;
+      padding: 36px 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      font-size: 11px;
+      font-family: monospace;
+      color: #94a3b8;
+      width: fit-content;
+    }
+    .headline {
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      animation: kineticSlideUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .metric {
+      font-size: 48px;
+      font-family: monospace;
+      font-weight: 900;
+      color: #10b981;
+      text-shadow: 0 0 30px rgba(16,185,129,0.3);
+      margin: 16px 0;
+    }
+    .subtext {
+      font-size: 14px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+    .progress-bar {
+      height: 3px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #ffffff;
+      width: 0%;
+      animation: fillProgress ${durationSec}s linear forwards;
+    }
+    @keyframes kineticSlideUp {
+      0% { opacity: 0; transform: translateY(30px) scale(0.96); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes fillProgress {
+      0% { width: 0%; }
+      100% { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="viewport-9-16">
+    <div class="badge">● BUATPROMPT KINETIC</div>
+    <div>
+      <h1 class="headline">${headlineText}</h1>
+      <div class="metric">${metricValue}</div>
+      <p class="subtext">${subText}</p>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill"></div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return {
+    headline: headlineText,
+    motionStyle: styleNames[motionStyle] || motionStyle,
+    standaloneHtmlCode: standaloneHtml,
+    designRationale: "Menghilangkan kesan 'AI slop' dengan proporsi tipografi ketat, easing cubic-bezier mewah, dan elemen visual bertingkat yang menarik retensi mata penonton.",
+    capcutOverlayGuide: "Untuk dijadikan overlay transparan di CapCut: gunakan blend mode 'Screen' atau 'Lighten' di atas klip video B-Roll Anda."
+  };
+}
