@@ -1038,3 +1038,80 @@ export function buildKineticMotionPrompt(params: KineticMotionParams): KineticMo
     capcutOverlayGuide: "Untuk dijadikan overlay transparan di CapCut: gunakan blend mode 'Screen' atau 'Lighten' di atas klip video B-Roll Anda."
   };
 }
+
+// H. Multi-Scene Kinetic Video Story Engine (Full-Length 24-30s)
+export interface MultiSceneStoryParams {
+  topicIdea: string;
+  targetNiche?: string;
+  motionStyle?: "apple-keynote" | "fintech-alpha" | "cyber-hud" | "stoic-gold";
+}
+
+export interface KineticStoryScene {
+  sceneNumber: number;
+  stageName: string;
+  timeRange: string;
+  headline: string;
+  subtext: string;
+  metric: string;
+  highlightKeyword: string;
+  durationSec: number;
+}
+
+export interface MultiSceneStoryResult {
+  topic: string;
+  totalDurationSec: number;
+  retentionFormula: string;
+  scenes: KineticStoryScene[];
+}
+
+export function buildMultiSceneStoryPrompt(params: MultiSceneStoryParams): MultiSceneStoryResult {
+  const { topicIdea, targetNiche = "General Creator", motionStyle = "apple-keynote" } = params;
+
+  return {
+    topic: topicIdea,
+    totalDurationSec: 26,
+    retentionFormula: "3 Hukum Fisika Visual (Dynamic Visual Hierarchy + Word Pacing + Infinite Loop)",
+    scenes: [
+      {
+        sceneNumber: 1,
+        stageName: "THE SHOCK HOOK",
+        timeRange: "0:00 - 0:06",
+        headline: topicIdea.toUpperCase().length > 35 ? topicIdea.toUpperCase().slice(0, 35) + "..." : topicIdea.toUpperCase(),
+        subtext: "Hampir semua orang salah paham sebelum nonton video ini sampai habis.",
+        metric: "STOP! 🛑",
+        highlightKeyword: "SALAH",
+        durationSec: 6
+      },
+      {
+        sceneNumber: 2,
+        stageName: "THE PAIN AGITATION",
+        timeRange: "0:06 - 0:13",
+        headline: "KEBANYAKAN ORANG BUANG WAKTU DI SINI",
+        subtext: "Bukan karena kurang pintar, tapi karena mengulang cara lama yang usang.",
+        metric: "-85% RUGI",
+        highlightKeyword: "BUANG WAKTU",
+        durationSec: 7
+      },
+      {
+        sceneNumber: 3,
+        stageName: "THE BREAKTHROUGH REVEAL",
+        timeRange: "0:13 - 0:20",
+        headline: "INI FORMULA YANG MERUBAH SEGALANYA",
+        subtext: "Hasil nyata langsung terbukti saat kamu terapkan satu perubahan kecil ini.",
+        metric: "+340% HASIL",
+        highlightKeyword: "FORMULA",
+        durationSec: 7
+      },
+      {
+        sceneNumber: 4,
+        stageName: "THE INFINITE LOOP CTA",
+        timeRange: "0:20 - 0:26",
+        headline: "SIMPAN VIDEO INI SEKARANG JUGA",
+        subtext: "Biar kamu nggak bingung lagi pas mau mulai dari detik awal...",
+        metric: "SAVE! ✨",
+        highlightKeyword: "SIMPAN",
+        durationSec: 6
+      }
+    ]
+  };
+}

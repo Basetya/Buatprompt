@@ -15,23 +15,122 @@ import {
   Smartphone,
   Video,
   CheckCheck,
-  Eye
+  Eye,
+  Film,
+  Layers,
+  Wand2
 } from "lucide-react";
 
+interface StoryScene {
+  sceneNumber: number;
+  stageName: string;
+  timeRange: string;
+  headline: string;
+  subtext: string;
+  metric: string;
+  highlightKeyword: string;
+  durationSec: number;
+}
+
+const DEFAULT_SCENES: StoryScene[] = [
+  {
+    sceneNumber: 1,
+    stageName: "THE SHOCK HOOK",
+    timeRange: "0:00 - 0:06",
+    headline: "KENAPA GAJI SELALU HABIS DI TANGGAL 10?",
+    subtext: "Hampir semua orang salah paham sebelum nonton video ini sampai habis.",
+    metric: "STOP! 🛑",
+    highlightKeyword: "HABIS",
+    durationSec: 6
+  },
+  {
+    sceneNumber: 2,
+    stageName: "THE PAIN AGITATION",
+    timeRange: "0:06 - 0:13",
+    headline: "BUKAN KARENA GAYA HIDUP KAMU MEWAH",
+    subtext: "Tapi karena sistem keuanganmu bocor halus tanpa pernah kamu catat.",
+    metric: "-85% BOCOR",
+    highlightKeyword: "BOCOR",
+    durationSec: 7
+  },
+  {
+    sceneNumber: 3,
+    stageName: "THE BREAKTHROUGH REVEAL",
+    timeRange: "0:13 - 0:20",
+    headline: "TERAPKAN ATURAN 50/30/20 OTOMATIS",
+    subtext: "Pisahkan rekening di menit pertama gajian masuk. Tabungan aman 100%.",
+    metric: "+300% AMAN",
+    highlightKeyword: "OTOMATIS",
+    durationSec: 7
+  },
+  {
+    sceneNumber: 4,
+    stageName: "THE INFINITE LOOP CTA",
+    timeRange: "0:20 - 0:26",
+    headline: "SAVE VIDEO INI BIAR NGGAK LUPA",
+    subtext: "Biar kamu nggak bingung lagi pas mulai awal bulan depan...",
+    metric: "SAVE! ✨",
+    highlightKeyword: "SAVE",
+    durationSec: 6
+  }
+];
+
 export default function KineticMotionPage() {
-  const [headlineText, setHeadlineText] = useState("90% ORANG GAGAL KARENA HAL INI");
-  const [metricValue, setMetricValue] = useState("+340%");
-  const [subText, setSubText] = useState("Bukan karena kurang modal, tapi karena salah eksekusi di detik awal.");
+  const [mode, setMode] = useState<"multi" | "single">("multi");
+  const [topicIdea, setTopicIdea] = useState("Kenapa 99% orang gagal menabung & cara memperbaikinya");
+  const [scenes, setScenes] = useState<StoryScene[]>(DEFAULT_SCENES);
+  const [activeSceneTab, setActiveSceneTab] = useState(0);
+
+  // Single mode state
+  const [singleHeadline, setSingleHeadline] = useState("90% ORANG GAGAL KARENA HAL INI");
+  const [singleMetric, setSingleMetric] = useState("+340%");
+  const [singleSubtext, setSingleSubtext] = useState("Bukan karena kurang modal, tapi karena salah eksekusi di detik awal.");
+  const [singleDuration, setSingleDuration] = useState(6);
+
   const [motionStyle, setMotionStyle] = useState<"apple-keynote" | "fintech-alpha" | "cyber-hud" | "stoic-gold">("apple-keynote");
-  const [durationSec, setDurationSec] = useState(5);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [recordProgress, setRecordProgress] = useState(0);
+  const [isGeneratingStory, setIsGeneratingStory] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
+
+  // Calculate total duration
+  const totalDurationSec = mode === "multi"
+    ? scenes.reduce((acc, s) => acc + s.durationSec, 0)
+    : singleDuration;
+
+  // Generate 4-Scene Story from 1 Idea
+  const handleGenerateStory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!topicIdea.trim()) return;
+
+    setIsGeneratingStory(true);
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "multi-scene-story",
+          topicIdea,
+          motionStyle,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.scenes && Array.isArray(data.scenes)) {
+        setScenes(data.scenes);
+        startTimeRef.current = Date.now(); // restart canvas
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingStory(false);
+    }
+  };
 
   // Canvas drawing loop
   useEffect(() => {
@@ -64,12 +163,46 @@ export default function KineticMotionPage() {
     const render = () => {
       const now = Date.now();
       const elapsed = (now - startTimeRef.current) / 1000;
-      const loopTime = elapsed % durationSec;
-      const progress = loopTime / durationSec; // 0 to 1
+      const loopTime = elapsed % totalDurationSec;
+      const globalProgress = loopTime / totalDurationSec; // 0 to 1
+
+      // Determine active scene and local scene progress
+      let currentHeadline = singleHeadline;
+      let currentSubtext = singleSubtext;
+      let currentMetric = singleMetric;
+      let currentHighlight = "";
+      let sceneBadge = "● BUATPROMPT KINETIC";
+      let sceneLocalProgress = globalProgress;
+      let sceneIndex = 0;
+
+      if (mode === "multi") {
+        let accumulatedTime = 0;
+        for (let i = 0; i < scenes.length; i++) {
+          const s = scenes[i];
+          if (loopTime >= accumulatedTime && loopTime < accumulatedTime + s.durationSec) {
+            sceneIndex = i;
+            currentHeadline = s.headline;
+            currentSubtext = s.subtext;
+            currentMetric = s.metric;
+            currentHighlight = s.highlightKeyword;
+            sceneBadge = `SCENE ${i + 1}/${scenes.length}: ${s.stageName}`;
+            const timeInScene = loopTime - accumulatedTime;
+            sceneLocalProgress = timeInScene / s.durationSec;
+            break;
+          }
+          accumulatedTime += s.durationSec;
+        }
+      }
+
+      // Transition Ease Calculation (Fluid Ease-in / Ease-out across cuts)
+      // When sceneLocalProgress is in the first 0.15, scale from 0.95 -> 1.0
+      const enterEase = Math.min(sceneLocalProgress / 0.15, 1);
+      const exitEase = sceneLocalProgress > 0.88 ? (1 - sceneLocalProgress) / 0.12 : 1;
+      const transitionScale = 0.96 + enterEase * 0.04 * exitEase;
+      const transitionAlpha = Math.min(enterEase * exitEase * 1.5, 1);
 
       // 1. Background rendering based on style
       if (motionStyle === "apple-keynote") {
-        // Deep matte obsidian with subtle central glow
         ctx.fillStyle = "#090a0f";
         ctx.fillRect(0, 0, W, H);
 
@@ -79,7 +212,6 @@ export default function KineticMotionPage() {
         ctx.fillStyle = radial;
         ctx.fillRect(0, 0, W, H);
       } else if (motionStyle === "fintech-alpha") {
-        // FinTech deep navy grid
         ctx.fillStyle = "#070c14";
         ctx.fillRect(0, 0, W, H);
 
@@ -99,7 +231,6 @@ export default function KineticMotionPage() {
           ctx.stroke();
         }
       } else if (motionStyle === "cyber-hud") {
-        // Cyberpunk dark slate
         ctx.fillStyle = "#080911";
         ctx.fillRect(0, 0, W, H);
 
@@ -109,7 +240,6 @@ export default function KineticMotionPage() {
           ctx.fillRect(0, y, W, 2);
         }
       } else if (motionStyle === "stoic-gold") {
-        // Dark Charcoal with warm ambient
         ctx.fillStyle = "#0c0d11";
         ctx.fillRect(0, 0, W, H);
 
@@ -124,11 +254,11 @@ export default function KineticMotionPage() {
         });
       }
 
-      // 2. Top Badge
+      // 2. Top Scene Badge & Progress Indicator
       ctx.save();
-      ctx.font = "600 20px monospace";
-      ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-      ctx.fillText("● BUATPROMPT KINETIC", 60, 100);
+      ctx.font = "600 18px monospace";
+      ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+      ctx.fillText(sceneBadge, 60, 100);
 
       if (motionStyle === "cyber-hud") {
         const timecode = `TC 00:0${Math.floor(elapsed)}:${Math.floor((elapsed % 1) * 30).toString().padStart(2, "0")}`;
@@ -137,31 +267,25 @@ export default function KineticMotionPage() {
       }
       ctx.restore();
 
-      // 3. Dynamic Animated Headline (Cubic-bezier scale up)
-      const textProgress = Math.min(progress * 2.5, 1);
-      // smooth easeOutCubic
-      const ease = 1 - Math.pow(1 - textProgress, 3);
-
+      // 3. Dynamic Animated Headline with Word-by-Word Highlight
       ctx.save();
       ctx.translate(W / 2, H * 0.42);
-      ctx.scale(0.94 + ease * 0.06, 0.94 + ease * 0.06);
+      ctx.scale(transitionScale, transitionScale);
+      ctx.globalAlpha = transitionAlpha;
 
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
       if (motionStyle === "stoic-gold") {
         ctx.font = "bold 52px serif";
-        ctx.fillStyle = "#fef3c7";
       } else if (motionStyle === "cyber-hud") {
         ctx.font = "900 48px monospace";
-        ctx.fillStyle = "#38bdf8";
       } else {
         ctx.font = "800 52px sans-serif";
-        ctx.fillStyle = "#ffffff";
       }
 
-      // Word wrapping for headline
-      const words = headlineText.toUpperCase().split(" ");
+      // Split headline into lines
+      const words = currentHeadline.toUpperCase().split(" ");
       let line = "";
       const lines = [];
       for (let n = 0; n < words.length; n++) {
@@ -176,17 +300,25 @@ export default function KineticMotionPage() {
       }
       lines.push(line);
 
-      ctx.globalAlpha = Math.min(ease * 1.2, 1);
-      const lineHeight = 64;
+      const lineHeight = 66;
       const startY = -(lines.length * lineHeight) / 2;
+
       lines.forEach((l, idx) => {
-        ctx.fillText(l.trim(), 0, startY + idx * lineHeight);
+        const lineText = l.trim();
+        // Check if highlight keyword is in this line
+        if (currentHighlight && lineText.includes(currentHighlight.toUpperCase())) {
+          ctx.fillStyle = motionStyle === "fintech-alpha" ? "#10b981" : motionStyle === "stoic-gold" ? "#f59e0b" : "#38bdf8";
+        } else {
+          ctx.fillStyle = motionStyle === "cyber-hud" ? "#38bdf8" : "#ffffff";
+        }
+        ctx.fillText(lineText, 0, startY + idx * lineHeight);
       });
       ctx.restore();
 
       // 4. Dynamic Metric Counter or FinTech Trendline
-      if (metricValue.trim()) {
+      if (currentMetric.trim()) {
         ctx.save();
+        ctx.globalAlpha = transitionAlpha;
         ctx.textAlign = "center";
         ctx.font = "900 68px monospace";
 
@@ -201,9 +333,9 @@ export default function KineticMotionPage() {
           ctx.beginPath();
           const startGraphY = H * 0.65;
           ctx.moveTo(100, startGraphY);
-          const currentGraphX = 100 + (W - 200) * progress;
-          const currentGraphY = startGraphY - Math.sin(progress * Math.PI) * 120;
-          ctx.quadraticCurveTo(W / 2, startGraphY - 140 * progress, currentGraphX, currentGraphY);
+          const currentGraphX = 100 + (W - 200) * sceneLocalProgress;
+          const currentGraphY = startGraphY - Math.sin(sceneLocalProgress * Math.PI) * 120;
+          ctx.quadraticCurveTo(W / 2, startGraphY - 140 * sceneLocalProgress, currentGraphX, currentGraphY);
           ctx.stroke();
         } else if (motionStyle === "stoic-gold") {
           ctx.fillStyle = "#f59e0b";
@@ -213,19 +345,20 @@ export default function KineticMotionPage() {
           ctx.fillStyle = "#38bdf8";
         }
 
-        ctx.fillText(metricValue, W / 2, H * 0.68);
+        ctx.fillText(currentMetric, W / 2, H * 0.68);
         ctx.restore();
       }
 
       // 5. Supporting Subtext
-      if (subText.trim()) {
+      if (currentSubtext.trim()) {
         ctx.save();
+        ctx.globalAlpha = transitionAlpha;
         ctx.font = "400 24px sans-serif";
         ctx.fillStyle = "#94a3b8";
         ctx.textAlign = "center";
 
         // Word wrap subtext
-        const subWords = subText.split(" ");
+        const subWords = currentSubtext.split(" ");
         let subLine = "";
         const subLines = [];
         for (let i = 0; i < subWords.length; i++) {
@@ -245,13 +378,13 @@ export default function KineticMotionPage() {
         ctx.restore();
       }
 
-      // 6. Bottom Retention Progress Line
+      // 6. Global Timeline Progress Line (Bottom)
       ctx.save();
       ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
       ctx.fillRect(80, H - 120, W - 160, 6);
 
       ctx.fillStyle = motionStyle === "fintech-alpha" ? "#10b981" : motionStyle === "stoic-gold" ? "#f59e0b" : "#ffffff";
-      ctx.fillRect(80, H - 120, (W - 160) * progress, 6);
+      ctx.fillRect(80, H - 120, (W - 160) * globalProgress, 6);
       ctx.restore();
 
       if (isPlaying) {
@@ -266,9 +399,9 @@ export default function KineticMotionPage() {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [headlineText, metricValue, subText, motionStyle, durationSec, isPlaying]);
+  }, [mode, scenes, singleHeadline, singleMetric, singleSubtext, motionStyle, totalDurationSec, isPlaying]);
 
-  // In-Browser Native Video Recorder (MediaRecorder API)
+  // In-Browser Native Video Recorder (Full Length 24-30s or Single Clip)
   const recordAndDownloadVideo = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -302,7 +435,7 @@ export default function KineticMotionPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `kinetic-motion-${motionStyle}-${Date.now()}.webm`;
+      a.download = `kinetic-${mode}-story-${totalDurationSec}s.webm`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -314,8 +447,8 @@ export default function KineticMotionPage() {
     recorder.start();
 
     // Track recording progress bar
-    const totalMs = durationSec * 1000;
-    const intervalMs = 100;
+    const totalMs = totalDurationSec * 1000;
+    const intervalMs = 150;
     let elapsedMs = 0;
 
     const timer = setInterval(() => {
@@ -330,10 +463,10 @@ export default function KineticMotionPage() {
     }, intervalMs);
   };
 
-  const copyToClipboard = async (key: string, text: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
+  const updateSceneField = (index: number, field: keyof StoryScene, val: any) => {
+    const updated = [...scenes];
+    (updated[index] as any)[field] = val;
+    setScenes(updated);
   };
 
   return (
@@ -348,135 +481,247 @@ export default function KineticMotionPage() {
 
       <div className="mb-8">
         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-mono font-medium text-emerald-300 mb-2">
-          <Play className="h-3.5 w-3.5 fill-current" />
-          <span>IN-BROWSER 9:16 VIDEO EXPORTER (NO SCREEN RECORDER NEEDED)</span>
+          <Film className="h-3.5 w-3.5" />
+          <span>MULTI-SCENE KINETIC STORY DIRECTOR (FULL 26s MOVIE)</span>
         </div>
         <h1 className="font-mono text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
-          Kinetic Motion Graphic Studio & Video Exporter
+          Multi-Scene Kinetic Video Studio
         </h1>
         <p className="mt-2 text-sm text-zinc-400 max-w-3xl">
-          Tinggalkan video teks 2D datar murahan yang menjenuhkan. Rancang motion graphic 9:16 berkelas tinggi (Apple Keynote, FinTech Alpha, Cyber HUD, Stoic Gold), lalu **langsung rekam dan unduh file video .webm/.mp4** dari browser tanpa software screen recorder tambahan!
+          Bukan cuma potongan 5 detik! Susun **alur cerita 4-scene komplit (Hook ➔ Agitasi ➔ Solusi ➔ CTA Loop)** berdurasi 26 detik penuh dengan transisi mulus, lalu rekam dan unduh langsung jadi 1 file video tanpa CapCut!
         </p>
       </div>
 
+      {/* Mode Switcher */}
+      <div className="flex items-center gap-3 mb-6">
+        <button
+          type="button"
+          onClick={() => setMode("multi")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+            mode === "multi"
+              ? "bg-white text-black shadow-lg"
+              : "bg-white/5 border border-white/10 text-zinc-400 hover:text-white"
+          }`}
+        >
+          <Layers className="h-4 w-4" />
+          <span>FULL 4-SCENE STORY MOVIE (26 DETIK)</span>
+          <span className="bg-emerald-500/20 text-emerald-800 text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase ml-1">Rekomendasi</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMode("single")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+            mode === "single"
+              ? "bg-white text-black shadow-lg"
+              : "bg-white/5 border border-white/10 text-zinc-400 hover:text-white"
+          }`}
+        >
+          <Play className="h-4 w-4 fill-current" />
+          <span>SINGLE HOOK CLIP (6 DETIK)</span>
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Motion Controls */}
+        {/* Left Column: Form & Scene Controls */}
         <div className="lg:col-span-6 space-y-6">
-          <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-6 space-y-4 shadow-xl">
-            <div>
-              <label className="block text-xs font-mono font-semibold text-zinc-300 mb-1.5">
-                HEADLINE / HOOK UTAMA (HURUF BESAR) *
-              </label>
-              <textarea
-                rows={2}
-                value={headlineText}
-                onChange={(e) => setHeadlineText(e.target.value)}
-                placeholder="Contoh: 90% ORANG GAGAL KARENA INI"
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400 font-mono font-bold"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-mono font-semibold text-zinc-300 mb-1.5">
-                  METRIC COUNTER (ANGKA / PERSEN)
+          {mode === "multi" ? (
+            /* Multi-Scene Controls */
+            <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-6 space-y-5 shadow-xl">
+              {/* Auto Storyboard Form from 1 Idea */}
+              <form onSubmit={handleGenerateStory} className="space-y-3 pb-4 border-b border-white/10">
+                <label className="block text-xs font-mono font-semibold text-zinc-300">
+                  MASUKKAN 1 IDE / TOPIK CERITA *
                 </label>
-                <input
-                  type="text"
-                  value={metricValue}
-                  onChange={(e) => setMetricValue(e.target.value)}
-                  placeholder="Contoh: +340% atau Rp 10.000.000"
-                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:border-emerald-400 focus:outline-none font-mono"
-                />
-              </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    required
+                    value={topicIdea}
+                    onChange={(e) => setTopicIdea(e.target.value)}
+                    placeholder="Contoh: Kenapa 99% orang gagal nabung & solusinya"
+                    className="flex-1 rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:border-emerald-400 focus:outline-none font-mono"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isGeneratingStory}
+                    className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2.5 font-mono text-xs font-bold text-white transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                  >
+                    {isGeneratingStory ? (
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Wand2 className="h-3.5 w-3.5" />
+                    )}
+                    <span>SUSUN 4 SCENE</span>
+                  </button>
+                </div>
+              </form>
 
+              {/* Scene Tabs */}
               <div>
-                <label className="block text-xs font-mono font-semibold text-zinc-300 mb-1.5">
-                  DURASI SIKLUS (DETIK)
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[5, 7, 10].map((sec) => (
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-mono font-semibold text-zinc-300">
+                    EDIT SCENE STORYBOARD
+                  </span>
+                  <span className="text-[10px] font-mono text-zinc-400">
+                    Total Durasi: {totalDurationSec}s
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5 p-1 bg-black/40 rounded-xl border border-white/5 mb-3">
+                  {scenes.map((s, idx) => (
                     <button
-                      key={sec}
+                      key={s.sceneNumber}
                       type="button"
-                      onClick={() => setDurationSec(sec)}
-                      className={`rounded-xl border py-2 text-xs font-mono font-semibold transition-colors ${
-                        durationSec === sec
-                          ? "border-emerald-400 bg-emerald-500/20 text-white"
-                          : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                      onClick={() => setActiveSceneTab(idx)}
+                      className={`py-1.5 text-center rounded-lg font-mono text-[10px] font-bold transition-all ${
+                        activeSceneTab === idx
+                          ? "bg-white text-black shadow"
+                          : "text-zinc-400 hover:text-white"
                       }`}
                     >
-                      {sec}s
+                      SCENE {s.sceneNumber}
                     </button>
                   ))}
                 </div>
+
+                {/* Active Scene Editor */}
+                <div className="p-4 rounded-xl bg-black/30 border border-white/5 space-y-3">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-emerald-400 font-bold">
+                    <span>{scenes[activeSceneTab].stageName}</span>
+                    <span className="text-zinc-400">{scenes[activeSceneTab].timeRange}</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-mono text-zinc-400 mb-1">
+                      HEADLINE TEKS (HURUF BESAR)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={scenes[activeSceneTab].headline}
+                      onChange={(e) => updateSceneField(activeSceneTab, "headline", e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-black/50 px-3 py-1.5 text-xs text-white font-mono font-bold focus:border-emerald-400 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-mono text-zinc-400 mb-1">
+                        METRIC BADGE
+                      </label>
+                      <input
+                        type="text"
+                        value={scenes[activeSceneTab].metric}
+                        onChange={(e) => updateSceneField(activeSceneTab, "metric", e.target.value)}
+                        className="w-full rounded-lg border border-white/10 bg-black/50 px-3 py-1.5 text-xs text-white font-mono focus:border-emerald-400 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono text-zinc-400 mb-1">
+                        KATA PENUTUR KUNCI
+                      </label>
+                      <input
+                        type="text"
+                        value={scenes[activeSceneTab].highlightKeyword}
+                        onChange={(e) => updateSceneField(activeSceneTab, "highlightKeyword", e.target.value)}
+                        className="w-full rounded-lg border border-white/10 bg-black/50 px-3 py-1.5 text-xs text-emerald-300 font-mono focus:border-emerald-400 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-mono text-zinc-400 mb-1">
+                      SUBTEXT PENJELASAN
+                    </label>
+                    <input
+                      type="text"
+                      value={scenes[activeSceneTab].subtext}
+                      onChange={(e) => updateSceneField(activeSceneTab, "subtext", e.target.value)}
+                      className="w-full rounded-lg border border-white/10 bg-black/50 px-3 py-1.5 text-xs text-zinc-300 font-mono focus:border-emerald-400 focus:outline-none"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
+          ) : (
+            /* Single Clip Mode Controls */
+            <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-6 space-y-4 shadow-xl">
+              <div>
+                <label className="block text-xs font-mono font-semibold text-zinc-300 mb-1.5">
+                  HEADLINE CLIP
+                </label>
+                <textarea
+                  rows={2}
+                  value={singleHeadline}
+                  onChange={(e) => setSingleHeadline(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-sm text-white font-mono font-bold focus:border-emerald-400 focus:outline-none"
+                />
+              </div>
 
-            <div>
-              <label className="block text-xs font-mono font-semibold text-zinc-300 mb-1.5">
-                PENJELASAN SUBTEXT (PENDUKUNG)
-              </label>
-              <input
-                type="text"
-                value={subText}
-                onChange={(e) => setSubText(e.target.value)}
-                placeholder="Contoh: Bukan karena modal, tapi salah eksekusi."
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:border-emerald-400 focus:outline-none font-mono"
-              />
-            </div>
-
-            {/* Motion Style Selection */}
-            <div>
-              <label className="block text-xs font-mono font-semibold text-zinc-300 mb-2">
-                PILIH ARSITEKTUR GAYA MOTION GRAPHIC
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {[
-                  {
-                    id: "apple-keynote",
-                    name: "Apple Keynote Luxury",
-                    desc: "Matte obsidian, tipografi skala cubic-bezier, elegan."
-                  },
-                  {
-                    id: "fintech-alpha",
-                    name: "Wall St / FinTech Alpha",
-                    desc: "Grafik kurva SVG melesat, live metric counter hijau neon."
-                  },
-                  {
-                    id: "cyber-hud",
-                    name: "Cyberpunk Tech HUD",
-                    desc: "Garis scanlines, running timecode, border cyan bercahaya."
-                  },
-                  {
-                    id: "stoic-gold",
-                    name: "Dark Stoic & Warm Ember",
-                    desc: "Partikel debu emas melayang, font serif berwibawa."
-                  }
-                ].map((st) => (
-                  <button
-                    key={st.id}
-                    type="button"
-                    onClick={() => setMotionStyle(st.id as any)}
-                    className={`text-left p-3 rounded-xl border transition-all ${
-                      motionStyle === st.id
-                        ? "border-emerald-400 bg-emerald-500/10 text-white shadow-md shadow-emerald-500/10"
-                        : "border-white/5 bg-black/30 text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200"
-                    }`}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-mono text-zinc-300 mb-1">METRIC</label>
+                  <input
+                    type="text"
+                    value={singleMetric}
+                    onChange={(e) => setSingleMetric(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-xs text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-mono text-zinc-300 mb-1">DURASI</label>
+                  <select
+                    value={singleDuration}
+                    onChange={(e) => setSingleDuration(Number(e.target.value))}
+                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-xs text-white font-mono"
                   >
-                    <span className="block font-mono text-xs font-bold text-white mb-0.5">
-                      {st.name}
-                    </span>
-                    <span className="text-[10px] text-zinc-400 leading-tight">
-                      {st.desc}
-                    </span>
-                  </button>
-                ))}
+                    <option value={5}>5 Detik</option>
+                    <option value={7}>7 Detik</option>
+                    <option value={10}>10 Detik</option>
+                  </select>
+                </div>
               </div>
+
+              <div>
+                <label className="block text-xs font-mono text-zinc-300 mb-1">SUBTEXT</label>
+                <input
+                  type="text"
+                  value={singleSubtext}
+                  onChange={(e) => setSingleSubtext(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-xs text-zinc-300 font-mono"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Style Selector */}
+          <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-6 space-y-3 shadow-xl">
+            <label className="block text-xs font-mono font-semibold text-zinc-300">
+              GAYA VISUAL ARSITEKTUR
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: "apple-keynote", name: "Apple Keynote Luxury" },
+                { id: "fintech-alpha", name: "Wall St / FinTech Alpha" },
+                { id: "cyber-hud", name: "Cyberpunk Tech HUD" },
+                { id: "stoic-gold", name: "Dark Stoic & Warm Ember" }
+              ].map((st) => (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => setMotionStyle(st.id as any)}
+                  className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${
+                    motionStyle === st.id
+                      ? "border-emerald-400 bg-emerald-500/10 text-white font-bold"
+                      : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  {st.name}
+                </button>
+              ))}
             </div>
 
             {/* In-Browser Native Video Download Action */}
-            <div className="pt-2">
+            <div className="pt-3">
               <button
                 type="button"
                 disabled={isRecording}
@@ -486,17 +731,21 @@ export default function KineticMotionPage() {
                 {isRecording ? (
                   <>
                     <RefreshCw className="h-4 w-4 animate-spin" />
-                    <span>MEREKAM CANVAS SECARA NATIVE ({recordProgress}%)...</span>
+                    <span>MEREKAM FULL VIDEO ({recordProgress}%)...</span>
                   </>
                 ) : (
                   <>
                     <Download className="h-4 w-4" />
-                    <span>REKAM & DOWNLOAD VIDEO 9:16 (HD WEBM/MP4)</span>
+                    <span>
+                      {mode === "multi"
+                        ? `REKAM & DOWNLOAD FULL ${totalDurationSec}s VIDEO (9:16 HD)`
+                        : `REKAM & DOWNLOAD CLIP ${totalDurationSec}s (9:16 HD)`}
+                    </span>
                   </>
                 )}
               </button>
               <p className="text-[11px] font-mono text-zinc-400 text-center mt-2">
-                ⚡ 100% Client-side. Tidak perlu OBS / Screen Record. Video langsung tersimpan di laptop Anda.
+                ⚡ 100% Client-side. Tidak perlu OBS. Video utuh 4-scene langsung terunduh siap posting.
               </p>
             </div>
           </div>
@@ -537,11 +786,12 @@ export default function KineticMotionPage() {
               <span>{isPlaying ? "Pause Preview" : "Play Preview"}</span>
             </button>
             <span className="text-zinc-600">|</span>
-            <span className="text-[11px] text-zinc-400">Resolusi Render: 720 × 1280 (9:16)</span>
+            <span className="text-[11px] text-zinc-400">
+              Durasi Total: {totalDurationSec}s • 720 × 1280 (9:16)
+            </span>
           </div>
         </div>
       </div>
     </div>
   );
 }
-

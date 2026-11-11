@@ -24,6 +24,7 @@ import {
   buildCashCowStoryPrompt,
   buildThumbnailArchitectPrompt,
   buildKineticMotionPrompt,
+  buildMultiSceneStoryPrompt,
 } from "@/lib/promptEngines";
 
 export async function POST(req: NextRequest) {
@@ -148,6 +149,11 @@ export async function POST(req: NextRequest) {
 
     if (type === "kinetic-motion") {
       const data = buildKineticMotionPrompt(extraParams as any);
+      return NextResponse.json(data);
+    }
+
+    if (type === "multi-scene-story") {
+      const data = buildMultiSceneStoryPrompt(extraParams as any);
       return NextResponse.json(data);
     }
 
