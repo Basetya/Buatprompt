@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { exec } from "child_process";
+import fs from "fs";
+import path from "path";
+import os from "os";
 import https from "https";
+import util from "util";
 
-function fetchGoogleTTSChunk(text: string, lang: string = "id"): Promise<Buffer> {
+const execPromise = util.promisify(exec);
+
+// Fallback to Google Translate TTS if offline or edge-tts fails
+function fetchGoogleTTSFallback(text: string, lang: string = "id"): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const encoded = encodeURIComponent(text);
     const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=${lang}&client=tw-ob`;
@@ -17,7 +25,7 @@ function fetchGoogleTTSChunk(text: string, lang: string = "id"): Promise<Buffer>
       },
       (res) => {
         if (res.statusCode !== 200) {
-          reject(new Error(`TTS responded with status ${res.statusCode}`));
+          reject(new Error(`Fallback TTS error: ${res.statusCode}`));
           return;
         }
 
@@ -30,93 +38,114 @@ function fetchGoogleTTSChunk(text: string, lang: string = "id"): Promise<Buffer>
     req.on("error", (err) => reject(err));
     req.setTimeout(8000, () => {
       req.destroy();
-      reject(new Error("TTS request timed out"));
+      reject(new Error("Fallback TTS timed out"));
     });
   });
 }
 
-function splitTextIntoTTSChunks(text: string, maxLen: number = 130): string[] {
-  // Strip emojis and unneeded markdown symbols
+/**
+ * Generate Microsoft Azure / Edge Neural TTS with natural Indonesian prosody,
+ * emotional inflection, and breathing pauses.
+ */
+async function generateMicrosoftNeuralTTS(
+  text: string,
+  voice: string = "id-ID-ArdiNeural",
+  rate: string = "+0%",
+  pitch: string = "+0Hz"
+): Promise<Buffer> {
+  const tempFile = path.join(os.tmpdir(), `tts_neural_${Date.now()}_${Math.random().toString(36).slice(2)}.mp3`);
+  
+  // Clean text: strip quotes, brackets, and emojis
   const clean = text
     .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "")
-    .replace(/[#*`_~[\]()]/g, "")
+    .replace(/["\\`*_~[\]]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 
-  if (!clean) return [];
+  const cmd = `edge-tts --voice ${voice} --rate="${rate}" --pitch="${pitch}" --text "${clean}" --write-media "${tempFile}"`;
 
-  // Split by natural clause boundaries (. , ! ? ; :)
-  const clauses = clean.split(/(?<=[.!?,;:])\s+/);
-  const chunks: string[] = [];
-  let current = "";
-
-  for (const clause of clauses) {
-    if (!clause.trim()) continue;
-    if ((current + " " + clause).trim().length <= maxLen) {
-      current = (current + " " + clause).trim();
-    } else {
-      if (current) chunks.push(current);
-      // If a single clause is longer than maxLen, break by words
-      if (clause.length > maxLen) {
-        const words = clause.split(" ");
-        let sub = "";
-        for (const w of words) {
-          if ((sub + " " + w).trim().length <= maxLen) {
-            sub = (sub + " " + w).trim();
-          } else {
-            if (sub) chunks.push(sub);
-            sub = w;
-          }
-        }
-        if (sub) chunks.push(sub);
-        current = "";
-      } else {
-        current = clause;
+  try {
+    await execPromise(cmd, { timeout: 12000 });
+    if (fs.existsSync(tempFile)) {
+      const buffer = fs.readFileSync(tempFile);
+      fs.unlinkSync(tempFile);
+      if (buffer.length > 500) {
+        return buffer;
       }
     }
+    throw new Error("Neural TTS generated empty file");
+  } catch (err) {
+    if (fs.existsSync(tempFile)) {
+      try { fs.unlinkSync(tempFile); } catch (_) {}
+    }
+    throw err;
   }
-
-  if (current) chunks.push(current);
-  return chunks;
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { text, lang = "id" } = body;
+    const {
+      text,
+      voice = "id-ID-ArdiNeural",
+      emotion = "normal",
+      customRate,
+      customPitch,
+    } = body;
 
     if (!text || typeof text !== "string" || !text.trim()) {
       return NextResponse.json({ error: "Text is required" }, { status: 400 });
     }
 
-    const chunks = splitTextIntoTTSChunks(text, 130);
-    if (chunks.length === 0) {
-      return NextResponse.json({ error: "No valid text after sanitization" }, { status: 400 });
+    // 1. Determine Natural Emotional Prosody & Cadence Tuning
+    let rate = customRate || "+0%";
+    let pitch = customPitch || "+0Hz";
+    let formattedText = text.trim();
+
+    if (emotion === "shocked") {
+      // Hook: Intense, energetic, slightly higher pitch, dramatic pause before explanation
+      rate = customRate || "+10%";
+      pitch = customPitch || "+3Hz";
+      formattedText = formattedText.replace(/([?!])\s+/g, "$1 ... ");
+    } else if (emotion === "skeptical") {
+      // Agitation: Serious, concerned, lower pitch, slightly slower pacing for gravity
+      rate = customRate || "-4%";
+      pitch = customPitch || "-2Hz";
+    } else if (emotion === "celebrate") {
+      // Solution: Confident, clear, bright, inspiring tempo
+      rate = customRate || "+6%";
+      pitch = customPitch || "+2Hz";
+    } else if (emotion === "point-cta") {
+      // CTA: Warm, friendly, conversational, clear call to action
+      rate = customRate || "+2%";
+      pitch = customPitch || "+0Hz";
     }
 
-    // Fetch chunks sequentially or in small parallel batches to avoid throttling
-    const audioBuffers: Buffer[] = [];
-    for (const chunk of chunks) {
-      try {
-        const buf = await fetchGoogleTTSChunk(chunk, lang);
-        audioBuffers.push(buf);
-      } catch (err) {
-        console.warn("Failed chunk TTS, continuing:", err);
-      }
+    // 2. Try Microsoft Azure / Edge Neural TTS first
+    try {
+      const neuralBuffer = await generateMicrosoftNeuralTTS(formattedText, voice, rate, pitch);
+      return new NextResponse(new Uint8Array(neuralBuffer), {
+        status: 200,
+        headers: {
+          "Content-Type": "audio/mpeg",
+          "Content-Length": neuralBuffer.length.toString(),
+          "X-TTS-Engine": "Microsoft-Azure-Neural",
+          "Cache-Control": "public, max-age=86400",
+        },
+      });
+    } catch (neuralErr) {
+      console.warn("Neural TTS unavailable, switching to fallback:", neuralErr);
     }
 
-    if (audioBuffers.length === 0) {
-      return NextResponse.json({ error: "TTS generation failed" }, { status: 502 });
-    }
-
-    const combinedBuffer = Buffer.concat(audioBuffers);
-
-    return new NextResponse(combinedBuffer, {
+    // 3. Fallback to Google TTS if Neural is unreachable
+    const fallbackBuffer = await fetchGoogleTTSFallback(formattedText, "id");
+    return new NextResponse(new Uint8Array(fallbackBuffer), {
       status: 200,
       headers: {
         "Content-Type": "audio/mpeg",
-        "Content-Length": combinedBuffer.length.toString(),
-        "Cache-Control": "public, max-age=86400, s-maxage=86400",
+        "Content-Length": fallbackBuffer.length.toString(),
+        "X-TTS-Engine": "Google-Translate-Legacy",
+        "Cache-Control": "public, max-age=86400",
       },
     });
   } catch (error: any) {
@@ -128,35 +157,32 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const text = searchParams.get("text") || "";
-  const lang = searchParams.get("lang") || "id";
+  const voice = searchParams.get("voice") || "id-ID-ArdiNeural";
+  const emotion = searchParams.get("emotion") || "normal";
 
   if (!text) {
     return NextResponse.json({ error: "Text query param is required" }, { status: 400 });
   }
 
-  const chunks = splitTextIntoTTSChunks(text, 130);
-  const audioBuffers: Buffer[] = [];
-  for (const chunk of chunks) {
-    try {
-      const buf = await fetchGoogleTTSChunk(chunk, lang);
-      audioBuffers.push(buf);
-    } catch (err) {
-      console.warn("Failed chunk TTS:", err);
-    }
+  try {
+    const neuralBuffer = await generateMicrosoftNeuralTTS(text, voice);
+    return new NextResponse(new Uint8Array(neuralBuffer), {
+      status: 200,
+      headers: {
+        "Content-Type": "audio/mpeg",
+        "Content-Length": neuralBuffer.length.toString(),
+        "Cache-Control": "public, max-age=86400",
+      },
+    });
+  } catch (_) {
+    const fallbackBuffer = await fetchGoogleTTSFallback(text, "id");
+    return new NextResponse(new Uint8Array(fallbackBuffer), {
+      status: 200,
+      headers: {
+        "Content-Type": "audio/mpeg",
+        "Content-Length": fallbackBuffer.length.toString(),
+        "Cache-Control": "public, max-age=86400",
+      },
+    });
   }
-
-  if (audioBuffers.length === 0) {
-    return NextResponse.json({ error: "TTS generation failed" }, { status: 502 });
-  }
-
-  const combinedBuffer = Buffer.concat(audioBuffers);
-
-  return new NextResponse(combinedBuffer, {
-    status: 200,
-    headers: {
-      "Content-Type": "audio/mpeg",
-      "Content-Length": combinedBuffer.length.toString(),
-      "Cache-Control": "public, max-age=86400, s-maxage=86400",
-    },
-  });
 }

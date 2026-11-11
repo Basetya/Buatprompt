@@ -145,6 +145,7 @@ export default function KineticMotionPage() {
   const [bgmEnabled, setBgmEnabled] = useState(true);
   const [sfxEnabled, setSfxEnabled] = useState(true);
   const [characterLayout, setCharacterLayout] = useState<"single" | "duo">("single");
+  const [voiceActor, setVoiceActor] = useState<"id-ID-ArdiNeural" | "id-ID-GadisNeural">("id-ID-ArdiNeural");
   const [isAudioLoading, setIsAudioLoading] = useState(false);
 
   // Single mode state
@@ -204,30 +205,37 @@ export default function KineticMotionPage() {
     return { ctx: audioCtxRef.current, dest: audioDestRef.current! };
   }, []);
 
-  // Pre-fetch TTS audio for all scenes
-  const prefetchTTSForScenes = useCallback(async (sceneList: StoryScene[]) => {
-    try {
-      setIsAudioLoading(true);
-      const { ctx } = getOrCreateAudioEngine();
-      for (let i = 0; i < sceneList.length; i++) {
-        const s = sceneList[i];
-        const spokenText = `${s.headline}. ${s.subtext}`;
-        const buf = await fetchAndDecodeTTS(ctx, spokenText, "id");
-        if (buf) {
-          audioBuffersRef.current[i] = buf;
+  // Pre-fetch Microsoft Azure / Edge Neural TTS audio for all scenes
+  const prefetchTTSForScenes = useCallback(
+    async (sceneList: StoryScene[], voice: string = voiceActor) => {
+      try {
+        setIsAudioLoading(true);
+        const { ctx } = getOrCreateAudioEngine();
+        for (let i = 0; i < sceneList.length; i++) {
+          const s = sceneList[i];
+          const spokenText = `${s.headline}. ${s.subtext}`;
+          const buf = await fetchAndDecodeTTS(ctx, spokenText, {
+            voice,
+            emotion: s.characterEmotion || "normal",
+          });
+          if (buf) {
+            audioBuffersRef.current[i] = buf;
+          }
         }
+      } catch (err) {
+        console.warn("Audio prefetch notice:", err);
+      } finally {
+        setIsAudioLoading(false);
       }
-    } catch (err) {
-      console.warn("Audio prefetch notice:", err);
-    } finally {
-      setIsAudioLoading(false);
-    }
-  }, [getOrCreateAudioEngine]);
+    },
+    [getOrCreateAudioEngine, voiceActor]
+  );
 
-  // Trigger audio prefetch when scenes change
+  // Trigger audio prefetch when scenes or voice actor change
   useEffect(() => {
-    prefetchTTSForScenes(scenes);
-  }, [scenes, prefetchTTSForScenes]);
+    audioBuffersRef.current = {};
+    prefetchTTSForScenes(scenes, voiceActor);
+  }, [scenes, voiceActor, prefetchTTSForScenes]);
 
   // Handle BGM playback based on state
   useEffect(() => {
@@ -954,6 +962,9 @@ export default function KineticMotionPage() {
 
     let mimeType = "video/webm;codecs=vp9,opus";
     if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = "video/webm;codecs=vp8,opus";
+    }
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
       mimeType = "video/webm";
     }
 
@@ -970,6 +981,11 @@ export default function KineticMotionPage() {
     };
 
     recorder.onstop = () => {
+      if (chunks.length === 0) {
+        console.warn("Recording yielded empty buffer");
+        setIsRecording(false);
+        return;
+      }
       const blob = new Blob(chunks, { type: mimeType });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -983,7 +999,8 @@ export default function KineticMotionPage() {
       setRecordProgress(100);
     };
 
-    recorder.start();
+    // Emit timeslice chunks every 250ms for reliable, non-truncated webm output
+    recorder.start(250);
 
     // Track recording progress
     const totalMs = totalDurationSec * 1000;
@@ -1082,6 +1099,38 @@ export default function KineticMotionPage() {
             {audioEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
             <span>Voiceover: {audioEnabled ? "AKTIF ✓" : "MUTE"}</span>
           </button>
+
+          {/* Microsoft Azure Neural Voice Selector */}
+          <div className="flex items-center gap-1 rounded-xl bg-black/40 border border-white/10 p-1">
+            <button
+              type="button"
+              onClick={() => {
+                getOrCreateAudioEngine();
+                setVoiceActor("id-ID-ArdiNeural");
+              }}
+              className={`px-2.5 py-1.5 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer ${
+                voiceActor === "id-ID-ArdiNeural"
+                  ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              🎙️ Ardi (Pria)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                getOrCreateAudioEngine();
+                setVoiceActor("id-ID-GadisNeural");
+              }}
+              className={`px-2.5 py-1.5 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer ${
+                voiceActor === "id-ID-GadisNeural"
+                  ? "bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              🎙️ Gadis (Wanita)
+            </button>
+          </div>
 
           {/* Lo-Fi BGM Toggle */}
           <button
