@@ -286,12 +286,16 @@ Belajar dari video kampanye viral kelas dunia (seperti `@classai_id` / *Lemo-Opu
 
 ### Triple-Layer Audio Engine & Web Audio Stream Muxer (Bukan Lagi Video Bisu!)
 
-Kelemahan fatal banyak generator web adalah menghasilkan video rekaman yang bisu (tanpa suara), sehingga pengguna terpaksa memasukkan audio sendiri secara manual di CapCut. 
+Kelemahan fatal banyak generator web adalah menghasilkan video rekaman yang bisu (tanpa suara), atau suara robotik datar seperti bot penerjemah tahun 2010. 
 
-Di **BuatPrompt Studio**, seluruh audio dirakit dan disinkronkan langsung di browser:
-1. **Indonesian Voiceover TTS Engine (`/api/tts`)**:
-   - Menghasilkan audio bicara bahasa Indonesia yang jernih dan artikulatif.
-   - Durasi bicara dipetakan secara presisi per scene.
+Di **BuatPrompt Studio**, seluruh audio dirakit dan disinkronkan langsung di browser dengan standar penyiaran profesional:
+1. **Microsoft Azure / Edge Neural Voice Engine (`/api/tts`)**:
+   - Didukung oleh model Deep Neural Network terbaik industri untuk Bahasa Indonesia: **Ardi (`id-ID-ArdiNeural`)** untuk vokal pria berwibawa & **Gadis (`id-ID-GadisNeural`)** untuk vokal wanita jernih dan ramah.
+   - **Emotional Cadence & Prosody Tuning**:
+     - *Babak 1 (The Hook)*: Pacing lebih cepat (`rate="+10%"`), nada terkejut (`pitch="+3Hz"`), dan jeda bernapas dramatis (`[pause 0.4s]`) sebelum kalimat bantahan.
+     - *Babak 2 (The Agitation)*: Pacing lambat berbobot (`rate="-4%"`), nada berat (`pitch="-2Hz"`), memberikan tekanan tegas pada kata kunci jebakan/bocor.
+     - *Babak 3 (The Reveal)*: Pacing dinamis inspiratif (`rate="+6%"`), nada berwibawa membacakan strategi konkret dan kutipan tokoh.
+     - *Babak 4 (The Loop CTA)*: Pacing hangat bersahabat (`rate="+2%"`), intonasi mengalir menyambung kembali ke detik 0:00!
    - Mulut karakter Voxel 3D (*mouth flap*) bergerak secara harmonis mengikuti gelombang suara ini.
 2. **Procedural Foley SFX Engine**:
    - *Whoosh* udara saat pergantian babak (0s, 10s, 25s, 40s).
@@ -300,8 +304,9 @@ Di **BuatPrompt Studio**, seluruh audio dirakit dan disinkronkan langsung di bro
    - Dihasilkan 100% menggunakan Web Audio API oscillator tanpa butuh koneksi internet!
 3. **Procedural Lo-Fi Ambient BGM**:
    - Musik latar santai berirama 75 BPM yang menjaga ketukan video tetap hidup dan memikat telinga penonton.
-4. **Hardware Audio-Video Stream Muxer**:
+4. **Hardware Audio-Video Stream Muxer (Non-Truncated 250ms Timeslice)**:
    - `MediaStreamDestinationNode` dari Web Audio digabungkan langsung dengan `canvas.captureStream(30)`.
+   - Streaming data dicatat setiap 250 milidetik secara kontinu untuk mencegah file rusak/terpotong.
    - Sekali klik tombol download: pengguna mendapatkan **1 File Video Jadi (.webm / .mp4 9:16 HD) DENGAN FULL STEREO AUDIO**. Bebas repot, zero CapCut!
 
 ---
