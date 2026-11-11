@@ -24,7 +24,9 @@ import {
   Zap,
   Volume2,
   Clock,
-  FileText
+  FileText,
+  Lightbulb,
+  Scissors
 } from "lucide-react";
 
 interface StoryScene {
@@ -41,16 +43,24 @@ interface StoryScene {
   foleyCue: string;
 }
 
+const SUGGESTED_TOPICS = [
+  { label: "☕ Kopi Enak Tanpa Mesin", topic: "Rahasia seduh kopi seenak cafe tanpa mesin mahal", niche: "Kuliner & Kopi" },
+  { label: "💰 Affiliate Tembus 10 Juta", topic: "Cara affiliate pemula tembus 10 juta pertama tanpa followers", niche: "Affiliate & Jualan" },
+  { label: "🛑 Gaji Selalu Habis Tgl 10", topic: "Kenapa gaji berapapun selalu habis di tanggal 10 dan solusinya", niche: "Finansial & Investasi" },
+  { label: "✨ Retinol Anti-Purging", topic: "Aturan pakai retinol malam hari agar glowing tanpa breakout", niche: "Skincare & Beauty" },
+  { label: "📱 HP Murah Spek Dewa", topic: "Jangan beli HP flagship mahal kalau cuma buat medsos, ini solusinya", niche: "Gadget & Tech" },
+];
+
 const DEFAULT_SCENES: StoryScene[] = [
   {
     sceneNumber: 1,
     stageName: "THE SHOCK HOOK",
-    timeRange: "0:00 - 0:06",
+    timeRange: "0:00 - 0:10",
     headline: "KENAPA GAJI SELALU HABIS DI TANGGAL 10?",
-    subtext: "Hampir semua orang salah paham sebelum nonton video ini sampai habis.",
-    metric: "STOP! 🛑",
+    subtext: "Bukan karena penghasilan kamu kekecilan, tapi karena ada kebocoran halus di rekeningmu yang nggak pernah kamu catat.",
+    metric: "STOP BOCOR! 🛑",
     highlightKeyword: "HABIS",
-    durationSec: 6,
+    durationSec: 10,
     characterEmotion: "shocked",
     kineticFx: "Spring Punch Scale 1.2x + Alert Aura Halo",
     foleyCue: "0:00 Fast Whoosh + Heavy Sub-Bass Thud"
@@ -58,46 +68,49 @@ const DEFAULT_SCENES: StoryScene[] = [
   {
     sceneNumber: 2,
     stageName: "THE PAIN AGITATION",
-    timeRange: "0:06 - 0:13",
-    headline: "BUKAN KARENA GAYA HIDUP KAMU MEWAH",
-    subtext: "Tapi karena sistem keuanganmu bocor halus tanpa pernah kamu catat.",
+    timeRange: "0:10 - 0:25",
+    headline: "LIFESTYLE INFLATION MENJEBAK TABUNGAN",
+    subtext: "Gaji naik 1 juta, pengeluaran kopi dan nongkrong ikut naik 1.5 juta. Di akhir bulan saldo kembali nol dan kamu tetap merasa miskin.",
     metric: "-85% BOCOR",
-    highlightKeyword: "BOCOR",
-    durationSec: 7,
+    highlightKeyword: "JEBAKAN",
+    durationSec: 15,
     characterEmotion: "skeptical",
     kineticFx: "Wipe Push Left + Floating Red Question Particles",
-    foleyCue: "0:06 Camera Shutter Snap + Low Vinyl Scratch"
+    foleyCue: "0:10 Camera Shutter Snap + Low Vinyl Scratch"
   },
   {
     sceneNumber: 3,
     stageName: "THE BREAKTHROUGH REVEAL",
-    timeRange: "0:13 - 0:20",
-    headline: "TERAPKAN ATURAN 50/30/20 OTOMATIS",
-    subtext: "Pisahkan rekening di menit pertama gajian masuk. Tabungan aman 100%.",
+    timeRange: "0:25 - 0:40",
+    headline: "TERAPKAN SISTEM 3 REKENING OTOMATIS",
+    subtext: "Begitu gajian masuk: 50% pos hidup, 30% investasi autodebet, 20% uang senang-senang. Rekening tabungan dikunci tanpa kartu debit fisik.",
     metric: "+300% AMAN",
-    highlightKeyword: "OTOMATIS",
-    durationSec: 7,
+    highlightKeyword: "AUTODEBET",
+    durationSec: 15,
     characterEmotion: "celebrate",
     kineticFx: "Dynamic Glowing SVG Curve Path + Rocket Sparkles",
-    foleyCue: "0:13 Harmonic Synth Swell + Crisp Cash Chime"
+    foleyCue: "0:25 Harmonic Synth Swell + Crisp Cash Chime"
   },
   {
     sceneNumber: 4,
     stageName: "THE INFINITE LOOP CTA",
-    timeRange: "0:20 - 0:26",
-    headline: "SIMPAN VIDEO INI BIAR NGGAK LUPA",
-    subtext: "Biar kamu nggak bingung lagi pas mulai awal bulan depan...",
+    timeRange: "0:40 - 0:52",
+    headline: "SIMPAN VIDEO INI BIAR GAJI AMAN",
+    subtext: "Biar kamu nggak panik lagi pas mulai awal bulan depan... Karena kalau kamu perhatikan lagi...",
     metric: "SAVE! ✨",
     highlightKeyword: "SIMPAN",
-    durationSec: 6,
+    durationSec: 12,
     characterEmotion: "point-cta",
     kineticFx: "Pulsating Bookmark Ring + Seamless Loop Match Cut",
-    foleyCue: "0:20 Clean Glass Bell Ding + Ambient Fade Out"
+    foleyCue: "0:40 Clean Glass Bell Ding + Ambient Fade Out"
   }
 ];
 
 export default function KineticMotionPage() {
   const [mode, setMode] = useState<"multi" | "single">("multi");
+  const [creationTab, setCreationTab] = useState<"idea" | "script">("idea");
+  const [durationTarget, setDurationTarget] = useState<"55s" | "26s">("55s");
+  const [targetNiche, setTargetNiche] = useState("General Creator");
   const [topicIdea, setTopicIdea] = useState("Kenapa 99% orang gagal menabung & cara memperbaikinya");
   const [rawScriptInput, setRawScriptInput] = useState("");
   const [scenes, setScenes] = useState<StoryScene[]>(DEFAULT_SCENES);
@@ -123,21 +136,23 @@ export default function KineticMotionPage() {
   const startTimeRef = useRef<number>(0);
 
   // Word count & pacing calculation
-  const textWords = rawScriptInput.trim()
-    ? rawScriptInput.trim().split(/\s+/).filter((w) => w.length > 0)
-    : topicIdea.trim().split(/\s+/).filter((w) => w.length > 0);
+  const currentAnalyzedText = creationTab === "script" ? rawScriptInput : topicIdea;
+  const textWords = currentAnalyzedText.trim()
+    ? currentAnalyzedText.trim().split(/\s+/).filter((w) => w.length > 0)
+    : [];
   const wordCount = textWords.length;
   const estimatedSeconds = Math.round(wordCount / 2.4);
-  const isPacingOverLimit = wordCount > 135 || estimatedSeconds > 55;
+  const isPacingOverLimit = creationTab === "script" && (wordCount > 135 || estimatedSeconds > 55);
 
   const totalDurationSec = mode === "multi"
     ? scenes.reduce((acc, s) => acc + s.durationSec, 0)
     : singleDuration;
 
-  // Auto Arrange & Script Breakdown
-  const handleArrangeScript = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const targetText = rawScriptInput.trim() || topicIdea.trim();
+  // Auto Arrange & Script Breakdown Handler
+  const handleGenerateStory = async (overrideTab?: "idea" | "script", customScript?: string) => {
+    const activeTab = overrideTab || creationTab;
+    const targetScript = customScript !== undefined ? customScript : rawScriptInput;
+    const targetText = activeTab === "script" ? targetScript.trim() : topicIdea.trim();
     if (!targetText) return;
 
     setIsGeneratingStory(true);
@@ -149,9 +164,12 @@ export default function KineticMotionPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "multi-scene-story",
+          inputTab: activeTab,
           topicIdea: topicIdea || "Strategi Konten",
-          rawScriptText: rawScriptInput,
+          rawScriptText: activeTab === "script" ? targetScript : "",
+          targetNiche,
           motionStyle,
+          durationTarget,
         }),
       });
 
@@ -167,6 +185,15 @@ export default function KineticMotionPage() {
       console.error(err);
     } finally {
       setIsGeneratingStory(false);
+    }
+  };
+
+  // 1-Click Auto-Truncate for Custom Script exceeding 55s
+  const handleAutoTruncate = () => {
+    if (creationTab === "script") {
+      const trimmed = textWords.slice(0, 130).join(" ");
+      setRawScriptInput(trimmed);
+      handleGenerateStory("script", trimmed);
     }
   };
 
@@ -732,17 +759,28 @@ export default function KineticMotionPage() {
         <div className="flex items-center gap-3">
           <Clock className="h-4 w-4 text-cyan-400 shrink-0" />
           <div className="text-xs font-mono">
-            <span className="text-zinc-400">Analisis Naskah: </span>
-            <span className="text-white font-bold">{wordCount} Kata</span>
-            <span className="text-zinc-500 mx-2">•</span>
-            <span className="text-zinc-400">Estimasi Bicara: </span>
-            <span className="text-emerald-300 font-bold">~{estimatedSeconds} Detik</span>
-            <span className="text-zinc-500 mx-2">•</span>
-            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-              isPacingOverLimit ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"
-            }`}>
-              {isPacingOverLimit ? "TERLALU PANJANG (>55s)" : "RETENSI OPTIMAL ✓"}
-            </span>
+            <span className="text-zinc-400">Status Studio: </span>
+            {creationTab === "script" ? (
+              <>
+                <span className="text-white font-bold">{wordCount} Kata</span>
+                <span className="text-zinc-500 mx-2">•</span>
+                <span className="text-zinc-400">Estimasi Bicara: </span>
+                <span className="text-emerald-300 font-bold">~{estimatedSeconds} Detik</span>
+                <span className="text-zinc-500 mx-2">•</span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                  isPacingOverLimit ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"
+                }`}>
+                  {isPacingOverLimit ? "TERLALU PANJANG (>55s)" : "RETENSI OPTIMAL ✓"}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="text-emerald-300 font-bold">AI Idea-to-Script Mode</span>
+                <span className="text-zinc-500 mx-2">•</span>
+                <span className="text-zinc-400">Target Durasi: </span>
+                <span className="text-cyan-300 font-bold">{durationTarget === "55s" ? "52-55 Detik (Golden Sweet Spot)" : "26 Detik (Express Quick Hook)"}</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -756,19 +794,29 @@ export default function KineticMotionPage() {
         <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-2 backdrop-blur-xl animate-in fade-in">
           <div className="flex items-center gap-2 text-amber-300 font-mono text-xs font-bold">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span>PANDUAN RETENSI ALGORITMA: NASKAH TERLALU PANJANG</span>
+            <span>PANDUAN RETENSI ALGORITMA: OPTIMASI DURASI & NASKAH</span>
           </div>
           <p className="text-xs font-mono text-zinc-300 leading-relaxed">
             {warningMessage || `Naskah Anda (${wordCount} kata / ~${estimatedSeconds} detik) melebihi batas retensi optimal 55-60 detik. Menonton video vertikal terlalu lama berpotensi meningkatkan drop-off penonton.`}
           </p>
-          <button
-            type="button"
-            onClick={() => handleArrangeScript()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 font-mono text-xs font-bold text-white transition-colors cursor-pointer"
-          >
-            <Zap className="h-3.5 w-3.5" />
-            <span>RINGKAS OTOMATIS JADI 4 SCENE 26 DETIK TAJAM</span>
-          </button>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              type="button"
+              onClick={handleAutoTruncate}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 font-mono text-xs font-bold text-white transition-colors cursor-pointer"
+            >
+              <Scissors className="h-3.5 w-3.5" />
+              <span>✂️ AUTO-TRUNCATE KE 130 KATA (52s MAKSIMAL)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleGenerateStory("script")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 font-mono text-xs font-bold text-white transition-colors cursor-pointer"
+            >
+              <Zap className="h-3.5 w-3.5" />
+              <span>SUSUN ULANG KE 4 SCENE PADAT</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -778,44 +826,236 @@ export default function KineticMotionPage() {
           {mode === "multi" ? (
             /* Multi-Scene Controls */
             <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-6 space-y-5 shadow-xl">
-              {/* Long Script / Idea Input Form */}
-              <form onSubmit={handleArrangeScript} className="space-y-3 pb-4 border-b border-white/10">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-mono font-semibold text-zinc-300">
-                    MASUKKAN NASKAH PANJANG / IDE CERITA *
-                  </label>
-                  <span className="text-[10px] font-mono text-cyan-400">
-                    Bisa naskah mentah 1 paragraf
-                  </span>
-                </div>
-                <textarea
-                  rows={3}
-                  value={rawScriptInput || topicIdea}
-                  onChange={(e) => {
-                    setRawScriptInput(e.target.value);
-                    setTopicIdea(e.target.value);
-                  }}
-                  placeholder="Paste naskah panjang Anda di sini, BuatPrompt akan otomatis memecah dan mengatur durasi..."
-                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:border-emerald-400 focus:outline-none font-mono"
-                />
+              {/* TWO TABS: IDEA-TO-SCRIPT VS CUSTOM SCRIPT */}
+              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/50 border border-white/10">
                 <button
-                  type="submit"
-                  disabled={isGeneratingStory}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 font-mono text-xs font-bold text-white transition-opacity hover:opacity-95 cursor-pointer disabled:opacity-50"
+                  type="button"
+                  onClick={() => setCreationTab("idea")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg font-mono text-xs font-bold transition-all cursor-pointer ${
+                    creationTab === "idea"
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
                 >
-                  {isGeneratingStory ? (
-                    <>
-                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                      <span>MENYUSUN & MENGKALKULASI DURASI SCENE...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="h-3.5 w-3.5" />
-                      <span>BEDAH NASKAH & SUSUN 4 SCENE SINEMATIK</span>
-                    </>
-                  )}
+                  <Lightbulb className="h-3.5 w-3.5" />
+                  <span>💡 BUAT NASKAH DARI IDE</span>
                 </button>
-              </form>
+                <button
+                  type="button"
+                  onClick={() => setCreationTab("script")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg font-mono text-xs font-bold transition-all cursor-pointer ${
+                    creationTab === "script"
+                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>📝 MASUKKAN NASKAH SENDIRI</span>
+                </button>
+              </div>
+
+              {/* TAB 1: GENERATE FROM IDEA */}
+              {creationTab === "idea" ? (
+                <div className="space-y-3 pb-4 border-b border-white/10">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-mono font-semibold text-zinc-300">
+                      KETIK TOPIK / IDE KONTEN ANDA *
+                    </label>
+                    <span className="text-[10px] font-mono text-emerald-400">
+                      Otomatis Bikin Naskah 55s
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    value={topicIdea}
+                    onChange={(e) => setTopicIdea(e.target.value)}
+                    placeholder="Contoh: Rahasia kopi enak tanpa mesin mahal, Tips affiliate pemula..."
+                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:border-emerald-400 focus:outline-none font-mono font-medium"
+                  />
+
+                  {/* Quick Suggested Topics */}
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[10px] font-mono text-zinc-500">PILIHAN INSPIRASI CEPAT:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {SUGGESTED_TOPICS.map((sug, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => {
+                            setTopicIdea(sug.topic);
+                            setTargetNiche(sug.niche);
+                          }}
+                          className="text-[10px] font-mono px-2.5 py-1 rounded-lg border border-white/5 bg-white/5 text-zinc-400 hover:text-emerald-300 hover:border-emerald-500/30 transition-colors cursor-pointer"
+                        >
+                          {sug.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Target Duration & Niche Selector */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div>
+                      <label className="block text-[10px] font-mono text-zinc-400 mb-1">
+                        TARGET DURASI VIDEO
+                      </label>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setDurationTarget("55s")}
+                          className={`py-1.5 px-2 text-center rounded-lg font-mono text-[10px] font-bold border transition-all cursor-pointer ${
+                            durationTarget === "55s"
+                              ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-300"
+                              : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                          }`}
+                        >
+                          52-55s (Deep Story)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDurationTarget("26s")}
+                          className={`py-1.5 px-2 text-center rounded-lg font-mono text-[10px] font-bold border transition-all cursor-pointer ${
+                            durationTarget === "26s"
+                              ? "border-cyan-500/40 bg-cyan-500/20 text-cyan-300"
+                              : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                          }`}
+                        >
+                          26s (Express Hook)
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-mono text-zinc-400 mb-1">
+                        NICHE / TONE AUDIENS
+                      </label>
+                      <select
+                        value={targetNiche}
+                        onChange={(e) => setTargetNiche(e.target.value)}
+                        className="w-full rounded-lg border border-white/10 bg-black/40 px-2.5 py-2 text-xs text-white font-mono focus:border-emerald-400 focus:outline-none"
+                      >
+                        <option value="General Creator">Umum & Edukasi</option>
+                        <option value="Affiliate & Jualan">Affiliate & Jualan</option>
+                        <option value="Finansial & Investasi">Finansial & Investasi</option>
+                        <option value="Kuliner & Kopi">Kuliner & Kopi</option>
+                        <option value="Skincare & Beauty">Skincare & Beauty</option>
+                        <option value="Gadget & Tech">Gadget & Tech</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateStory("idea")}
+                    disabled={isGeneratingStory || !topicIdea.trim()}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 px-4 py-3 font-mono text-xs font-bold text-white transition-opacity hover:opacity-95 cursor-pointer disabled:opacity-50 mt-2 shadow-lg shadow-emerald-950/40"
+                  >
+                    {isGeneratingStory ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        <span>MENYUSUN NASKAH {durationTarget === "55s" ? "52-55s" : "26s"} & 4 SCENE...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="h-3.5 w-3.5" />
+                        <span>🪄 BUAT NASKAH LENGKAP & SUSUN 4 SCENE OTOMATIS</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                /* TAB 2: PASTE CUSTOM SCRIPT */
+                <div className="space-y-3 pb-4 border-b border-white/10">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-mono font-semibold text-zinc-300">
+                      PASTE NASKAH MENTAH / ARTIKEL PANJANG *
+                    </label>
+                    <span className="text-[10px] font-mono text-cyan-400">
+                      Pacing Guard Aktif
+                    </span>
+                  </div>
+                  <textarea
+                    rows={4}
+                    value={rawScriptInput}
+                    onChange={(e) => setRawScriptInput(e.target.value)}
+                    placeholder="Paste naskah Anda di sini... BuatPrompt akan menganalisis jumlah kata, mengestimasi durasi bicara, dan membedahnya ke dalam 4 scene beruntun."
+                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:border-cyan-400 focus:outline-none font-mono"
+                  />
+
+                  {/* Pacing Guard Info for Custom Script */}
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-black/30 border border-white/5 text-[11px] font-mono">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5 text-cyan-400" />
+                      <span className="text-zinc-400">Naskah:</span>
+                      <span className="text-white font-bold">{wordCount} Kata</span>
+                      <span className="text-zinc-500">•</span>
+                      <span className="text-emerald-300 font-bold">~{estimatedSeconds}s</span>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      isPacingOverLimit ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"
+                    }`}>
+                      {isPacingOverLimit ? "TERLALU PANJANG (>55s)" : "RETENSI PAS ✓"}
+                    </span>
+                  </div>
+
+                  {/* Target Duration Selector for custom breakdown */}
+                  <div className="flex items-center justify-between text-xs font-mono text-zinc-400">
+                    <span>Durasi Alokasi:</span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDurationTarget("55s")}
+                        className={`px-2.5 py-1 rounded text-[10px] font-bold border transition-all ${
+                          durationTarget === "55s" ? "border-cyan-400 bg-cyan-500/20 text-cyan-300" : "border-white/5 text-zinc-400"
+                        }`}
+                      >
+                        52s (4 Scene)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDurationTarget("26s")}
+                        className={`px-2.5 py-1 rounded text-[10px] font-bold border transition-all ${
+                          durationTarget === "26s" ? "border-cyan-400 bg-cyan-500/20 text-cyan-300" : "border-white/5 text-zinc-400"
+                        }`}
+                      >
+                        26s (4 Scene)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                    {isPacingOverLimit && (
+                      <button
+                        type="button"
+                        onClick={handleAutoTruncate}
+                        className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 px-3 py-2.5 font-mono text-xs font-bold text-white transition-colors cursor-pointer"
+                      >
+                        <Scissors className="h-3.5 w-3.5" />
+                        <span>✂️ AUTO-TRUNCATE 52s</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateStory("script")}
+                      disabled={isGeneratingStory || !rawScriptInput.trim()}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-600 px-4 py-2.5 font-mono text-xs font-bold text-white transition-opacity hover:opacity-95 cursor-pointer disabled:opacity-50"
+                    >
+                      {isGeneratingStory ? (
+                        <>
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                          <span>MEMBEDAH NASKAH KE 4 SCENE...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="h-3.5 w-3.5" />
+                          <span>⚡ BEDAH NASKAH & ADAPTASI JADI 4 SCENE</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Scene Tabs */}
               <div>
@@ -823,7 +1063,7 @@ export default function KineticMotionPage() {
                   <span className="text-xs font-mono font-semibold text-zinc-300">
                     EDITOR 4 SCENE STORYBOARD
                   </span>
-                  <span className="text-[10px] font-mono text-zinc-400">
+                  <span className="text-[10px] font-mono text-emerald-400 font-bold">
                     Total: {totalDurationSec}s • 4 Babak
                   </span>
                 </div>
@@ -833,13 +1073,13 @@ export default function KineticMotionPage() {
                       key={s.sceneNumber}
                       type="button"
                       onClick={() => setActiveSceneTab(idx)}
-                      className={`py-1.5 text-center rounded-lg font-mono text-[10px] font-bold transition-all ${
+                      className={`py-1.5 text-center rounded-lg font-mono text-[10px] font-bold transition-all cursor-pointer ${
                         activeSceneTab === idx
                           ? "bg-white text-black shadow"
                           : "text-zinc-400 hover:text-white"
                       }`}
                     >
-                      SCENE {s.sceneNumber}
+                      SCENE {s.sceneNumber} ({s.durationSec}s)
                     </button>
                   ))}
                 </div>
@@ -863,7 +1103,7 @@ export default function KineticMotionPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div>
                       <label className="block text-[10px] font-mono text-zinc-400 mb-1">
                         METRIC BADGE
@@ -872,7 +1112,7 @@ export default function KineticMotionPage() {
                         type="text"
                         value={scenes[activeSceneTab].metric}
                         onChange={(e) => updateSceneField(activeSceneTab, "metric", e.target.value)}
-                        className="w-full rounded-lg border border-white/10 bg-black/50 px-3 py-1.5 text-xs text-white font-mono focus:border-emerald-400 focus:outline-none"
+                        className="w-full rounded-lg border border-white/10 bg-black/50 px-2.5 py-1.5 text-xs text-white font-mono focus:border-emerald-400 focus:outline-none"
                       />
                     </div>
                     <div>
@@ -883,7 +1123,7 @@ export default function KineticMotionPage() {
                         type="text"
                         value={scenes[activeSceneTab].highlightKeyword}
                         onChange={(e) => updateSceneField(activeSceneTab, "highlightKeyword", e.target.value)}
-                        className="w-full rounded-lg border border-white/10 bg-black/50 px-3 py-1.5 text-xs text-emerald-300 font-mono focus:border-emerald-400 focus:outline-none"
+                        className="w-full rounded-lg border border-white/10 bg-black/50 px-2.5 py-1.5 text-xs text-emerald-300 font-mono focus:border-emerald-400 focus:outline-none"
                       />
                     </div>
                     <div>
@@ -900,6 +1140,19 @@ export default function KineticMotionPage() {
                         <option value="celebrate">🎉 Senang / Solusi</option>
                         <option value="point-cta">👉 Menunjuk / CTA</option>
                       </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono text-zinc-400 mb-1">
+                        DURASI (DETIK)
+                      </label>
+                      <input
+                        type="number"
+                        min={3}
+                        max={30}
+                        value={scenes[activeSceneTab].durationSec}
+                        onChange={(e) => updateSceneField(activeSceneTab, "durationSec", Math.max(3, parseInt(e.target.value) || 5))}
+                        className="w-full rounded-lg border border-white/10 bg-black/50 px-2.5 py-1.5 text-xs text-cyan-300 font-bold font-mono focus:border-emerald-400 focus:outline-none"
+                      />
                     </div>
                   </div>
 

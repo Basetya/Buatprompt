@@ -97,6 +97,115 @@ export async function POST(req: NextRequest) {
       else if (type === "storyboard") taskPrompt = buildStoryboardPrompt(extraParams as any);
       else if (type === "optimizer") taskPrompt = buildOptimizerPrompt(extraParams.rawPrompt, extraParams.targetAi);
 
+      if (type === "multi-scene-story") {
+        try {
+          const {
+            topicIdea = "Tips Konten",
+            rawScriptText = "",
+            targetNiche = "General Creator",
+            motionStyle = "apple-keynote",
+            durationTarget = "55s",
+            inputTab = "idea"
+          } = extraParams;
+
+          const is55s = durationTarget !== "26s";
+          const targetSeconds = is55s ? 52 : 26;
+          const targetWords = is55s ? "120-135 kata" : "60-65 kata";
+
+          const systemPrompt = `Anda adalah Senior Creative Director dan Master Motion Graphic Copywriter.
+Tugas Anda adalah menyusun naskah video vertikal 9:16 (TikTok, Instagram Reels, YouTube Shorts) berdurasi tepat ~${targetSeconds} detik (${targetWords}) yang dibagi menjadi 4 Scene sinematik dengan alur retensi visual tinggi:
+- Scene 1: THE SHOCK HOOK (Kaitkan rasa penasaran, emosi "shocked", durasi ${is55s ? 10 : 6} detik)
+- Scene 2: THE PAIN AGITATION (Bongkar kesalahan/masalah, emosi "skeptical", durasi ${is55s ? 15 : 7} detik)
+- Scene 3: THE BREAKTHROUGH REVEAL (Solusi cerdas & aksi nyata, emosi "celebrate", durasi ${is55s ? 15 : 7} detik)
+- Scene 4: THE INFINITE LOOP CTA (Call to action dan loop anchor menyatu kembali ke Scene 1, emosi "point-cta", durasi ${is55s ? 12 : 6} detik)
+
+Input Pengguna:
+- Topik/Ide: "${topicIdea}"
+- Naskah Mentah Pengguna (jika ada): "${rawScriptText || ''}"
+- Niche Target: "${targetNiche}"
+- Gaya Visual: "${motionStyle}"
+- Mode Input: "${inputTab}"
+
+KEMBALIKAN HANYA JSON VALID (tanpa markdown code fences, tanpa kata pengantar) dengan struktur persis seperti ini:
+{
+  "topic": "${topicIdea}",
+  "wordCount": 128,
+  "estimatedVoiceSeconds": ${targetSeconds},
+  "isTooLong": false,
+  "totalDurationSec": ${targetSeconds},
+  "retentionFormula": "3 Hukum Fisika Visual + Character Emotion Resonance + Word-by-Word Highlight",
+  "scenes": [
+    {
+      "sceneNumber": 1,
+      "stageName": "THE SHOCK HOOK",
+      "timeRange": "0:00 - 0:${is55s ? '10' : '06'}",
+      "headline": "TEKS HEADLINE HURUF BESAR SINGKAT",
+      "subtext": "Penjelasan subteks yang dibacakan voiceover...",
+      "metric": "STOP! 🛑",
+      "highlightKeyword": "KATA_KUNCI",
+      "durationSec": ${is55s ? 10 : 6},
+      "characterEmotion": "shocked",
+      "kineticFx": "Spring Punch Scale 1.2x + Alert Aura Halo",
+      "foleyCue": "0:00 Fast Whoosh + Heavy Sub-Bass Thud"
+    },
+    {
+      "sceneNumber": 2,
+      "stageName": "THE PAIN AGITATION",
+      "timeRange": "0:${is55s ? '10' : '06'} - 0:${is55s ? '25' : '13'}",
+      "headline": "KENDALA UTAMA YANG BIKIN GAGAL",
+      "subtext": "Penjelasan masalah yang membuat penonton merasa relate...",
+      "metric": "-85% GAGAL",
+      "highlightKeyword": "KENDALA",
+      "durationSec": ${is55s ? 15 : 7},
+      "characterEmotion": "skeptical",
+      "kineticFx": "Wipe Push Left + Floating Red Question Particles",
+      "foleyCue": "0:${is55s ? '10' : '06'} Camera Snap + Low Vinyl Scratch"
+    },
+    {
+      "sceneNumber": 3,
+      "stageName": "THE BREAKTHROUGH REVEAL",
+      "timeRange": "0:${is55s ? '25' : '13'} - 0:${is55s ? '40' : '20'}",
+      "headline": "TERAPKAN SOLUSI INI HARI INI",
+      "subtext": "Penjelasan solusi praktis dan langkah konkrit yang terbukti efektif...",
+      "metric": "+350% HASIL",
+      "highlightKeyword": "SOLUSI",
+      "durationSec": ${is55s ? 15 : 7},
+      "characterEmotion": "celebrate",
+      "kineticFx": "Dynamic Glowing SVG Curve Path + Rocket Sparkles",
+      "foleyCue": "0:${is55s ? '25' : '13'} Harmonic Synth Swell + Crisp Cash Chime"
+    },
+    {
+      "sceneNumber": 4,
+      "stageName": "THE INFINITE LOOP CTA",
+      "timeRange": "0:${is55s ? '40' : '20'} - 0:${targetSeconds}",
+      "headline": "SIMPAN VIDEO INI BIAR NGGAK LUPA",
+      "subtext": "Penjelasan ajakan simpan dan kalimat anchor yang nyambung kembali ke scene 1...",
+      "metric": "SAVE! ✨",
+      "highlightKeyword": "SIMPAN",
+      "durationSec": ${is55s ? 12 : 6},
+      "characterEmotion": "point-cta",
+      "kineticFx": "Pulsating Bookmark Ring + Seamless Loop Match Cut",
+      "foleyCue": "0:${is55s ? '40' : '20'} Clean Glass Bell Ding + Ambient Fade Out"
+    }
+  ]
+}`;
+
+          const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
+          });
+
+          const rawText = response.text || "";
+          const cleanedJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+          const parsed = JSON.parse(cleanedJson);
+          if (parsed && Array.isArray(parsed.scenes) && parsed.scenes.length === 4) {
+            return NextResponse.json(parsed);
+          }
+        } catch (llmErr) {
+          console.warn("Live Gemini multi-scene generation failed, falling back to autonomous synthesis engine:", llmErr);
+        }
+      }
+
       if (taskPrompt) {
         const response = await ai.models.generateContent({
           model: "gemini-2.5-flash",
