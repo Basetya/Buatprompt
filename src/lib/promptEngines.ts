@@ -524,3 +524,373 @@ export function buildOptimizerPrompt(rawPrompt: string, targetAi: string = "Goog
 Prompt: "${rawPrompt}" | Target: ${targetAi}
 Tulis ulang menjadi OPTIMIZED PROMPT lengkap dengan Persona, Context, Action Steps, dan Negative Constraints.`;
 }
+
+// ============================================================================
+// 12. WORLD-CLASS CREATOR DREAM SUITE (6 GROUNDBREAKING ENGINES)
+// ============================================================================
+
+// A. ElevenLabs Emotion & Audio Director
+export interface ElevenLabsAudioParams {
+  rawScript: string;
+  toneStyle: "dramatic-suspense" | "hyped-excitement" | "warm-storyteller" | "curious-whisper" | "luxury-monologue";
+  pacingSpeed: "relaxed" | "natural" | "punchy-fast";
+}
+
+export interface ElevenLabsAudioResult {
+  formattedScriptWithTags: string;
+  sliderSettings: {
+    stability: number;
+    claritySimilarity: number;
+    styleExaggeration: number;
+    speakerBoost: boolean;
+  };
+  pacingNotes: string;
+}
+
+export function buildElevenLabsEmotionPrompt(params: ElevenLabsAudioParams): ElevenLabsAudioResult {
+  const { rawScript, toneStyle, pacingSpeed } = params;
+
+  let tagsPrefix = "";
+  let sliderSettings = { stability: 0.40, claritySimilarity: 0.85, styleExaggeration: 0.45, speakerBoost: true };
+
+  switch (toneStyle) {
+    case "curious-whisper":
+      tagsPrefix = "[soft conspiratorial whisper, leaning close to mic] ";
+      sliderSettings = { stability: 0.30, claritySimilarity: 0.90, styleExaggeration: 0.55, speakerBoost: true };
+      break;
+    case "hyped-excitement":
+      tagsPrefix = "[energetic punch, rapid upbeat cadence] ";
+      sliderSettings = { stability: 0.35, claritySimilarity: 0.80, styleExaggeration: 0.65, speakerBoost: true };
+      break;
+    case "luxury-monologue":
+      tagsPrefix = "[deep velvety baritone, deliberate serene cadence] ";
+      sliderSettings = { stability: 0.65, claritySimilarity: 0.95, styleExaggeration: 0.25, speakerBoost: true };
+      break;
+    case "dramatic-suspense":
+      tagsPrefix = "[intense gravelly whisper, breathless pause] ";
+      sliderSettings = { stability: 0.32, claritySimilarity: 0.88, styleExaggeration: 0.50, speakerBoost: true };
+      break;
+    default:
+      tagsPrefix = "[warm engaging conversational tone, natural inflection] ";
+      sliderSettings = { stability: 0.50, claritySimilarity: 0.85, styleExaggeration: 0.35, speakerBoost: true };
+      break;
+  }
+
+  // Enrich sentences with cadence markers
+  const sentences = rawScript
+    .split(/(?<=[.!?])\s+/)
+    .filter(s => s.trim().length > 0);
+
+  const enriched = sentences.map((s, idx) => {
+    if (idx === 0) return `${tagsPrefix}${s} [pause: 0.5s]`;
+    if (idx === 1 && toneStyle === "dramatic-suspense") return `[sudden realization, pitch drops] ${s} [pause: 0.7s]`;
+    if (idx === sentences.length - 1) return `[confident punchy resolution, smile in voice] ${s}`;
+    return `[natural breath] ${s} [pause: 0.4s]`;
+  }).join("\n\n");
+
+  return {
+    formattedScriptWithTags: enriched,
+    sliderSettings,
+    pacingNotes: `Kecepatan Pacing: ${pacingSpeed.toUpperCase()} | Gunakan model ElevenLabs Multilingual v2 dengan Speaker Boost ON untuk menonjolkan frekuensi mikro vokal.`
+  };
+}
+
+// B. Soundscape & Foley Cue-Sheet
+export interface FoleySoundscapeParams {
+  videoDuration: "15s" | "30s" | "60s";
+  videoTheme: string;
+  musicEnergy: "high-energy-phonk" | "dark-ambient-drone" | "cinematic-orchestral" | "upbeat-commercial-pop";
+}
+
+export interface FoleyCueItem {
+  timestamp: string;
+  category: "IMPACT" | "WHOOSH" | "FOLEY" | "UI / ALERT" | "RISER";
+  soundName: string;
+  searchKeyword: string;
+  actionTrigger: string;
+}
+
+export interface FoleySoundscapeResult {
+  bgmRecommendation: {
+    genre: string;
+    targetBpm: string;
+    duckingAdvice: string;
+  };
+  cues: FoleyCueItem[];
+}
+
+export function buildFoleySoundscapePrompt(params: FoleySoundscapeParams): FoleySoundscapeResult {
+  const { videoDuration, videoTheme, musicEnergy } = params;
+
+  const bgmMap: Record<string, { genre: string; targetBpm: string; duckingAdvice: string }> = {
+    "high-energy-phonk": {
+      genre: "Drift Phonk / Aggressive Bass",
+      targetBpm: "130 - 138 BPM",
+      duckingAdvice: "Duck BGM ke -18dB saat ada naskah suara; dorong kembali ke -6dB pada jeda transisi hook."
+    },
+    "dark-ambient-drone": {
+      genre: "Cinematic Low Frequency Mystery Drone",
+      targetBpm: "80 - 90 BPM Ambient",
+      duckingAdvice: "Volume stabil di -16dB, biarkan sub-bass 40Hz mengisi kekosongan naskah."
+    },
+    "cinematic-orchestral": {
+      genre: "Modern Hybrid Hans Zimmer Braam & Strings",
+      targetBpm: "110 - 120 BPM Building",
+      duckingAdvice: "Automate volume perlahan naik (crescendo) di 5 detik terakhir video menuju klimaks."
+    },
+    "upbeat-commercial-pop": {
+      genre: "Modern Minimalist Indie Pop Beat",
+      targetBpm: "118 - 124 BPM",
+      duckingAdvice: "Duck BGM ke -20dB di bawah dialog; beri aksen rimshot pada teks on-screen."
+    }
+  };
+
+  const cues: FoleyCueItem[] = [
+    {
+      timestamp: "0:00",
+      category: "IMPACT",
+      soundName: "Deep Cinematic Sub-Bass Drop + Fast Whoosh",
+      searchKeyword: "Bass Drop / Whoosh Hit",
+      actionTrigger: "Detik ke-1 frame pembuka saat teks hook muncul menahan scroll."
+    },
+    {
+      timestamp: "0:03",
+      category: "FOLEY",
+      soundName: "Crisp Camera Shutter Snap / Paper Rip",
+      searchKeyword: "Camera Shutter / Paper Tear",
+      actionTrigger: "Perubahan angle pertama atau saat foto/produk hero ditampilkan."
+    },
+    {
+      timestamp: "0:07",
+      category: "WHOOSH",
+      soundName: "High-Velocity Swoosh Transition",
+      searchKeyword: "Fast Swish / Whip Pan",
+      actionTrigger: "Transisi cepat antara masalah ke demonstrasi solusi."
+    },
+    {
+      timestamp: "0:11",
+      category: "RISER",
+      soundName: "Tension Synth Pitch Riser",
+      searchKeyword: "Short Riser / Tension Swell",
+      actionTrigger: "Membangun urgensi penonton sebelum instruksi Call to Action."
+    },
+    {
+      timestamp: videoDuration === "15s" ? "0:13" : "0:25",
+      category: "UI / ALERT",
+      soundName: "Cash Register 'Ka-ching!' / Clean Glass Ding",
+      searchKeyword: "Cash Register / Bell Ding",
+      actionTrigger: "Kemunculan stiker keranjang kuning atau panah CTA."
+    }
+  ];
+
+  return {
+    bgmRecommendation: bgmMap[musicEnergy] || bgmMap["high-energy-phonk"],
+    cues
+  };
+}
+
+// C. TikTok & Reels Safe-Zone Optics Architect
+export interface SafeZoneOpticsParams {
+  subjectConcept: string;
+  targetPlatform: "tiktok-9-16" | "reels-9-16" | "shorts-9-16";
+  visualAtmosphere: string;
+}
+
+export interface SafeZoneOpticsResult {
+  safeZoneEngineeredPrompt: string;
+  viewportAllocation: {
+    topHeaderMargin: string;
+    upperFocalZone: string;
+    rightInteractionClearance: string;
+    bottomNegativeSpace: string;
+  };
+  antiObstructionDirective: string;
+}
+
+export function buildSafeZoneOpticsPrompt(params: SafeZoneOpticsParams): SafeZoneOpticsResult {
+  const { subjectConcept, targetPlatform, visualAtmosphere } = params;
+
+  return {
+    safeZoneEngineeredPrompt: `[BUATPROMPT STUDIO — SAFE-ZONE OPTICS MASTER DIRECTIVE]
+Platform: ${targetPlatform.toUpperCase()} Vertical Viewport (9:16 Aspect Ratio)
+Subject Focal Point: ${subjectConcept}
+Atmosphere: ${visualAtmosphere}
+
+OPTICAL FRAMING RULES (ANTI-OBSTRUCTION ENFORCED):
+- Viewport Composition: Hero subject locked strictly in the UPPER-MIDDLE 60% vertical frame (Z-plane centered, golden ratio optical elevation).
+- Bottom Negative Space: The bottom 25% of the frame is rendered as clean, high-contrast dark negative space with subtle dark gradient falloff (to ensure TikTok captions, sound name, and shopping bag overlay NEVER obscure hero details).
+- Right Side Clearance: 15% margin on the right edge kept deliberately clear of critical facial features or branded text (preventing collision with Like, Comment, Bookmark, and Share button columns).
+- Optics & Lens: Shot on 35mm vertical cinema anamorphic lens, f/1.8 aperture, edge sharpness, no distortion on human anatomy.
+- Target Model: Google Flow (Veo 2 & Imagen 3) vertical 9:16 master render --ar 9:16`,
+    viewportAllocation: {
+      topHeaderMargin: "10% Area Kosong Atas (Aman dari bar tab Following/For You)",
+      upperFocalZone: "60% Golden Center (Lokasi Wajah / Produk Utama Bebas Halangan)",
+      rightInteractionClearance: "15% Margin Kanan Bebas (Aman dari Tombol Like, Comment, Share)",
+      bottomNegativeSpace: "25% Area Bawah Gelap / Minimalis (Aman dari Judul Akun, Teks Caption, dan Keranjang Kuning)"
+    },
+    antiObstructionDirective: "Hindari meletakkan teks grafis atau detail mikro penting di bawah koordinat Y=75% karena akan tertimpa antarmuka aplikasi media sosial."
+  };
+}
+
+// D. Hook A/B Test Splitter (3 Pembuka Berbeda, 1 Isi Video)
+export interface HookSplitterParams {
+  coreTopicOrProduct: string;
+  coreBenefitOrSecret: string;
+}
+
+export interface HookVariant {
+  tag: string;
+  hookType: string;
+  openingVerbalScript: string;
+  openingVisualPrompt: string;
+  onScreenTextBadge: string;
+}
+
+export interface HookSplitterResult {
+  hookVariants: HookVariant[];
+  sharedBodyAndCta: {
+    bodyTransition: string;
+    bodyVerbal: string;
+    ctaVerbal: string;
+    ctaVisual: string;
+  };
+}
+
+export function buildHookSplitterPrompt(params: HookSplitterParams): HookSplitterResult {
+  const { coreTopicOrProduct, coreBenefitOrSecret } = params;
+
+  return {
+    hookVariants: [
+      {
+        tag: "HOOK A (VISUAL SHOCK & PATTERN INTERRUPT)",
+        hookType: "Sensori Cepat Pembunuh Refleks Scroll",
+        openingVerbalScript: "STOP scroll jempol kamu 3 detik! Jangan buang-buang uang sebelum kamu lihat rahasia ini.",
+        openingVisualPrompt: `Extreme macro close-up, sharp sudden whip-pan towards the camera lens, hands dynamically presenting ${coreTopicOrProduct} with volumetric neon rim lighting, 4K high kinetic energy.`,
+        onScreenTextBadge: "STOP BUANG UANG! 🛑"
+      },
+      {
+        tag: "HOOK B (CONTRARIAN & DEBUNKING STATEMENT)",
+        hookType: "Membalikkan Asumsi Umum Audiens",
+        openingVerbalScript: "Hampir 90% orang salah mikir kalau mau hasil bagus harus repot, padahal cara rahasianya sesederhana ini...",
+        openingVisualPrompt: `Split-screen visual: Sisi kiri orang tampak frustrasi dengan metode lama yang gagal, sisi kanan subjek tersenyum memegang ${coreTopicOrProduct} dengan pencahayaan hangat natural.`,
+        onScreenTextBadge: "90% ORANG KETIPU?! 😱"
+      },
+      {
+        tag: "HOOK C (THE CURIOSITY GAP & PERSONAL CONFESSION)",
+        hookType: "Membuka Rahasia Eksklusif Bernilai Tinggi",
+        openingVerbalScript: "Jujur gue baru berani buka rahasia ini sekarang, setelah coba sendiri buat ${coreBenefitOrSecret}...",
+        openingVisualPrompt: `Low-angle intimate documentary camera framing, 35mm lens, subject leans forward toward camera speaking conspiratorially in cozy ambient room tone.`,
+        onScreenTextBadge: "RAHASIA BARU KEBONGKAR 🤫"
+      }
+    ],
+    sharedBodyAndCta: {
+      bodyTransition: "Detik 0:03 - Masuk ke Bagian Isi Utama (Gunakan klip video yang sama untuk ketiga hook):",
+      bodyVerbal: `Ternyata kuncinya ada di ${coreTopicOrProduct}. Beneran ngebantu banget terutama buat ${coreBenefitOrSecret}. Praktis, sat-set, dan hasilnya langsung kerasa nyata tanpa ribet.`,
+      ctaVerbal: "Mumpung stok batch promo masih ada, langsung amankan di keranjang kuning sekarang sebelum kembali harga normal!",
+      ctaVisual: "Hero product resting in center frame, smooth slow dolly zoom-out, thumbs-up gesture, clean lighting."
+    }
+  };
+}
+
+// E. Faceless Cash-Cow Storytelling Pipeline
+export interface CashCowStoryParams {
+  niche: "dark-psychology" | "stoic-philosophy" | "historical-mystery" | "sci-fi-lore" | "true-crime";
+  storyTopic: string;
+}
+
+export interface CashCowAct {
+  actName: string;
+  timeRange: string;
+  narrativeScript: string;
+  cinematicVisualPrompt: string;
+  soundscapeVibe: string;
+}
+
+export interface CashCowStoryResult {
+  storyTitle: string;
+  niche: string;
+  loopRetentionScore: string;
+  acts: CashCowAct[];
+}
+
+export function buildCashCowStoryPrompt(params: CashCowStoryParams): CashCowStoryResult {
+  const { niche, storyTopic } = params;
+
+  return {
+    storyTitle: `The Enigma of: ${storyTopic}`,
+    niche: niche.toUpperCase(),
+    loopRetentionScore: "98.4% (Engineered for Infinite Retention Loop)",
+    acts: [
+      {
+        actName: "ACT 1: THE INFINITE LOOP HOOK",
+        timeRange: "0:00 - 0:06",
+        narrativeScript: `Di tahun 1923, sebuah dokumen rahasia ditemukan terkunci di ruang bawah tanah... dan kalimat pertamanya mengatakan bahwa kamu yang mendengar ini sedang diperhatikan.`,
+        cinematicVisualPrompt: `Dark moody atmospheric cinema shot, antique rusted iron safe slowly swinging open in a dusty candlelight cellar, volumetric dust motes, chiaroscuro lighting, shot on 35mm anamorphic prime lens, 8K hyper-realism.`,
+        soundscapeVibe: "Deep resonant bass drone + distant metal screech"
+      },
+      {
+        actName: "ACT 2: THE UNKNOWN DISCOVERY",
+        timeRange: "0:06 - 0:20",
+        narrativeScript: `Para ilmuwan awalnya mengabaikan catatan tersebut sebagai paranoia biasa. Sampai mereka menyadari... setiap nama yang tertulis di halaman itu mengalami fenomena yang persis sama.`,
+        cinematicVisualPrompt: `Close-up macro shot of weathered aged parchment with handwritten cryptic symbols, flickering amber candlelight, extreme texture details, slow tracking camera push-in.`,
+        soundscapeVibe: "Subtle vintage clock ticking + heartbeat thud"
+      },
+      {
+        actName: "ACT 3: THE PARADOX ESCALATION",
+        timeRange: "0:20 - 0:42",
+        narrativeScript: `Aturannya hanya satu: begitu kamu mengetahui cara kerjanya, alam bawah sadarmu tidak akan pernah bisa melupakannya. Dan inilah bagian yang paling mengerikan...`,
+        cinematicVisualPrompt: `Silhouette of a lone mysterious figure standing before an enormous obsidian obsidian monolith in foggy misty night, backlit by cold cyan rim light, eerie cinematic depth.`,
+        soundscapeVibe: "Rising pitch dissonant synth strings"
+      },
+      {
+        actName: "ACT 4: THE MIND-BENDING CLIMAX & SEAMLESS LOOP",
+        timeRange: "0:42 - 0:60",
+        narrativeScript: `Mereka mencoba memusnahkan semua salinannya. Tapi satu dokumen berhasil lolos dan tersimpan kembali... persis di tempat awal ceritanya dimulai...`,
+        cinematicVisualPrompt: `The heavy iron vault door slams shut with explosive force in slow motion, returning to the exact shadowy opening frame. Ready to seamlessly replay from second 0:00.`,
+        soundscapeVibe: "Heavy impact blast + sudden acoustic silence (creating instant loop addiction)"
+      }
+    ]
+  };
+}
+
+// F. High-CTR Cover & Thumbnail Architect
+export interface ThumbnailArchitectParams {
+  videoTopic: string;
+  targetCategory: string;
+  visualVibe: "hyper-contrast-pop" | "dark-enigmatic" | "curiosity-shock" | "luxury-prestige";
+}
+
+export interface ThumbnailArchitectResult {
+  oneFrameMasterPrompt: string;
+  suggestedThreeWordHeadlines: string[];
+  colorPsychologyStack: {
+    primaryAccent: string;
+    backgroundContrast: string;
+    eyeMagnetColor: string;
+  };
+  opticalFramingAdvice: string;
+}
+
+export function buildThumbnailArchitectPrompt(params: ThumbnailArchitectParams): ThumbnailArchitectResult {
+  const { videoTopic, targetCategory, visualVibe } = params;
+
+  return {
+    oneFrameMasterPrompt: `[BUATPROMPT STUDIO — HIGH-CTR THUMBNAIL MASTER PROMPT]
+Subject: High-impact iconic visual representation of "${videoTopic}". Center-weighted hero composition with hyperbolic micro-details and dramatic silhouette separation.
+Optics & Lighting: Shot on Hasselblad H6D-100c with 85mm f/1.4 lens, hyper-sharp foreground focal plane, creamy circular optical bokeh. Ultra-vibrant dual rim lighting (Electric Cyan on left, Radiant Amber on right) cutting against an obsidian dark backdrop.
+Composition: Rule-of-thirds facial gaze looking slightly off-camera with intense intrigue, zero visual clutter, 8k resolution, award-winning commercial masterwork --ar 9:16 --v 6.1 --stylize 300`,
+    suggestedThreeWordHeadlines: [
+      "JANGAN BELI INI! 🛑",
+      "TERNYATA PALSU?! 😱",
+      "RAHASIA 10 DETIK ⚡",
+      "STOP BIKIN GINI! ⚠️",
+      "AWAS KETIPU LAGI! 🔥"
+    ],
+    colorPsychologyStack: {
+      primaryAccent: "#FACC15 (Vibrant Warning Yellow — Memancing refleks perhatian instan)",
+      backgroundContrast: "#07080C (Deep Cosmic Obsidian — Membuat objek meloncat keluar)",
+      eyeMagnetColor: "#06B6D4 (Electric Cyan Rim Light — Memberikan kesan futuristik berkelas)"
+    },
+    opticalFramingAdvice: "Letakkan teks judul 3-kata di sepertiga atas gambar (Y: 20-35%) dengan font sans-serif ultra-bold ber-outline hitam tebal untuk keterbacaan 100% pada layar HP ukuran 5 inci."
+  };
+}

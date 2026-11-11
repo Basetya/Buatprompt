@@ -74,6 +74,25 @@ export const ALL_TOOLS: ToolItem[] = [
       "Pergerakan kamera dolly-in stabil pada subjek manusia"
     ]
   },
+  {
+    id: "safe-zone-optics",
+    tool_key: "safe-zone-optics",
+    title: "TIKTOK & REELS SAFE-ZONE OPTICS",
+    name: "Safe-Zone Optics Architect",
+    path: "/safe-zone-optics",
+    icon: "Smartphone",
+    color: "text-emerald-400",
+    iconBg: "bg-emerald-500/15",
+    badge: "ANTI-OBSTRUCTION",
+    badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+    featured: true,
+    category: "google-flow",
+    description: "Framing optik 9:16 anti-tertutup UI TikTok/Reels: hero diletakkan di 60% Golden Center, bottom 25% negative space aman dari judul/keranjang, kanan aman dari tombol Like/Share.",
+    samples: [
+      "Prompt Veo 2 dengan proteksi area tombol Like & Comment",
+      "Negative space 25% bawah untuk subtitle dan keranjang kuning"
+    ]
+  },
 
   // --- FLAGSHIP 2: CHARACTER CONSISTENCY & CINEMA PIPELINE ---
   {
@@ -115,6 +134,63 @@ export const ALL_TOOLS: ToolItem[] = [
     ]
   },
   {
+    id: "audio-director",
+    tool_key: "audio-director",
+    title: "ELEVENLABS EMOTION & AUDIO DIRECTOR",
+    name: "ElevenLabs Emotion Director",
+    path: "/audio-director",
+    icon: "Mic",
+    color: "text-cyan-400",
+    iconBg: "bg-cyan-500/15",
+    badge: "EMOTION TTS",
+    badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
+    featured: true,
+    category: "cinematic-video",
+    description: "Suntikkan jiwa manusia ke suara AI: tag emosi [whisper], [intense], [pause: 0.5s], pacing cadence, dan setting slider ElevenLabs (Stability & Clarity) otomatis.",
+    samples: [
+      "Naskah berbisik konspiratif dengan jeda dramatis",
+      "Setting slider stabilitas vokal untuk emosi meledak"
+    ]
+  },
+  {
+    id: "foley-soundscape",
+    tool_key: "foley-soundscape",
+    title: "SOUNDSCAPE & FOLEY CUE-SHEET",
+    name: "Foley & SFX Track Architect",
+    path: "/foley-soundscape",
+    icon: "Volume2",
+    color: "text-indigo-400",
+    iconBg: "bg-indigo-500/15",
+    badge: "CAPCUT SFX",
+    badgeColor: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
+    featured: true,
+    category: "cinematic-video",
+    description: "Solusi video AI bisu: cue sheet SFX detik demi detik untuk CapCut (Sub-Bass Hit, Shutter, Swoosh, Cash Register) + rekomendasi BPM musik & audio ducking.",
+    samples: [
+      "Timeline SFX 15 detik video promosi produk CapCut",
+      "Rekomendasi Phonk 130 BPM + volume ducking -18dB"
+    ]
+  },
+  {
+    id: "faceless-pipeline",
+    tool_key: "faceless-pipeline",
+    title: "FACELESS CASH-COW STORY PIPELINE",
+    name: "Cash-Cow Storytelling Engine",
+    path: "/faceless-pipeline",
+    icon: "Sparkles",
+    color: "text-purple-400",
+    iconBg: "bg-purple-500/15",
+    badge: "INFINITE LOOP",
+    badgeColor: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+    featured: true,
+    category: "cinematic-video",
+    description: "Cetak naskah storytelling faceless channel 60 detik berretensi 98%: Loop Hook, Micro Mystery, Rising Paradox, hingga Mind-Bending Loop Twist.",
+    samples: [
+      "Storytelling misteri sejarah 60 detik siap viral",
+      "Struktur psikologi loop tak terputus untuk YouTube Shorts"
+    ]
+  },
+  {
     id: "forensic-inspector",
     tool_key: "forensic-inspector",
     title: "VISUAL FORENSIC INSPECTOR 2.0",
@@ -131,6 +207,25 @@ export const ALL_TOOLS: ToolItem[] = [
     samples: [
       "Deteksi setup pencahayaan studio komersial",
       "Ekstraksi kode warna HEX dan spesifikasi lensa nyata"
+    ]
+  },
+  {
+    id: "thumbnail-architect",
+    tool_key: "thumbnail-architect",
+    title: "HIGH-CTR COVER & THUMBNAIL ARCHITECT",
+    name: "Cover & Thumbnail Architect",
+    path: "/thumbnail-architect",
+    icon: "Image",
+    color: "text-amber-400",
+    iconBg: "bg-amber-500/15",
+    badge: "HIGH-CTR 9:16",
+    badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+    featured: true,
+    category: "visual-art",
+    description: "Ciptakan visual 1-frame magnet klik: kontras ekstrem Hasselblad 85mm f/1.4, dual rim lighting, psikologi warna, dan saran judul 3-kata huruf kapital.",
+    samples: [
+      "Prompt cover TikTok/Reels magnet klik",
+      "Analisis warna kontras tinggi untuk feed profile grid"
     ]
   },
 
@@ -152,6 +247,25 @@ export const ALL_TOOLS: ToolItem[] = [
     samples: [
       "5 Angle video anti-shadowban untuk affiliator TikTok",
       "Export 1-klik terpisah naskah audio ElevenLabs & prompt Veo 2"
+    ]
+  },
+  {
+    id: "hook-splitter",
+    tool_key: "hook-splitter",
+    title: "VIRAL HOOK A/B TEST SPLITTER",
+    name: "Hook A/B Test Splitter",
+    path: "/hook-splitter",
+    icon: "Split",
+    color: "text-rose-400",
+    iconBg: "bg-rose-500/15",
+    badge: "3-IN-1 HOOK",
+    badgeColor: "bg-rose-500/20 text-rose-300 border-rose-500/30",
+    featured: true,
+    category: "commerce-growth",
+    description: "1 Isi video, 3 hook pembuka 3-detik berbeda (Visual Shock, Contrarian Debunk, Curiosity Loop) dengan jembatan transisi halus untuk split-testing algoritma.",
+    samples: [
+      "3 Variasi pembuka video skincare untuk A/B testing multi-akun",
+      "Transisi mulus dari 3 hook berbeda ke 1 isi video yang sama"
     ]
   },
   {

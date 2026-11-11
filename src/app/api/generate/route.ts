@@ -17,6 +17,12 @@ import {
   buildGamePrompt,
   buildStoryboardPrompt,
   buildOptimizerPrompt,
+  buildElevenLabsEmotionPrompt,
+  buildFoleySoundscapePrompt,
+  buildSafeZoneOpticsPrompt,
+  buildHookSplitterPrompt,
+  buildCashCowStoryPrompt,
+  buildThumbnailArchitectPrompt,
 } from "@/lib/promptEngines";
 
 export async function POST(req: NextRequest) {
@@ -107,6 +113,36 @@ export async function POST(req: NextRequest) {
     if (type === "content-sprint") {
       const prompt = buildSevenDaySprint(extraParams as any);
       return NextResponse.json({ prompt });
+    }
+
+    if (type === "audio-director") {
+      const data = buildElevenLabsEmotionPrompt(extraParams as any);
+      return NextResponse.json(data);
+    }
+
+    if (type === "foley-soundscape") {
+      const data = buildFoleySoundscapePrompt(extraParams as any);
+      return NextResponse.json(data);
+    }
+
+    if (type === "safe-zone-optics") {
+      const data = buildSafeZoneOpticsPrompt(extraParams as any);
+      return NextResponse.json(data);
+    }
+
+    if (type === "hook-splitter") {
+      const data = buildHookSplitterPrompt(extraParams as any);
+      return NextResponse.json(data);
+    }
+
+    if (type === "faceless-pipeline") {
+      const data = buildCashCowStoryPrompt(extraParams as any);
+      return NextResponse.json(data);
+    }
+
+    if (type === "thumbnail-architect") {
+      const data = buildThumbnailArchitectPrompt(extraParams as any);
+      return NextResponse.json(data);
     }
 
     if (type === "character-board") {
