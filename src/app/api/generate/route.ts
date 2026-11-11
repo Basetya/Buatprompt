@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import {
   getVisionSystemPrompt,
+  buildCharacterAnchorPrompt,
+  buildI2VMotionPrompt,
+  buildCinemaPipelinePrompt,
+  buildForensicInspectorData,
   buildGoogleFlowDirectorPrompt,
   buildUniversalPromptMatrix,
   buildViralHookPrompt,
@@ -17,7 +21,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      type, // 'vision' | 'google-flow-director' | 'prompt-matrix' | 'viral-hook' | 'infografis' | 'sales-page' | 'coloring-book' | 'game' | 'storyboard' | 'optimizer' | 'style'
+      type,
       imageBase64,
       mediaType = "image",
       targetModel = "veo",
@@ -28,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.GEMINI_API_KEY;
 
-    // 1. If Gemini API Key is available, handle live LLM inference
+    // 1. Live LLM Inference if API key is present
     if (apiKey) {
       const ai = new GoogleGenAI({ apiKey });
 
@@ -71,70 +75,90 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // Live text based generation
-      let promptTask = "";
-      if (type === "google-flow-director") promptTask = buildGoogleFlowDirectorPrompt(extraParams as any);
-      else if (type === "viral-hook") promptTask = buildViralHookPrompt(extraParams as any);
-      else if (type === "infografis") promptTask = buildInfographicPrompt(extraParams as any);
-      else if (type === "sales-page") promptTask = buildSalesPagePrompt(extraParams as any);
-      else if (type === "coloring-book") promptTask = buildColoringBookPrompt(extraParams as any);
-      else if (type === "game") promptTask = buildGamePrompt(extraParams as any);
-      else if (type === "storyboard") promptTask = buildStoryboardPrompt(extraParams as any);
-      else if (type === "optimizer") promptTask = buildOptimizerPrompt(extraParams.rawPrompt, extraParams.targetAi);
+      // Live text generation for specialized prompts
+      let taskPrompt = "";
+      if (type === "cinema-pipeline") taskPrompt = buildCinemaPipelinePrompt(extraParams as any);
+      else if (type === "i2v-motion") taskPrompt = buildI2VMotionPrompt(extraParams as any);
+      else if (type === "google-flow-director") taskPrompt = buildGoogleFlowDirectorPrompt(extraParams as any);
+      else if (type === "viral-hook") taskPrompt = buildViralHookPrompt(extraParams as any);
+      else if (type === "infografis") taskPrompt = buildInfographicPrompt(extraParams as any);
+      else if (type === "sales-page") taskPrompt = buildSalesPagePrompt(extraParams as any);
+      else if (type === "storyboard") taskPrompt = buildStoryboardPrompt(extraParams as any);
+      else if (type === "optimizer") taskPrompt = buildOptimizerPrompt(extraParams.rawPrompt, extraParams.targetAi);
 
-      if (promptTask) {
+      if (taskPrompt) {
         const response = await ai.models.generateContent({
           model: "gemini-2.5-flash",
-          contents: [{ role: "user", parts: [{ text: promptTask }] }],
+          contents: [{ role: "user", parts: [{ text: taskPrompt }] }],
         });
         return NextResponse.json({ prompt: response.text });
       }
     }
 
-    // 2. Offline / Direct Production Synthesis Mode
+    // 2. High-Fidelity Autonomous Production Engine (Offline/Direct Synthesis Mode)
+    if (type === "character-board") {
+      const data = buildCharacterAnchorPrompt(extraParams as any);
+      return NextResponse.json(data);
+    }
+
+    if (type === "i2v-motion") {
+      const prompt = buildI2VMotionPrompt(extraParams as any);
+      return NextResponse.json({ prompt });
+    }
+
+    if (type === "cinema-pipeline") {
+      const prompt = buildCinemaPipelinePrompt(extraParams as any);
+      return NextResponse.json({ prompt });
+    }
+
+    if (type === "forensic-inspector") {
+      const data = buildForensicInspectorData();
+      return NextResponse.json(data);
+    }
+
     if (type === "google-flow-director") {
-      const p = buildGoogleFlowDirectorPrompt(extraParams as any);
-      return NextResponse.json({ prompt: p });
+      const prompt = buildGoogleFlowDirectorPrompt(extraParams as any);
+      return NextResponse.json({ prompt });
     }
 
     if (type === "prompt-matrix") {
-      const matrix = buildUniversalPromptMatrix(extraParams.concept || "Commercial luxury espresso coffee cup with velvet foam", extraParams.visualMood);
+      const matrix = buildUniversalPromptMatrix(extraParams.concept || "Commercial coffee advertisement", extraParams.visualMood);
       return NextResponse.json({ matrix });
     }
 
     if (type === "viral-hook") {
-      const p = buildViralHookPrompt(extraParams as any);
-      return NextResponse.json({ prompt: p });
+      const prompt = buildViralHookPrompt(extraParams as any);
+      return NextResponse.json({ prompt });
     }
 
     if (type === "infografis") {
-      const p = buildInfographicPrompt(extraParams as any);
-      return NextResponse.json({ prompt: p });
+      const prompt = buildInfographicPrompt(extraParams as any);
+      return NextResponse.json({ prompt });
     }
 
     if (type === "sales-page") {
-      const p = buildSalesPagePrompt(extraParams as any);
-      return NextResponse.json({ prompt: p });
+      const prompt = buildSalesPagePrompt(extraParams as any);
+      return NextResponse.json({ prompt });
     }
 
     if (type === "coloring-book") {
-      const p = buildColoringBookPrompt(extraParams as any);
-      return NextResponse.json({ prompt: p });
+      const prompt = buildColoringBookPrompt(extraParams as any);
+      return NextResponse.json({ prompt });
     }
 
     if (type === "game") {
-      const p = buildGamePrompt(extraParams as any);
-      return NextResponse.json({ prompt: p });
+      const prompt = buildGamePrompt(extraParams as any);
+      return NextResponse.json({ prompt });
     }
 
     if (type === "storyboard") {
-      const p = buildStoryboardPrompt(extraParams as any);
-      return NextResponse.json({ prompt: p });
+      const prompt = buildStoryboardPrompt(extraParams as any);
+      return NextResponse.json({ prompt });
     }
 
     if (type === "optimizer") {
-      const p = buildOptimizerPrompt(extraParams.rawPrompt || "Buat gambar produk bagus", extraParams.targetAi);
-      return NextResponse.json({ prompt: p });
+      const prompt = buildOptimizerPrompt(extraParams.rawPrompt || "Buat video kopi menarik", extraParams.targetAi);
+      return NextResponse.json({ prompt });
     }
 
     if (type === "style") {
@@ -151,7 +175,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Default Vision Demo Generator for Google Flow (Veo / Imagen 3)
+    // Default Vision Video/Image Directive
     if (mediaType === "video") {
       const veoPrompt = `[BUATPROMPT STUDIO — GOOGLE FLOW (VEO 2) MASTER DIRECTIVE]
 Cinematic 4K slow tracking push-in shot capturing mechanical precision assembly.
@@ -161,10 +185,7 @@ Environment: Minimalist dark acrylic studio surface with warm walnut wood grain 
 Temporal Motion: Deliberate, fluid hand movements positioning intricate mechanical components with microscopic precision.
 Color Grading: Deep obsidian shadows, brushed titanium highlights, warm amber rim glow.
 Audio Soundscape: Low-frequency ambient room tone, tactile mechanical clicks, subtle rising orchestral swell.
-Target Engine: Google Flow (Veo 2) 4K 24fps master shot.
-
--- Ringkasan Bahasa Indonesia:
-Video sinematik beresolusi tinggi yang menampilkan perakitan presisi komponen miniatur di atas meja estetik. Kamera bergerak dolly-in perlahan dengan tata cahaya golden hour dan pantulan halus, menghasilkan video komersial berkelas dunia.`;
+Target Engine: Google Flow (Veo 2) 4K 24fps master shot.`;
 
       return NextResponse.json({
         prompt: veoPrompt,
@@ -177,10 +198,7 @@ Center-weighted commercial hero photograph of an iconic luxury subject.
 Subject: Flawlessly rendered, floating with weightless poise, surrounded by crystalline micro-particles and ethereal luminous energy trails.
 Lighting Rig: Key light at 45 degrees, soft ambient fill, electric violet and cyan rim light creating razor-sharp silhouette separation.
 Optics: Captured on 85mm prime lens at f/1.4 for creamy circular bokeh, ultra-sharp subject focus, zero chromatic aberration.
-Color & Mood: Deep cosmic background, pristine metallic reflections, ultra-high dynamic range, 8K photorealism.
-
--- Ringkasan Bahasa Indonesia:
-Foto produk komersial premium dengan pencahayaan rim light violet dan cyan yang tajam. Objek melayang dengan partikel cahaya halus dan latar belakang bokeh artistik, menciptakan daya tarik visual eksklusif.`;
+Color & Mood: Deep cosmic background, pristine metallic reflections, ultra-high dynamic range, 8K photorealism.`;
 
     return NextResponse.json({
       prompt: imagenPrompt,

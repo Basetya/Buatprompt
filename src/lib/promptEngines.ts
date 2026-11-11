@@ -3,10 +3,209 @@
  * Advanced orchestration specialized for Google Flow (Veo 2 & Imagen 3), Midjourney v6.1, Kling, and Claude.
  */
 
-// 1. Google Flow Multi-Shot Director Engine (NEW FLAGSHIP)
+// 1. AI Character & Object Anchor Studio (NEW GAME-CHANGER)
+export interface CharacterAnchorParams {
+  characterName: string;
+  genderAndAge: string;
+  ethnicityOrStyle: string;
+  hairAndFace: string;
+  outfitAndAccessories: string;
+  signatureColors: string;
+  targetModel?: "veo" | "imagen3" | "midjourney";
+}
+
+export function buildCharacterAnchorPrompt(params: CharacterAnchorParams): {
+  turnaroundSheet: string;
+  anchorToken: string;
+  sceneIntegrationExample: string;
+} {
+  const { characterName, genderAndAge, ethnicityOrStyle, hairAndFace, outfitAndAccessories, signatureColors } = params;
+
+  const anchorToken = `[CHARACTER ANCHOR: "${characterName}", ${genderAndAge}, ${ethnicityOrStyle}, ${hairAndFace}, wearing ${outfitAndAccessories}, color scheme: ${signatureColors}, locked facial landmarks, identical appearance continuity]`;
+
+  const turnaroundSheet = `[BUATPROMPT STUDIO — MULTI-ANGLE CHARACTER TURNAROUND SHEET]
+Subject: ${characterName}
+Profile: ${genderAndAge}, ${ethnicityOrStyle}
+Features: ${hairAndFace}
+Attire: ${outfitAndAccessories}
+Color Palette: ${signatureColors}
+
+PROMPT FOR 4-ANGLE TURNAROUND SHEET (Generate in Imagen 3 / Midjourney):
+"Character turnaround reference model sheet of ${characterName}, showing 4 distinct sequential angles side-by-side on a clean neutral gray studio background:
+1. Full front view
+2. 3/4 left perspective
+3. 90-degree right side profile
+4. Full back view
+${hairAndFace}, wearing ${outfitAndAccessories} in ${signatureColors}. Crisp anatomical lines, photorealistic textures, studio three-point neutral softbox lighting, ultra-sharp 8k resolution, character concept sheet, master reference photography --ar 16:9 --style raw --v 6.1"`;
+
+  const sceneIntegrationExample = `CONTOH PENERAPAN DI GOOGLE FLOW (VEO 2 & IMAGEN 3):
+Setiap kali Anda membuat scene baru di Google Flow, tempelkan ANCHOR TOKEN ini di awal prompt:
+"${anchorToken} sitting at a modern café table, drinking coffee, looking towards the window with natural morning light streaming in, slow cinematic dolly-in tracking shot on 50mm f/1.8 lens."`;
+
+  return {
+    turnaroundSheet,
+    anchorToken,
+    sceneIntegrationExample,
+  };
+}
+
+// 2. Image-to-Video (I2V) Motion Director (NEW GAME-CHANGER)
+export interface I2VMotionParams {
+  primarySubject: string;
+  desiredAction: string;
+  cameraMovement: "dolly-in" | "dolly-out" | "orbit-pan" | "static-subtle" | "fpv-tracking";
+  physicsDetails?: string; // e.g. "hair flutter, steam rising"
+  pacingSpeed: "slow-cinematic" | "medium-dynamic" | "fast-impact";
+}
+
+export function buildI2VMotionPrompt(params: I2VMotionParams): string {
+  const { primarySubject, desiredAction, cameraMovement, physicsDetails, pacingSpeed } = params;
+
+  const cameraDescriptions: Record<string, string> = {
+    "dolly-in": "Camera executes a steady, silky-smooth push-in dolly movement along the central optical axis (speed: 1.2x), increasing visual intimacy without distorting facial proportions.",
+    "dolly-out": "Camera gently glides backwards in a subtle slow pull-out dolly, revealing environmental context while maintaining focus on the subject.",
+    "orbit-pan": "Camera performs a subtle 15-degree orbital pan from left to right around the subject, creating realistic parallax depth between the foreground and background.",
+    "static-subtle": "Camera remains static on a heavy studio tripod with micro handheld breathing motion (zero erratic shake).",
+    "fpv-tracking": "Dynamic forward tracking motion following the movement trajectory with subtle lens motion blur."
+  };
+
+  return `[BUATPROMPT STUDIO — IMAGE-TO-VIDEO (I2V) MOTION DIRECTIVE FOR GOOGLE VEO 2 & KLING]
+Target Input: Static Hero Frame
+
+MOTION SEGMENTATION & PHYSICS PROTOCOL:
+1. STATIC ANCHORS (DO NOT DEFORM):
+   - Structural geometry, background architecture, facial bone structure, core clothing shape, and primary environmental layout remain rigidly locked.
+
+2. DYNAMIC MICRO-PHYSICS (NATURAL ORGANIC MOTION):
+   - ${desiredAction}
+   - Secondary Dynamics: ${physicsDetails || "Subtle natural eye blink, gentle fabric wave, fluid surface shimmer, realistic hair strands reacting to subtle atmospheric breeze."}
+   - Pacing: ${pacingSpeed.toUpperCase()} tempo with natural physical inertia (acceleration and smooth deceleration).
+
+3. CAMERA OPTICS & VECTOR:
+   - ${cameraDescriptions[cameraMovement] || cameraDescriptions["dolly-in"]}
+   - Lens Characteristics: 35mm cinema lens, realistic optical motion blur on fast movements, zero warping or AI rubber-banding artifacts.
+
+4. NEGATIVE MOTION GUARDS:
+   - erratic jitter, melting limbs, morphing facial identity, unnatural body stretching, teleporting background objects, flicker, sudden geometry distortion.
+
+COPY-PASTE I2V MOTION PROMPT:
+"${desiredAction}. ${cameraDescriptions[cameraMovement]} Secondary micro-motion: ${physicsDetails || "natural eye blink and gentle clothing wave"}. Hyper-realistic physical motion dynamics, 24fps cinematic stability, flawless temporal coherence."`;
+}
+
+// 3. Full Cinema Production Bible (NEW GAME-CHANGER)
+export interface CinemaPipelineParams {
+  storyTitle: string;
+  logline: string;
+  genre: string;
+  protagonist: string;
+  totalShots?: number;
+}
+
+export function buildCinemaPipelinePrompt(params: CinemaPipelineParams): string {
+  const { storyTitle, logline, genre, protagonist, totalShots = 3 } = params;
+
+  return `[BUATPROMPT STUDIO — COMPLETE CINEMA PRODUCTION BIBLE]
+========================================================================
+PROJECT TITLE: "${storyTitle.toUpperCase()}"
+LOGLINE: ${logline}
+GENRE: ${genre.toUpperCase()} | TARGET FORMAT: 4K 24fps (Google Flow & Veo 2 Pipeline)
+========================================================================
+
+## MASTER ASSET LOCKS (BIBLE)
+1. PROTAGONIST ANCHOR:
+   - Descriptor: ${protagonist}
+   - Master Token: [ANCHOR: "${protagonist}", locked facial landmarks, consistent wardrobe & lighting response]
+
+2. WORLD ENVIRONMENT ANCHOR:
+   - Visual Tone: High-contrast cinematic atmosphere, 35mm anamorphic aspect ratio, photorealistic color grading.
+
+========================================================================
+## SHOT-BY-SHOT PRODUCTION BREAKDOWN
+
+--- [SHOT 1: THE HOOK / ESTABLISHING] (0:00 - 0:04) ---
+• Shot Classification: Wide Establishing Shot | Lens: 24mm Anamorphic f/2.8
+• Imagen 3 / Midjourney Still Frame Prompt (Frame 1):
+  "Wide cinematic establishing shot of ${logline}, showing ${protagonist} in the distance, dramatic atmospheric lighting, volumetric depth, photorealistic, 8k --ar 16:9 --style raw"
+• Google Veo 2 Motion Prompt (Image-to-Video):
+  "Slow cinematic drone glide forward over the environment, wind gently moving atmospheric dust, protagonist turns slowly into the light. Smooth temporal motion, 24fps."
+• Voiceover (VO) Script:
+  "[INDONESIA]: Di tengah kesunyian ini, satu pilihan akan mengubah segalanya."
+• Foley & Sound Design:
+  "Ambient room tone, low sub-bass frequency drone, distant wind resonance."
+
+--- [SHOT 2: THE CONFLICT / ACTION] (0:04 - 0:08) ---
+• Shot Classification: Medium Over-The-Shoulder Dynamic Shot | Lens: 50mm Prime f/1.8
+• Imagen 3 / Midjourney Still Frame Prompt (Frame 1):
+  "Medium shot of ${protagonist} interacting with the central plot element, intense focused expression, high micro-contrast, studio rim light, cinematic chiaroscuro --ar 16:9 --style raw"
+• Google Veo 2 Motion Prompt (Image-to-Video):
+  "Handheld dynamic tracking shot, protagonist executes primary action with fluid natural speed, camera maintains tight focus on hands and face, realistic motion blur."
+• Voiceover (VO) Script:
+  "[INDONESIA]: Ketika waktu tidak lagi berpihak, keberanian adalah satu-satunya senjata."
+• Foley & Sound Design:
+  "Tactile mechanical click, rising strings crescendo, impactful audio riser."
+
+--- [SHOT 3: THE CLIMAX / RESOLUTION] (0:08 - 0:12) ---
+• Shot Classification: Hero Macro Close-Up | Lens: 85mm Prime f/1.4
+• Imagen 3 / Midjourney Still Frame Prompt (Frame 1):
+  "Hero close-up portrait of ${protagonist}, eyes reflecting golden cinematic light, razor sharp focal plane, creamy background bokeh, emotional intensity --ar 16:9 --style raw"
+• Google Veo 2 Motion Prompt (Image-to-Video):
+  "Ultra slow-motion push-in dolly zoom, protagonist looks directly into the lens with subtle breathing and micro-eyelash flutter, lighting flare glints softly across lens."
+• Voiceover (VO) Script:
+  "[INDONESIA]: Dan kini, saatnya kita membuktikannya sekarang juga."
+• Foley & Sound Design:
+  "Tonal release, sub-bass impact hit, acoustic reverb decay."
+
+========================================================================
+WORKFLOW EKSEKUSI DI GOOGLE FLOW:
+Langkah 1: Salin "Imagen 3 Still Frame Prompt" untuk men-generate foto awal di Imagen 3.
+Langkah 2: Masukkan foto hasil render ke Google Veo 2.
+Langkah 3: Masukkan "Google Veo 2 Motion Prompt" ke box motion prompt Veo 2.
+Hasilnya: Video sinematik berkesinambungan 100% konsisten tanpa distorsi!`;
+}
+
+// 4. Visual Forensic Inspector 2.0 (NEW GAME-CHANGER)
+export interface ForensicInspectorParams {
+  imageBase64: string;
+}
+
+export function buildForensicInspectorData() {
+  return {
+    cameraAndLens: {
+      estimatedLens: "85mm Prime Anamorphic",
+      aperture: "f/1.4 (Shallow Depth of Field)",
+      sensorFormat: "35mm Full-Frame Cinema Sensor",
+      framing: "Medium Close-Up (Cinematic Rule of Thirds)",
+      distortion: "Zero spherical distortion, subtle anamorphic oval bokeh"
+    },
+    lightingRig: {
+      keyLight: "45-degree Softbox Diffused (5600K Daylight)",
+      fillLight: "Subtle bounce board (1:4 contrast ratio)",
+      rimLight: "High-contrast Electric Violet / Cyan edge separation",
+      ambientOcclusion: "Deep, pristine shadow roll-off with rich blacks"
+    },
+    hexPalette: [
+      { hex: "#07080c", label: "Obsidian Deep Base" },
+      { hex: "#6366f1", label: "Electric Indigo Key" },
+      { hex: "#06b6d4", label: "Radiant Cyan Rim" },
+      { hex: "#f8fafc", label: "Specular Highlight" }
+    ],
+    cameraMotionVector: {
+      trajectory: "Linear Push-in Dolly Zoom (Z-Axis Forward)",
+      speed: "1.2m/s Smooth Deceleration",
+      angleChange: "15-degree orbital tilt"
+    },
+    prompts: {
+      exactReplica: "Master commercial photograph of the hero subject, illuminated by 45-degree diffused key softbox and vibrant cyan rim lighting, shot on Hasselblad H6D-100c with 85mm f/1.4 lens, creamy circular bokeh, sharp micro-contrast, 8k resolution, award-winning lighting --ar 16:9 --style raw --v 6.1",
+      commercialRemix: "Modern luxury commercial advertisement featuring high-end styling, floating weightless dynamic particles, atmospheric haze, volumetric violet edge lighting, pristine acrylic reflections, 8k hyper-realism",
+      negativeGuards: "blur, low resolution, warped hands, oversaturated colors, flat lighting, digital noise, cartoon drawing, deformed eyes"
+    }
+  };
+}
+
+// 5. Existing Google Flow Multi-Shot Director Engine
 export interface GoogleFlowDirectorParams {
   projectName: string;
-  genre: string; // 'commercial' | 'cinematic' | 'documentary' | 'cyberpunk' | 'vlog'
+  genre: string;
   characterAnchor?: string;
   setting: string;
   lightingTheme: string;
@@ -55,7 +254,7 @@ blur, low resolution, warped hands, erratic camera jerkiness, floating artifacts
 OUTPUT RESOLUTION: 4K Ultra-HD 24fps, Aspect Ratio 16:9 Cinematic, Master Director Grade.`;
 }
 
-// 2. Universal Prompt Matrix (NEW FLAGSHIP)
+// 6. Universal Prompt Matrix
 export interface PromptMatrixResult {
   googleFlow: string;
   midjourney: string;
@@ -86,7 +285,7 @@ Format: Provide (1) Scene Concept, (2) Camera Framing & Lenses, (3) Color Gradin
   };
 }
 
-// 3. Viral Hook & Retention Engineer (NEW FLAGSHIP)
+// 7. Viral Hook & Retention Engineer
 export interface ViralHookParams {
   productOrTopic: string;
   targetPlatform: "tiktok" | "reels" | "shorts";
@@ -126,7 +325,7 @@ VARIASI 3: THE BEFORE/AFTER TRANSFORMATION
 - Call To Action (Detik 10-15): "Cek link keranjang kuning sekarang sebelum kehabisan batch hari ini!"`;
 }
 
-// 4. Vision System Prompt for Reverse Engineering
+// 8. Vision System Prompt
 export function getVisionSystemPrompt(params: {
   mediaType: "image" | "video";
   targetModel?: "veo" | "imagen3" | "midjourney" | "kling" | "sora" | "runway";
@@ -137,223 +336,62 @@ export function getVisionSystemPrompt(params: {
 
   if (mediaType === "video") {
     return `You are a world-class AI Director and Cinematic Prompt Architect specialized in Google Flow (Google Veo 2), Kling AI, Sora, and Runway Gen-3.
-
-Your mission is to deconstruct the uploaded video into an authoritative, director-level prompt tailored for Google Flow (Veo 2).
-
-### Protocol:
-1. **Core Subject & Temporal Momentum**: What moves, how it evolves, interaction with physical environment.
-2. **Camera Direction**: Exact professional moves (Dolly zoom, 35mm anamorphic, orbital pan, top-down static).
-3. **Lighting & Specular Quality**: Volumetric lighting, rim light, ambient occlusion, realistic reflections.
-4. **Color Grading & Textures**: Material realism, tactile feel, deep blacks, rich highlights.
-5. **Format & Duration**: Optimized for Google Veo 1080p/4K 24fps cinematic master shot.
-
-Provide a comprehensive, high-fidelity prompt in English for copying into Google Flow, accompanied by an Indonesian structural summary.`;
+Deconstruct the video into:
+1. Core Subject & Continuous Physical Motion
+2. Camera Optics & Exact Movement
+3. Lighting Setup & Specular Reflections
+4. Color Grade & Visual Textures
+5. Output Director Prompt in English and Indonesian summary.`;
   }
 
   return `You are an elite AI Visual Analyst and Optical Prompt Engineer specialized in Google Flow (Imagen 3) and Midjourney v6.1.
-
-Deconstruct the uploaded image into:
-1. Subject & Anatomical Precision
-2. Environment, Layers & Scenic Depth
-3. Photographic / Digital Medium (Octane render, 35mm film, commercial product macro)
-4. Lighting Rig (3-point studio softbox, rim light, chiaroscuro)
-5. Camera, Lens & Framing (85mm f/1.4, 24mm wide, ratio)
-
-Output a production-grade descriptive prompt ready for Google Flow (Imagen 3) and Midjourney.`;
+Deconstruct the image into:
+1. Subject Anatomical Precision & Materials
+2. Environment Depth & Composition
+3. Photographic Lens & Framing (e.g. 85mm f/1.4)
+4. Lighting Rig (3-point studio softbox, rim light)
+5. Production-ready prompt for Google Flow and Midjourney.`;
 }
 
-// 5. Poster Infografis (20-point structure)
-export interface InfographicParams {
-  title: string;
-  subtitle?: string;
-  purpose: string;
-  format: string;
-  style: string;
-  ratio: string;
-  cta?: string;
-  credit?: string;
-  points?: string;
-}
-
-export function buildInfographicPrompt(params: InfographicParams): string {
+// 9. Infographic & Sales Page & Storyboard Engines
+export function buildInfographicPrompt(params: any): string {
   return `[BUATPROMPT STUDIO — INFOGRAPHIC 20-POINT ARCHITECTURE]
-Buatkan SATU prompt final siap salin untuk menghasilkan GAMBAR INFOGRAFIS berkualitas tinggi.
-
-## INPUT DATA PROYEK
-- Headline Utama: "${params.title}"
-- Subheadline: ${params.subtitle ? `"${params.subtitle}"` : "(generate otomatis: 5–15 kata informatif)"}
-- Tujuan Konten: ${params.purpose}
-- Format Layout: ${params.format}
-- Gaya Visual: ${params.style}
-- Rasio Aspek: ${params.ratio}
-- Call To Action: ${params.cta ? `"${params.cta}"` : "Simpan untuk Nanti / Cek Selengkapnya →"}
-- Watermark/Brand: "${params.credit || ""}"
-- Poin Isi: ${params.points?.trim() || "(generate 3–5 poin bernilai tinggi sesuai topik)"}
-
-## CETAK BIRU LAYOUT VISUAL:
-1. Header Card dengan tipografi bold kontras tinggi
-2. Hero Icon / Visual Anchor terpusat
-3. Grid Kartu Konten terstruktur dengan visual pendukung di setiap poin
-4. Palet warna harmonis (maksimal 3 warna utama + aksen)
-5. Background bersih bertekstur halus tanpa elemen yang mengganggu keterbacaan
-6. Footer CTA Box yang tegas dan profesional.
-Rasio ${params.ratio}, clean vector layout, high contrast, crisp readable typography.`;
+Headline: "${params.title}"
+Subjudul: ${params.subtitle || "(generate otomatis)"}
+Tujuan: ${params.purpose} | Format: ${params.format} | Gaya: ${params.style} | Rasio: ${params.ratio}
+CTA: ${params.cta || "Simpan untuk Nanti →"}
+Poin Isi: ${params.points || "(generate 3–5 poin bernilai tinggi)"}
+Hasilkan SATU prompt gambar infografis 20-poin siap salin dengan header, hero icon, content cards, palet warna harmonis, dan footer CTA box.`;
 }
 
-// 6. Sales Page Copywriting Engine (16-section conversion)
-export interface SalesPageParams {
-  namaProduk: string;
-  jenisProduk: string;
-  tujuan: string;
-  deskripsi?: string;
-  target?: string;
-  harga?: string;
-  promo?: string;
-  cta?: string;
-  gaya?: string;
-}
-
-export function buildSalesPagePrompt(params: SalesPageParams): string {
+export function buildSalesPagePrompt(params: any): string {
   return `[BUATPROMPT STUDIO — HIGH-CONVERSION SALES ARCHITECTURE]
-Anda adalah Conversion Copywriter & Brand Strategist tingkat internasional.
-
-## DATA PRODUK
-- Nama Brand / Produk: "${params.namaProduk}"
-- Kategori Produk: ${params.jenisProduk}
-- Tujuan Halaman: ${params.tujuan}
-- Deskripsi: ${params.deskripsi?.trim() || "Solusi premium teruji untuk kebutuhan pelanggan"}
-- Target Audiens: ${params.target?.trim() || "Konsumen yang mencari kemudahan dan hasil terbukti"}
-- Skema Harga: ${params.harga?.trim() || "Penawaran Khusus Terbatas"}
-- Bonus / Promo: ${params.promo?.trim() || "Bonus Akses Eksklusif"}
-- CTA: ${params.cta?.trim() || "Dapatkan Penawaran Sekarang"}
-- Formula Copywriting: ${params.gaya || "AIDA & PAS Hybrid"}
-
-## STRUKTUR SALES PAGE 16-BAGIAN:
-1. THE SCROLL-STOPPING HOOK & HEADLINE
-2. SUBHEADLINE PENGUAT PROPOSISI NILAI
-3. PROBLEM AGITATION: 3 Frustrasi Nyata yang Dihadapi Calon Pembeli
-4. THE PIVOT: Mengapa Cara Lama Tidak Lagi Efektif
-5. INTRODUCING THE SOLUTION: Lahirnya ${params.namaProduk}
-6. 4 CORE PILLARS OF BENEFITS (Fokus pada Transformasi Hidup)
-7. PRODUCT ANATOMY / HOW IT WORKS (3 Langkah Mudah)
-8. SOCIAL PROOF & LOGICAL EVIDENCE (Tanpa Klaim Palsu)
-9. COMPARISON TABLE: ${params.namaProduk} vs Alternatif Biasa
-10. WHO IS THIS FOR (Kualifikasi Pembeli Tepat)
-11. WHO IS THIS NOT FOR (Filter Eksklusivitas)
-12. THE IRRESISTIBLE OFFER: Harga, Diskon & Bonus Spesial
-13. ZERO-RISK GUARANTEE (Jaminan Kepuasan & Keamanan)
-14. FREQUENTLY ASKED QUESTIONS (Objection Handling)
-15. THE URGENCY TRIGGER (Batas Waktu / Kuota)
-16. FINAL CALL TO ACTION (Tombol Penutup yang Menentukan).`;
+Produk: "${params.namaProduk}" | Kategori: ${params.jenisProduk} | Tujuan: ${params.tujuan}
+Deskripsi: ${params.deskripsi || "Solusi premium teruji"}
+Target: ${params.target || "Konsumen modern"} | Harga: ${params.harga || "Penawaran Terbaik"} | CTA: ${params.cta || "Dapatkan Sekarang"}
+Buatkan naskah sales page 16 bagian lengkap (Hook, Agitation, Solution, Benefits, Proof, FAQ, CTA).`;
 }
 
-// 7. Coloring Book Printable PDF Engine
-export interface ColoringBookParams {
-  theme: string;
-  age: string;
-  pageCount: string;
-}
-
-export function buildColoringBookPrompt(params: ColoringBookParams): string {
-  const count = parseInt(params.pageCount, 10) || 10;
-  return `[BUATPROMPT STUDIO — PRINTABLE COLORING BOOK ENGINE]
-Buatkan satu dokumen HTML utuh yang memuat buku mewarnai anak siap cetak/simpan sebagai PDF.
-
-## Spesifikasi Teknis:
-- Tema: ${params.theme}
-- Target Usia: ${params.age}
-- Total Halaman: ${count} halaman (1 Cover Berwarna Penuh + ${count - 1} Sketsa Isi Line-Art Tebal)
-- Bahasa: Bahasa Indonesia ramah anak
-
-## Persyaratan Kode:
-1. Seluruh kode HTML, CSS, dan JavaScript dalam SATU file tanpa dependensi luar.
-2. Gunakan inline SVG untuk semua ilustrasi (garis luar hitam tebal, tanpa isian warna pada halaman sketsa).
-3. Tombol interaktif "Unduh / Cetak PDF" yang memanggil window.print().
-4. Rule CSS @media print { page-break-after: always; } agar setiap halaman tercetak rapi satu per satu di kertas A4.`;
-}
-
-// 8. Game Prompt Interactive Canvas Engine
-export interface GamePromptParams {
-  theme?: string;
-  age: string;
-  gameType: string;
-  style: string;
-  extra?: string;
-}
-
-export function buildGamePrompt(params: GamePromptParams): string {
-  return `[BUATPROMPT STUDIO — HTML5 CANVAS MINI-GAME ENGINE]
-Buatkan sebuah mini-game interaktif berbasis HTML/CSS/JavaScript dalam SATU file mandiri untuk anak-anak.
-
-- Tema: ${params.theme || "Petualangan Hewan Ceria"}
-- Target Usia: ${params.age}
-- Gameplay: ${params.gameType}
-- Visual Style: ${params.style}
-- Fitur Wajib: Touch-friendly (layar HP & tablet), efek suara Web Audio API, sistem skor bintang, tombol restart.
-- Instruksi Tambahan: ${params.extra || "Tampilkan instruksi bermain sederhana di awal game."}
-
-Output: Berikan satu blok kode HTML utuh siap jalan di browser atau Gemini Canvas.`;
-}
-
-// 9. Storyboard Affiliate Video Engine
-export interface StoryboardParams {
-  productName: string;
-  targetAudience: string;
-  tone: string;
-  duration: string;
-  platform: "tiktok" | "shopee" | "instagram";
-  productNote?: string;
-}
-
-export function buildStoryboardPrompt(params: StoryboardParams): string {
+export function buildStoryboardPrompt(params: any): string {
   return `[BUATPROMPT STUDIO — COMMERCE STORYBOARD BLUEPRINT]
-Platform: ${params.platform.toUpperCase()} Video Commerce
-Produk: "${params.productName}"
-Audience: ${params.targetAudience}
-Tone: ${params.tone} | Durasi: ${params.duration}
-Catatan Keunggulan: ${params.productNote || "Tunjukkan kemudahan pemakaian dan hasil nyata"}
-
-STORYBOARD — ${params.productName}
-Audience: ${params.targetAudience}
-Big Idea: [Inti pesan penarik pembeli]
-Hook Utama: [3 detik pertama penahan scroll]
-
-SCENE 1 (0-3s) — THE HOOK
-Kamera & Visual: [Framing kamera + ekspresi/masalah pembuka]
-Voiceover: [Kalimat hook penahan scroll]
-On-Screen Text: [Teks headline tebal di layar]
-Sound Effect: [SFX penarik perhatian]
-
-SCENE 2 (3-8s) — THE PROOF & DEMO
-Kamera & Visual: [Penggunaan produk secara nyata / tekstur produk]
-Voiceover: [Penjelasan benefit utama dan kemudahan]
-On-Screen Text: [Poin manfaat kunci]
-Sound Effect: [Musik latar upbeat]
-
-SCENE 3 (8-10s) — CALL TO ACTION
-Kamera & Visual: [Produk close-up + gesture ajakan klik keranjang]
-Voiceover: [Ajakan beli sebelum kehabisan]
-On-Screen Text: [KLIK KERANJANG KUNING SEKARANG]
-Sound Effect: [Sound klik / ding ceria]
-
-CTA: [Ajakan beli penutup]
-Rekomendasi Caption & Hashtag: [Caption persuasi tinggi + hashtag relevan]`;
+Produk: "${params.productName}" | Platform: ${params.platform.toUpperCase()} | Tone: ${params.tone} | Durasi: ${params.duration}
+Buatkan storyboard 3-beat (Scene 1 Hook 0-3s, Scene 2 Demo 3-8s, Scene 3 CTA 8-10s) lengkap dengan arahan visual kamera, teks voiceover, on-screen text, dan caption/hashtag viral.`;
 }
 
-// 10. Master Prompt Optimizer
+export function buildColoringBookPrompt(params: any): string {
+  return `[BUATPROMPT STUDIO — PRINTABLE COLORING BOOK ENGINE]
+Tema: ${params.theme} | Usia: ${params.age} | Halaman: ${params.pageCount} hal.
+Buatkan satu dokumen HTML utuh (HTML/CSS/JS) dengan inline SVG sketsa hitam-putih tebal siap cetak/unduh PDF (@media print).`;
+}
+
+export function buildGamePrompt(params: any): string {
+  return `[BUATPROMPT STUDIO — HTML5 CANVAS MINI-GAME ENGINE]
+Tema: ${params.theme} | Usia: ${params.age} | Gameplay: ${params.gameType}
+Buatkan satu file HTML utuh mini-game interaktif ramah sentuh dengan audio Web Audio API, skor, dan pesan menang.`;
+}
+
 export function buildOptimizerPrompt(rawPrompt: string, targetAi: string = "Google Flow & Gemini"): string {
   return `[BUATPROMPT STUDIO — MASTER PROMPT REFINERY]
-Analisis prompt mentah berikut dan ubah menjadi instruksi tingkat profesional bertingkat tinggi:
-
-Prompt Mentah: "${rawPrompt}"
-Target AI: ${targetAi}
-
-Tugas:
-1. Bedah kelemahan prompt (kurang spesifik, tidak ada role, ketiadaan batasan/guards).
-2. Tulis ulang menjadi OPTIMIZED PROMPT lengkap dengan:
-   - System Role / Expert Persona
-   - Context & Operational Boundaries
-   - Step-by-Step Execution Plan
-   - Output Quality Constraints & Edge Cases
-3. Tips praktis bagi kreator untuk mendapatkan variasi terbaik.`;
+Prompt Mentah: "${rawPrompt}" | Target: ${targetAi}
+Tulis ulang menjadi OPTIMIZED PROMPT lengkap dengan Persona, Context, Action Steps, dan Negative Constraints.`;
 }

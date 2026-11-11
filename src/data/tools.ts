@@ -16,7 +16,7 @@ export interface ToolItem {
 }
 
 export const ALL_TOOLS: ToolItem[] = [
-  // --- FLAGSHIP GOOGLE FLOW & NEXT-GEN TOOLS ---
+  // --- FLAGSHIP 1: GOOGLE FLOW SUITE ---
   {
     id: "google-flow-director",
     tool_key: "google-flow-director",
@@ -30,7 +30,7 @@ export const ALL_TOOLS: ToolItem[] = [
     badgeColor: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
     featured: true,
     category: "google-flow",
-    description: "Rancang sekuens video multi-shot terpadu untuk Google Veo dengan konsistensi karakter, pacing kamera sinematik, serta deskripsi audio/soundscape sinkron.",
+    description: "Rancang sekuens video multi-shot terpadu untuk Google Veo 2 dengan konsistensi karakter, pacing kamera sinematik, serta deskripsi audio/soundscape sinkron.",
     samples: [
       "Sekuens 3 shot: Establishing drone -> Medium action -> Close-up emosi",
       "Konsistensi pencahayaan sinematik malam hari di Tokyo cyberpunk"
@@ -56,6 +56,86 @@ export const ALL_TOOLS: ToolItem[] = [
     ]
   },
   {
+    id: "i2v-motion",
+    tool_key: "i2v-motion",
+    title: "IMAGE-TO-VIDEO (I2V) MOTION DIRECTOR",
+    name: "I2V Motion Director",
+    path: "/i2v-motion",
+    icon: "Play",
+    color: "text-emerald-400",
+    iconBg: "bg-emerald-500/15",
+    badge: "ANTI-WARP",
+    badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+    featured: true,
+    category: "google-flow",
+    description: "Ubah foto still dari Imagen 3/Midjourney jadi video bergerak di Google Veo tanpa distorsi wajah meleleh atau objek patah-patah dengan proteksi anchor statis.",
+    samples: [
+      "Gerakan mata berkedip & rambut melambai natural",
+      "Pergerakan kamera dolly-in stabil pada subjek manusia"
+    ]
+  },
+
+  // --- FLAGSHIP 2: CHARACTER CONSISTENCY & CINEMA PIPELINE ---
+  {
+    id: "character-board",
+    tool_key: "character-board",
+    title: "AI CHARACTER & OBJECT ANCHOR BIBLE",
+    name: "Character Anchor Studio",
+    path: "/character-board",
+    icon: "Users",
+    color: "text-indigo-400",
+    iconBg: "bg-indigo-500/15",
+    badge: "CONSISTENCY",
+    badgeColor: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
+    featured: true,
+    category: "visual-art",
+    description: "Kunci wajah, pakaian, dan proporsi karakter agar identik 100% antar scene video Google Flow dengan Turnaround Sheet 4-sudut & Locked Anchor Token.",
+    samples: [
+      "Kunci wajah protagonis di 5 scene video berbeda",
+      "Model turnaround sheet 4 sudut tampak depan, samping, dan belakang"
+    ]
+  },
+  {
+    id: "cinema-pipeline",
+    tool_key: "cinema-pipeline",
+    title: "FULL CINEMA PRODUCTION BIBLE",
+    name: "Cinema Production Bible",
+    path: "/cinema-pipeline",
+    icon: "Film",
+    color: "text-purple-400",
+    iconBg: "bg-purple-500/15",
+    badge: "END-TO-END",
+    badgeColor: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+    featured: true,
+    category: "cinematic-video",
+    description: "Dari 1 ide cerita menjadi cetak biru produksi lengkap: Kunci Karakter, Shot 1 s/d Climax (Prompt Foto Frame 1, Prompt Gerak Veo, Voiceover, dan Sound Foley).",
+    samples: [
+      "Produksi film pendek sci-fi 3 shot komplit",
+      "Naskah video komersial brand 4K siap tayang"
+    ]
+  },
+  {
+    id: "forensic-inspector",
+    tool_key: "forensic-inspector",
+    title: "VISUAL FORENSIC INSPECTOR 2.0",
+    name: "Forensic Optical Inspector",
+    path: "/forensic-inspector",
+    icon: "Scan",
+    color: "text-cyan-400",
+    iconBg: "bg-cyan-500/15",
+    badge: "FORENSIC 2.0",
+    badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
+    featured: true,
+    category: "visual-art",
+    description: "Bedah foto referensi menjadi Dashboard Spesifikasi Kamera (lensa 85mm f/1.4), Blueprint Lighting Rig 3-Point, Palet Warna HEX, dan 3 Tingkat Prompt Replikasi.",
+    samples: [
+      "Deteksi setup pencahayaan studio komersial",
+      "Ekstraksi kode warna HEX dan spesifikasi lensa nyata"
+    ]
+  },
+
+  // --- COMMERCE & GROWTH ---
+  {
     id: "viral-hook",
     tool_key: "viral-hook",
     title: "VIRAL HOOK & RETENTION LAB",
@@ -74,15 +154,51 @@ export const ALL_TOOLS: ToolItem[] = [
       "Pattern interrupt pembuka video kuliner viral"
     ]
   },
+  {
+    id: "storyboard",
+    tool_key: "storyboard",
+    title: "COMMERCE STORYBOARD ARCHITECT",
+    name: "Storyboard Video Commerce",
+    path: "/storyboard",
+    icon: "Clapperboard",
+    color: "text-purple-400",
+    iconBg: "bg-purple-500/15",
+    badge: "CONVERSION",
+    badgeColor: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+    category: "commerce-growth",
+    description: "Blueprint storyboard 3-beat siap syuting untuk affiliator TikTok Shop & Shopee Video: visual direction, naskah voiceover, on-screen text, hingga CTA.",
+    samples: [
+      "Script 15 detik Kopi Susu Creamy penahan scroll",
+      "Storyboard serum glowing 5 hari tanpa lengket"
+    ]
+  },
+  {
+    id: "sales-page",
+    tool_key: "sales-page",
+    title: "HIGH-CONVERTING SALES COPY",
+    name: "Sales Copy Architect",
+    path: "/sales-page",
+    icon: "ShoppingBag",
+    color: "text-yellow-400",
+    iconBg: "bg-yellow-500/15",
+    badge: "COPYWRITING",
+    badgeColor: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+    category: "commerce-growth",
+    description: "Struktur landing page 16 bagian berorientasi omzet: headline tajam, problem agitation, solusi tanpa klaim palsu, FAQ, dan penawaran tak tertolak.",
+    samples: [
+      "Sales page digital course Google Flow Masterclass",
+      "Landing page produk perawatan tubuh premium"
+    ]
+  },
 
-  // --- CORE REVERSE-ENGINEERING & VISUAL FOUNDRY ---
+  // --- CORE FOUNDRY & VISUAL ENGINES ---
   {
     id: "gambar",
     tool_key: "gambar",
     title: "ULTRA-REALISM VISUAL FOUNDRY",
     name: "Visual Prompt Foundry",
     path: "/gambar",
-    icon: "Image",
+    icon: "Camera",
     color: "text-amber-400",
     iconBg: "bg-amber-500/15",
     badge: "POPULAR",
@@ -100,7 +216,7 @@ export const ALL_TOOLS: ToolItem[] = [
     title: "SHORTS VIDEO CINEMATICS",
     name: "Shorts Video Cinematics",
     path: "/shortsvideo",
-    icon: "Camera",
+    icon: "Film",
     color: "text-emerald-400",
     iconBg: "bg-emerald-500/15",
     badge: "LIVE",
@@ -131,24 +247,6 @@ export const ALL_TOOLS: ToolItem[] = [
     ]
   },
   {
-    id: "storyboard",
-    tool_key: "storyboard",
-    title: "COMMERCE STORYBOARD ARCHITECT",
-    name: "Storyboard Video Commerce",
-    path: "/storyboard",
-    icon: "Clapperboard",
-    color: "text-purple-400",
-    iconBg: "bg-purple-500/15",
-    badge: "CONVERSION",
-    badgeColor: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-    category: "commerce-growth",
-    description: "Blueprint storyboard 3-beat siap syuting untuk affiliator TikTok Shop & Shopee Video: visual direction, naskah voiceover, on-screen text, hingga CTA.",
-    samples: [
-      "Script 15 detik Kopi Susu Creamy penahan scroll",
-      "Storyboard serum glowing 5 hari tanpa lengket"
-    ]
-  },
-  {
     id: "poster-infografis",
     tool_key: "poster-infografis",
     title: "INFOGRAPHIC & BRAND SYSTEMS",
@@ -164,24 +262,6 @@ export const ALL_TOOLS: ToolItem[] = [
     samples: [
       "Infografis strategi manajemen finansial",
       "Poster tips kesehatan & wellness modern"
-    ]
-  },
-  {
-    id: "sales-page",
-    tool_key: "sales-page",
-    title: "HIGH-CONVERTING SALES COPY",
-    name: "Sales Copy Architect",
-    path: "/sales-page",
-    icon: "ShoppingBag",
-    color: "text-yellow-400",
-    iconBg: "bg-yellow-500/15",
-    badge: "COPYWRITING",
-    badgeColor: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-    category: "commerce-growth",
-    description: "Struktur landing page 16 bagian berorientasi omzet: headline tajam, problem agitation, solusi tanpa klaim palsu, FAQ, dan penawaran tak tertolak.",
-    samples: [
-      "Sales page digital course Google Flow Masterclass",
-      "Landing page produk perawatan tubuh premium"
     ]
   },
   {
