@@ -255,20 +255,71 @@ Setiap video yang dihasilkan:
 
 ---
 
-## 10. Hook Penjualan: "Beli Kembali Waktu Kreator" (Selling Script)
+## 10. Arsitektur Komposisi 3-Zona & In-Browser Audio-Video Muxer (Standar Opuscar Agency Grade)
+
+Belajar dari video kampanye viral kelas dunia (seperti `@classai_id` / *Lemo-Opuscar*), sebuah video motion graphic vertikal (9:16) tidak boleh menumpuk teks secara statis di atas dan bawah. Hal itu memicu kebosanan mata penonton (*visual stagnation*). 
+
+**BuatPrompt Kinetic Motion Studio** menerapkan **Arsitektur Komposisi 3-Zona Terpadu**:
+
+```
+┌────────────────────────────────────────────────────────┐
+│ [BUATPROMPT STUDIO]             SCENE 1/4 • HOOK       │ ➔ Top Bar: Status Studio & Indikator Babak
+├────────────────────────────────────────────────────────┤
+│                                                        │
+│  ┌──────────────────────────────────────────────────┐  │ ➔ ZONA 1: UPPER SHOWCASE STAGE (Y: 100 - 440)
+│  │ > buatprompt --mode viral-hook                   │  │    • Scene 1: Terminal Coding dengan kursor kedip
+│  │ ✓ 52s Golden Retention Sweet Spot Terkunci       │  │    • Scene 2: Grid 3 Masalah Utama (Kartu Peringatan)
+│  └──────────────────────────────────────────────────┘  │    • Scene 3: Pilihan Strategi Otoritas (Badge Dipilih ✓)
+│                                                        │    • Scene 4: Pipeline Checklist (✓ Film Siap Unduh)
+├────────────────────────────────────────────────────────┤
+│                                                        │ ➔ ZONA 2: CENTER KINETIC TYPOGRAPHY (Y: 480 - 680)
+│                 KENAPA GAJI SELALU                     │    • Teks dinamis per frasa pendek (2–4 kata)
+│                     [ HABIS? ]                         │    • Mengambang tepat di titik fokus (focal center)
+│                                                        │    • Kata kunci membesar berpegas (1.2x) & bersinar
+├────────────────────────────────────────────────────────┤
+│                      ( o . o )                         │ ➔ ZONA 3: BOTTOM LIVING VOXEL AVATAR (Y: 720 - 1280)
+│                     / [====] \                         │    • Karakter Voxel 3D dijangkar di bawah dada ke atas
+│                    |  ||||||  |                        │    • Lip-sync: Mulut buka-tutup mengikuti suara bicara!
+│                                                        │    • Kedip mata alami, napas naik-turun, & opsi Duo!
+└────────────────────────────────────────────────────────┘
+```
+
+### Triple-Layer Audio Engine & Web Audio Stream Muxer (Bukan Lagi Video Bisu!)
+
+Kelemahan fatal banyak generator web adalah menghasilkan video rekaman yang bisu (tanpa suara), sehingga pengguna terpaksa memasukkan audio sendiri secara manual di CapCut. 
+
+Di **BuatPrompt Studio**, seluruh audio dirakit dan disinkronkan langsung di browser:
+1. **Indonesian Voiceover TTS Engine (`/api/tts`)**:
+   - Menghasilkan audio bicara bahasa Indonesia yang jernih dan artikulatif.
+   - Durasi bicara dipetakan secara presisi per scene.
+   - Mulut karakter Voxel 3D (*mouth flap*) bergerak secara harmonis mengikuti gelombang suara ini.
+2. **Procedural Foley SFX Engine**:
+   - *Whoosh* udara saat pergantian babak (0s, 10s, 25s, 40s).
+   - *Pop / Click* saat kartu atau frasa teks baru muncul.
+   - *Chime Harmonic* saat checklist `✓ Film Siap` menyala hijau.
+   - Dihasilkan 100% menggunakan Web Audio API oscillator tanpa butuh koneksi internet!
+3. **Procedural Lo-Fi Ambient BGM**:
+   - Musik latar santai berirama 75 BPM yang menjaga ketukan video tetap hidup dan memikat telinga penonton.
+4. **Hardware Audio-Video Stream Muxer**:
+   - `MediaStreamDestinationNode` dari Web Audio digabungkan langsung dengan `canvas.captureStream(30)`.
+   - Sekali klik tombol download: pengguna mendapatkan **1 File Video Jadi (.webm / .mp4 9:16 HD) DENGAN FULL STEREO AUDIO**. Bebas repot, zero CapCut!
+
+---
+
+## 11. Hook Penjualan: "Beli Kembali Waktu Kreator" (Selling Script)
 
 Gunakan formula penawaran ini di landing page, iklan berbayar, atau konten media sosial Anda:
 
-> *"Capek bikin video motion graphic pakai prompt AI tapi cuma dapet teks kaku 5 detik dan kamu masih harus rekam layar manual pakai OBS lalu sambung-sambungin klip di CapCut?*
+> *"Capek bikin video motion graphic pakai prompt AI tapi cuma dapet teks kaku bisu tanpa suara, dan kamu masih harus rekam layar manual pakai OBS lalu repot edit suara di CapCut?*
 >
 > *Di **BuatPrompt Multi-Scene Studio**:*
 > 1. *Belum punya naskah? Cukup ketik ide 1 baris—AI kami langsung membuatkan naskah 55 detik lengkap dengan kutipan tokoh legendaris dunia dan alur 4 babak berretensi tinggi!*
 > 2. *Punya naskah sendiri? Pacing Guard kami otomatis menghitung durasi bicara dan membedahnya agar pas dengan batas retensi algoritma.*
 > 3. *Pilih dari **6 Arketipe Visual Kurasi Premium** (Apple Keynote, Fintech Alpha, Cyber HUD, Stoic Gold, Swiss Bauhaus, dan Retro Arcade) yang bebas dari 'AI slop' murahan.*
-> 4. *Lengkap dengan **Maskot 3D Animasi** yang berekspresi kaget di detik hook dan senang di detik solusi.*
-> 5. *Teks memantul elastis dengan **Spring Physics** dan kotak highlight bercahaya kelas biro iklan dunia.*
-> 6. *Bekerja instan dengan **Air-Gap Technology**: Tetap produktif meski internet mati atau server AI global lagi down.*
-> 7. *Sekali klik: **Download Video Utuh 52 Detik 9:16 HD**. Langsung terunduh ke galeri HP atau laptop tanpa buka CapCut!*
+> 4. *Teks tampil dinamis di tengah layar (*karaoke-style*) dengan **Spring Physics** dan kartu showcase interaktif layaknya After Effects.*
+> 5. *Karakter **3D Voxel Hidup** yang bisa bernapas, mengedip, dan **mulutnya bergerak bicara (*lip-sync*)** secara nyata!*
+> 6. *Dilengkapi **Full Audio Terpadu**: Voiceover bahasa Indonesia + efek suara Foley + musik lo-fi ambient.*
+> 7. *Sekali klik: **Download Video Utuh 52 Detik 9:16 HD Lengkap dengan Audio**. Langsung terunduh ke galeri HP atau laptop tanpa buka CapCut!*
 >
 > *Tinggalkan cara lama yang buang-buang waktu. Dapatkan BuatPrompt sekarang dan beli kembali waktu Anda!"*
 

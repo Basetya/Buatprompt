@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Play,
@@ -23,14 +23,25 @@ import {
   Smile,
   Zap,
   Volume2,
+  VolumeX,
+  Music,
   Clock,
   FileText,
   Lightbulb,
   Scissors,
   BookOpen,
   Shuffle,
-  Database
+  Database,
+  Users,
+  User,
 } from "lucide-react";
+import {
+  extractTimedPhrases,
+  playProceduralSFX,
+  ProceduralLoFiBGM,
+  fetchAndDecodeTTS,
+  drawVoxelAvatar,
+} from "@/lib/mographEngine";
 
 interface StoryScene {
   sceneNumber: number;
@@ -66,7 +77,7 @@ const DEFAULT_SCENES: StoryScene[] = [
     durationSec: 10,
     characterEmotion: "shocked",
     kineticFx: "Spring Punch Scale 1.2x + Alert Aura Halo",
-    foleyCue: "0:00 Fast Whoosh + Heavy Sub-Bass Thud"
+    foleyCue: "0:00 Fast Whoosh + Heavy Sub-Bass Thud",
   },
   {
     sceneNumber: 2,
@@ -79,7 +90,7 @@ const DEFAULT_SCENES: StoryScene[] = [
     durationSec: 15,
     characterEmotion: "skeptical",
     kineticFx: "Wipe Push Left + Floating Red Question Particles",
-    foleyCue: "0:10 Camera Shutter Snap + Low Vinyl Scratch"
+    foleyCue: "0:10 Camera Shutter Snap + Low Vinyl Scratch",
   },
   {
     sceneNumber: 3,
@@ -92,7 +103,7 @@ const DEFAULT_SCENES: StoryScene[] = [
     durationSec: 15,
     characterEmotion: "celebrate",
     kineticFx: "Dynamic Glowing SVG Curve Path + Rocket Sparkles",
-    foleyCue: "0:25 Harmonic Synth Swell + Crisp Cash Chime"
+    foleyCue: "0:25 Harmonic Synth Swell + Crisp Cash Chime",
   },
   {
     sceneNumber: 4,
@@ -105,8 +116,8 @@ const DEFAULT_SCENES: StoryScene[] = [
     durationSec: 12,
     characterEmotion: "point-cta",
     kineticFx: "Pulsating Bookmark Ring + Seamless Loop Match Cut",
-    foleyCue: "0:40 Clean Glass Bell Ding + Ambient Fade Out"
-  }
+    foleyCue: "0:40 Clean Glass Bell Ding + Ambient Fade Out",
+  },
 ];
 
 export default function KineticMotionPage() {
@@ -129,6 +140,13 @@ export default function KineticMotionPage() {
   const [activeSceneTab, setActiveSceneTab] = useState(0);
   const [showMascot, setShowMascot] = useState(true);
 
+  // Audio Engine State
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [bgmEnabled, setBgmEnabled] = useState(true);
+  const [sfxEnabled, setSfxEnabled] = useState(true);
+  const [characterLayout, setCharacterLayout] = useState<"single" | "duo">("single");
+  const [isAudioLoading, setIsAudioLoading] = useState(false);
+
   // Single mode state
   const [singleHeadline, setSingleHeadline] = useState("90% ORANG GAGAL KARENA HAL INI");
   const [singleMetric, setSingleMetric] = useState("+340%");
@@ -149,6 +167,14 @@ export default function KineticMotionPage() {
   const animationFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
 
+  // Web Audio Graph References
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const audioDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const loFiBgmRef = useRef<ProceduralLoFiBGM | null>(null);
+  const audioBuffersRef = useRef<Record<number, AudioBuffer>>({});
+  const activeAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const lastSceneIndexRef = useRef<number>(-1);
+
   // Word count & pacing calculation
   const currentAnalyzedText = creationTab === "script" ? rawScriptInput : topicIdea;
   const textWords = currentAnalyzedText.trim()
@@ -158,12 +184,70 @@ export default function KineticMotionPage() {
   const estimatedSeconds = Math.round(wordCount / 2.4);
   const isPacingOverLimit = creationTab === "script" && (wordCount > 135 || estimatedSeconds > 55);
 
-  const totalDurationSec = mode === "multi"
-    ? scenes.reduce((acc, s) => acc + s.durationSec, 0)
-    : singleDuration;
+  const totalDurationSec =
+    mode === "multi" ? scenes.reduce((acc, s) => acc + s.durationSec, 0) : singleDuration;
+
+  // Initialize or resume Web Audio context
+  const getOrCreateAudioEngine = useCallback(() => {
+    if (!audioCtxRef.current) {
+      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new AudioCtxClass();
+      const dest = ctx.createMediaStreamDestination();
+      audioCtxRef.current = ctx;
+      audioDestRef.current = dest;
+
+      loFiBgmRef.current = new ProceduralLoFiBGM(ctx, [ctx.destination, dest]);
+    }
+    if (audioCtxRef.current.state === "suspended") {
+      audioCtxRef.current.resume();
+    }
+    return { ctx: audioCtxRef.current, dest: audioDestRef.current! };
+  }, []);
+
+  // Pre-fetch TTS audio for all scenes
+  const prefetchTTSForScenes = useCallback(async (sceneList: StoryScene[]) => {
+    try {
+      setIsAudioLoading(true);
+      const { ctx } = getOrCreateAudioEngine();
+      for (let i = 0; i < sceneList.length; i++) {
+        const s = sceneList[i];
+        const spokenText = `${s.headline}. ${s.subtext}`;
+        const buf = await fetchAndDecodeTTS(ctx, spokenText, "id");
+        if (buf) {
+          audioBuffersRef.current[i] = buf;
+        }
+      }
+    } catch (err) {
+      console.warn("Audio prefetch notice:", err);
+    } finally {
+      setIsAudioLoading(false);
+    }
+  }, [getOrCreateAudioEngine]);
+
+  // Trigger audio prefetch when scenes change
+  useEffect(() => {
+    prefetchTTSForScenes(scenes);
+  }, [scenes, prefetchTTSForScenes]);
+
+  // Handle BGM playback based on state
+  useEffect(() => {
+    if (bgmEnabled && isPlaying && !isRecording) {
+      if (audioCtxRef.current && loFiBgmRef.current) {
+        loFiBgmRef.current.start();
+      }
+    } else {
+      if (loFiBgmRef.current) {
+        loFiBgmRef.current.stop();
+      }
+    }
+  }, [bgmEnabled, isPlaying, isRecording]);
 
   // Auto Arrange & Script Breakdown Handler
-  const handleGenerateStory = async (overrideTab?: "idea" | "script", customScript?: string, seedOffset?: number) => {
+  const handleGenerateStory = async (
+    overrideTab?: "idea" | "script",
+    customScript?: string,
+    seedOffset?: number
+  ) => {
     const activeTab = overrideTab || creationTab;
     const targetScript = customScript !== undefined ? customScript : rawScriptInput;
     const targetText = activeTab === "script" ? targetScript.trim() : topicIdea.trim();
@@ -201,6 +285,7 @@ export default function KineticMotionPage() {
           setWarningMessage(data.warningNotice);
         }
         startTimeRef.current = Date.now(); // reset animation to 0
+        lastSceneIndexRef.current = -1;
       }
     } catch (err) {
       console.error(err);
@@ -218,23 +303,19 @@ export default function KineticMotionPage() {
     }
   };
 
-  // Canvas drawing loop with Mascot & Dynamic Kinetic Typography
+  // Main Canvas Rendering Loop
   useEffect(() => {
-    if (startTimeRef.current === 0) {
-      startTimeRef.current = Date.now();
-    }
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Fixed internal resolution 720x1280 (HD 9:16)
     const W = 720;
     const H = 1280;
     canvas.width = W;
     canvas.height = H;
 
-    // Embers / particles state
+    // Embers / particles state for Stoic & Retro
     const particles: Array<{ x: number; y: number; size: number; speed: number; opacity: number }> = [];
     for (let i = 0; i < 40; i++) {
       particles.push({
@@ -242,17 +323,19 @@ export default function KineticMotionPage() {
         y: Math.random() * H,
         size: Math.random() * 3 + 1,
         speed: Math.random() * 1.5 + 0.5,
-        opacity: Math.random() * 0.7 + 0.2
+        opacity: Math.random() * 0.7 + 0.2,
       });
     }
 
     const render = () => {
       const now = Date.now();
+      if (!startTimeRef.current) startTimeRef.current = now;
       const elapsed = (now - startTimeRef.current) / 1000;
       const loopTime = elapsed % totalDurationSec;
-      const globalProgress = loopTime / totalDurationSec; // 0 to 1
+      const globalProgress = loopTime / totalDurationSec;
 
-      // Determine active scene and local scene progress
+      // Determine active scene
+      let sceneIndex = 0;
       let currentHeadline = singleHeadline;
       let currentSubtext = singleSubtext;
       let currentMetric = singleMetric;
@@ -260,7 +343,6 @@ export default function KineticMotionPage() {
       let sceneBadge = "● BUATPROMPT KINETIC";
       let sceneLocalProgress = globalProgress;
       let currentEmotion: "shocked" | "skeptical" | "celebrate" | "point-cta" = "shocked";
-      let sceneIndex = 0;
 
       if (mode === "multi") {
         let accumulatedTime = 0;
@@ -273,7 +355,7 @@ export default function KineticMotionPage() {
             currentMetric = s.metric;
             currentHighlight = s.highlightKeyword;
             currentEmotion = s.characterEmotion || "shocked";
-            sceneBadge = `SCENE ${i + 1}/${scenes.length}: ${s.stageName}`;
+            sceneBadge = `SCENE ${i + 1}/${scenes.length} • ${s.stageName}`;
             const timeInScene = loopTime - accumulatedTime;
             sceneLocalProgress = timeInScene / s.durationSec;
             break;
@@ -282,7 +364,44 @@ export default function KineticMotionPage() {
         }
       }
 
-      // Spring overshoot calculation for kinetic entrance
+      // Check for scene transition to trigger Foley & Voiceover Audio
+      if (sceneIndex !== lastSceneIndexRef.current) {
+        lastSceneIndexRef.current = sceneIndex;
+
+        // Play Foley Whoosh on scene entry
+        if (sfxEnabled && audioCtxRef.current && audioDestRef.current) {
+          playProceduralSFX(
+            audioCtxRef.current,
+            [audioCtxRef.current.destination, audioDestRef.current],
+            "whoosh"
+          );
+        }
+
+        // Play Voiceover AudioBuffer for this scene
+        if (audioEnabled && audioCtxRef.current && audioDestRef.current) {
+          if (activeAudioSourceRef.current) {
+            try {
+              activeAudioSourceRef.current.stop();
+            } catch (_) {}
+          }
+
+          const buf = audioBuffersRef.current[sceneIndex];
+          if (buf) {
+            try {
+              const src = audioCtxRef.current.createBufferSource();
+              src.buffer = buf;
+              src.connect(audioCtxRef.current.destination);
+              src.connect(audioDestRef.current);
+              src.start();
+              activeAudioSourceRef.current = src;
+            } catch (err) {
+              console.warn("Buffer playback notice:", err);
+            }
+          }
+        }
+      }
+
+      // Spring physics calculation
       const springT = Math.min(sceneLocalProgress * 3.5, 1);
       const springBounce = 0.88 + Math.sin(springT * Math.PI) * 0.14 * Math.exp(-springT * 2);
       const enterEase = Math.min(sceneLocalProgress / 0.14, 1);
@@ -290,21 +409,18 @@ export default function KineticMotionPage() {
       const transitionScale = 0.95 + springBounce * 0.05 * exitEase;
       const transitionAlpha = Math.min(enterEase * exitEase * 1.5, 1);
 
-      // 1. Background rendering based on style
+      // 1. BACKGROUND RENDERING BASED ON ARCHETYPE
       if (motionStyle === "apple-keynote") {
         ctx.fillStyle = "#08090d";
         ctx.fillRect(0, 0, W, H);
-
-        const radial = ctx.createRadialGradient(W / 2, H * 0.35, 10, W / 2, H * 0.35, W * 0.7);
-        radial.addColorStop(0, "rgba(255, 255, 255, 0.06)");
+        const radial = ctx.createRadialGradient(W / 2, H * 0.28, 20, W / 2, H * 0.28, W * 0.75);
+        radial.addColorStop(0, "rgba(255, 255, 255, 0.07)");
         radial.addColorStop(1, "rgba(0, 0, 0, 0)");
         ctx.fillStyle = radial;
         ctx.fillRect(0, 0, W, H);
       } else if (motionStyle === "fintech-alpha") {
         ctx.fillStyle = "#070c14";
         ctx.fillRect(0, 0, W, H);
-
-        // Grid lines
         ctx.strokeStyle = "rgba(16, 185, 129, 0.07)";
         ctx.lineWidth = 1;
         for (let x = 0; x < W; x += 40) {
@@ -322,8 +438,6 @@ export default function KineticMotionPage() {
       } else if (motionStyle === "cyber-hud") {
         ctx.fillStyle = "#080911";
         ctx.fillRect(0, 0, W, H);
-
-        // Scanlines
         ctx.fillStyle = "rgba(6, 182, 212, 0.03)";
         for (let y = 0; y < H; y += 4) {
           ctx.fillRect(0, y, W, 2);
@@ -331,8 +445,6 @@ export default function KineticMotionPage() {
       } else if (motionStyle === "stoic-gold") {
         ctx.fillStyle = "#0c0d11";
         ctx.fillRect(0, 0, W, H);
-
-        // Floating gold embers
         particles.forEach((p) => {
           p.y -= p.speed;
           if (p.y < 0) p.y = H;
@@ -344,8 +456,6 @@ export default function KineticMotionPage() {
       } else if (motionStyle === "swiss-minimalist") {
         ctx.fillStyle = "#09090b";
         ctx.fillRect(0, 0, W, H);
-
-        // Swiss architectural grid
         ctx.strokeStyle = "rgba(255, 255, 255, 0.035)";
         ctx.lineWidth = 1;
         for (let x = 60; x < W; x += 60) {
@@ -360,8 +470,6 @@ export default function KineticMotionPage() {
           ctx.lineTo(W, y);
           ctx.stroke();
         }
-
-        // Precision Corner Crosshairs (+)
         ctx.strokeStyle = "#ef4444";
         ctx.lineWidth = 2;
         const cross = (cx: number, cy: number) => {
@@ -372,28 +480,22 @@ export default function KineticMotionPage() {
           ctx.lineTo(cx, cy + 8);
           ctx.stroke();
         };
-        cross(50, 140);
-        cross(W - 50, 140);
-        cross(50, H - 140);
-        cross(W - 50, H - 140);
+        cross(50, 110);
+        cross(W - 50, 110);
+        cross(50, H - 70);
+        cross(W - 50, H - 70);
       } else if (motionStyle === "retro-arcade") {
         ctx.fillStyle = "#0a0718";
         ctx.fillRect(0, 0, W, H);
-
-        // Synthwave perspective grid floor at bottom
-        const horizonY = H * 0.74;
+        const horizonY = H * 0.72;
         ctx.strokeStyle = "rgba(236, 72, 153, 0.18)";
         ctx.lineWidth = 1.5;
-
-        // Radiating perspective lines from horizon
         for (let x = -W; x <= W * 2; x += 70) {
           ctx.beginPath();
           ctx.moveTo(W / 2, horizonY);
           ctx.lineTo(x, H);
           ctx.stroke();
         }
-
-        // Moving horizontal grid lines
         const gridOffset = (elapsed * 35) % 25;
         for (let y = horizonY; y < H; y += 25) {
           const actualY = y + gridOffset;
@@ -404,317 +506,19 @@ export default function KineticMotionPage() {
             ctx.stroke();
           }
         }
-
-        // Subtle CRT scanlines
         ctx.fillStyle = "rgba(139, 92, 246, 0.03)";
         for (let y = 0; y < H; y += 3) {
           ctx.fillRect(0, y, W, 1);
         }
       }
 
-      // 2. Floating 3D Geometric Accents (After Effects Style)
-      const rotAngle = elapsed * 0.8;
+      // 2. TOP HEADER BAR & SCENE BADGE
       ctx.save();
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
-      ctx.lineWidth = 1.5;
-      ctx.translate(W * 0.85, H * 0.22);
-      ctx.rotate(rotAngle);
-      ctx.strokeRect(-25, -25, 50, 50);
-      ctx.restore();
+      ctx.font = "700 16px monospace";
+      ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+      ctx.fillText("BUATPROMPT STUDIO", 60, 68);
 
-      // 3. Top Scene Badge & Progress Indicator
-      ctx.save();
-      ctx.font = "600 18px monospace";
-      ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
-      ctx.fillText(sceneBadge, 60, 95);
-
-      if (motionStyle === "cyber-hud") {
-        const timecode = `TC 00:0${Math.floor(elapsed)}:${Math.floor((elapsed % 1) * 30).toString().padStart(2, "0")}`;
-        ctx.textAlign = "right";
-        ctx.fillText(timecode, W - 60, 95);
-      }
-      ctx.restore();
-
-      // 4. ANIMATED MASCOT / 3D VECTOR AVATAR (Interactive & Reactive)
-      if (showMascot) {
-        ctx.save();
-        const mascotX = W / 2;
-        // Floating hover bobbing motion
-        const mascotBob = Math.sin(elapsed * 3.5) * 8;
-        const mascotY = H * 0.25 + mascotBob;
-
-        ctx.translate(mascotX, mascotY);
-        ctx.globalAlpha = transitionAlpha;
-
-        // Aura halo ring
-        const auraColor = currentEmotion === "shocked"
-          ? "rgba(244, 63, 94, 0.2)"
-          : currentEmotion === "celebrate"
-          ? "rgba(16, 185, 129, 0.25)"
-          : currentEmotion === "point-cta"
-          ? "rgba(245, 158, 11, 0.25)"
-          : "rgba(56, 189, 248, 0.2)";
-
-        ctx.beginPath();
-        ctx.arc(0, 0, 68, 0, Math.PI * 2);
-        ctx.fillStyle = auraColor;
-        ctx.fill();
-
-        // Mascot Head (Rounded Glass Capsule)
-        ctx.beginPath();
-        ctx.arc(0, 0, 52, 0, Math.PI * 2);
-        const headGrad = ctx.createLinearGradient(-30, -30, 30, 30);
-        headGrad.addColorStop(0, "#232838");
-        headGrad.addColorStop(1, "#12141d");
-        ctx.fillStyle = headGrad;
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
-        ctx.lineWidth = 2.5;
-        ctx.fill();
-        ctx.stroke();
-
-        // Visor / Face Screen
-        ctx.beginPath();
-        ctx.roundRect(-36, -18, 72, 36, 12);
-        ctx.fillStyle = "#08090f";
-        ctx.fill();
-
-        // Animated Eyes & Emotion Expressions
-        const blinkPhase = Math.sin(elapsed * 2.2);
-        const isBlinking = blinkPhase > 0.96;
-
-        ctx.fillStyle = currentEmotion === "shocked"
-          ? "#f43f5e"
-          : currentEmotion === "celebrate"
-          ? "#10b981"
-          : currentEmotion === "point-cta"
-          ? "#f59e0b"
-          : "#38bdf8";
-
-        if (isBlinking) {
-          // Closed eye slits
-          ctx.fillRect(-22, 0, 14, 3);
-          ctx.fillRect(8, 0, 14, 3);
-        } else if (currentEmotion === "shocked") {
-          // Wide surprised eyes
-          ctx.beginPath();
-          ctx.arc(-15, 0, 7, 0, Math.PI * 2);
-          ctx.arc(15, 0, 7, 0, Math.PI * 2);
-          ctx.fill();
-          // Exclamation Mark above mascot head
-          ctx.font = "bold 28px sans-serif";
-          ctx.fillStyle = "#f43f5e";
-          ctx.textAlign = "center";
-          ctx.fillText("!", 0, -68);
-        } else if (currentEmotion === "skeptical") {
-          // Narrow squinting eyes
-          ctx.fillRect(-22, -2, 14, 4);
-          ctx.fillRect(8, -2, 14, 4);
-          // Question mark
-          ctx.font = "bold 24px sans-serif";
-          ctx.fillStyle = "#38bdf8";
-          ctx.textAlign = "center";
-          ctx.fillText("?", 25, -60);
-        } else if (currentEmotion === "celebrate") {
-          // Happy smiling arc eyes
-          ctx.lineWidth = 3;
-          ctx.strokeStyle = "#10b981";
-          ctx.beginPath();
-          ctx.arc(-15, 2, 7, Math.PI, 0);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.arc(15, 2, 7, Math.PI, 0);
-          ctx.stroke();
-          // Floating stars
-          ctx.fillStyle = "#facc15";
-          ctx.font = "18px sans-serif";
-          ctx.fillText("★", -35, -50);
-          ctx.fillText("★", 35, -50);
-        } else if (currentEmotion === "point-cta") {
-          // Energetic open eyes
-          ctx.beginPath();
-          ctx.arc(-15, 0, 6, 0, Math.PI * 2);
-          ctx.arc(15, 0, 6, 0, Math.PI * 2);
-          ctx.fill();
-          // Bookmark/Save icon badge
-          ctx.font = "22px sans-serif";
-          ctx.fillText("🔖", 0, -62);
-        }
-
-        ctx.restore();
-      }
-
-      // 5. DYNAMIC KINETIC HEADLINE WITH WORD-BY-WORD HIGHLIGHT BOX
-      ctx.save();
-      ctx.translate(W / 2, showMascot ? H * 0.46 : H * 0.42);
-      ctx.scale(transitionScale, transitionScale);
-      ctx.globalAlpha = transitionAlpha;
-
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-
-      if (motionStyle === "stoic-gold") {
-        ctx.font = "bold 48px serif";
-      } else if (motionStyle === "cyber-hud" || motionStyle === "retro-arcade") {
-        ctx.font = "900 46px monospace";
-      } else if (motionStyle === "swiss-minimalist") {
-        ctx.font = "900 50px sans-serif";
-      } else {
-        ctx.font = "800 50px sans-serif";
-      }
-
-      // Word wrapping for headline
-      const words = currentHeadline.toUpperCase().split(" ");
-      let line = "";
-      const lines = [];
-      for (let n = 0; n < words.length; n++) {
-        const testLine = line + words[n] + " ";
-        const metrics = ctx.measureText(testLine);
-        if (metrics.width > W - 140 && n > 0) {
-          lines.push(line);
-          line = words[n] + " ";
-        } else {
-          line = testLine;
-        }
-      }
-      lines.push(line);
-
-      const lineHeight = 66;
-      const startY = -(lines.length * lineHeight) / 2;
-
-      lines.forEach((l, idx) => {
-        const lineText = l.trim();
-        const lineY = startY + idx * lineHeight;
-
-        // Kinetic Highlight Box if line contains target keyword
-        if (currentHighlight && lineText.includes(currentHighlight.toUpperCase())) {
-          const textW = ctx.measureText(lineText).width;
-          const boxH = 56;
-
-          ctx.save();
-          ctx.fillStyle = motionStyle === "fintech-alpha"
-            ? "rgba(16, 185, 129, 0.18)"
-            : motionStyle === "stoic-gold"
-            ? "rgba(245, 158, 11, 0.2)"
-            : motionStyle === "swiss-minimalist"
-            ? "rgba(239, 68, 68, 0.2)"
-            : motionStyle === "retro-arcade"
-            ? "rgba(236, 72, 153, 0.25)"
-            : "rgba(56, 189, 248, 0.2)";
-
-          ctx.strokeStyle = motionStyle === "fintech-alpha"
-            ? "rgba(16, 185, 129, 0.5)"
-            : motionStyle === "stoic-gold"
-            ? "rgba(245, 158, 11, 0.5)"
-            : motionStyle === "swiss-minimalist"
-            ? "rgba(239, 68, 68, 0.7)"
-            : motionStyle === "retro-arcade"
-            ? "rgba(236, 72, 153, 0.7)"
-            : "rgba(56, 189, 248, 0.5)";
-
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.roundRect(-textW / 2 - 14, lineY - boxH / 2, textW + 28, boxH, 12);
-          ctx.fill();
-          ctx.stroke();
-          ctx.restore();
-
-          ctx.fillStyle = motionStyle === "fintech-alpha"
-            ? "#10b981"
-            : motionStyle === "stoic-gold"
-            ? "#f59e0b"
-            : motionStyle === "swiss-minimalist"
-            ? "#ef4444"
-            : motionStyle === "retro-arcade"
-            ? "#ec4899"
-            : "#38bdf8";
-        } else {
-          ctx.fillStyle = motionStyle === "cyber-hud"
-            ? "#38bdf8"
-            : motionStyle === "retro-arcade"
-            ? "#f8fafc"
-            : "#ffffff";
-        }
-
-        ctx.fillText(lineText, 0, lineY);
-      });
-      ctx.restore();
-
-      // 6. DYNAMIC METRIC COUNTER OR FINTECH CURVE
-      if (currentMetric.trim()) {
-        ctx.save();
-        ctx.globalAlpha = transitionAlpha;
-        ctx.textAlign = "center";
-        ctx.font = "900 68px monospace";
-
-        if (motionStyle === "fintech-alpha") {
-          ctx.fillStyle = "#10b981";
-          ctx.shadowColor = "rgba(16, 185, 129, 0.4)";
-          ctx.shadowBlur = 20;
-
-          // Animated trendline SVG curve
-          ctx.strokeStyle = "#10b981";
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          const startGraphY = H * 0.69;
-          ctx.moveTo(100, startGraphY);
-          const currentGraphX = 100 + (W - 200) * sceneLocalProgress;
-          const currentGraphY = startGraphY - Math.sin(sceneLocalProgress * Math.PI) * 110;
-          ctx.quadraticCurveTo(W / 2, startGraphY - 130 * sceneLocalProgress, currentGraphX, currentGraphY);
-          ctx.stroke();
-        } else if (motionStyle === "stoic-gold") {
-          ctx.fillStyle = "#f59e0b";
-          ctx.shadowColor = "rgba(245, 158, 11, 0.3)";
-          ctx.shadowBlur = 15;
-        } else if (motionStyle === "swiss-minimalist") {
-          ctx.fillStyle = "#ffffff";
-          ctx.shadowColor = "rgba(239, 68, 68, 0.4)";
-          ctx.shadowBlur = 12;
-        } else if (motionStyle === "retro-arcade") {
-          ctx.fillStyle = "#06b6d4";
-          ctx.shadowColor = "rgba(236, 72, 153, 0.6)";
-          ctx.shadowBlur = 20;
-        } else {
-          ctx.fillStyle = "#38bdf8";
-        }
-
-        ctx.fillText(currentMetric, W / 2, H * 0.72);
-        ctx.restore();
-      }
-
-      // 7. SUPPORTING SUBTEXT
-      if (currentSubtext.trim()) {
-        ctx.save();
-        ctx.globalAlpha = transitionAlpha;
-        ctx.font = "400 24px sans-serif";
-        ctx.fillStyle = "#94a3b8";
-        ctx.textAlign = "center";
-
-        // Word wrap subtext
-        const subWords = currentSubtext.split(" ");
-        let subLine = "";
-        const subLines = [];
-        for (let i = 0; i < subWords.length; i++) {
-          const test = subLine + subWords[i] + " ";
-          if (ctx.measureText(test).width > W - 180 && i > 0) {
-            subLines.push(subLine);
-            subLine = subWords[i] + " ";
-          } else {
-            subLine = test;
-          }
-        }
-        subLines.push(subLine);
-
-        subLines.forEach((sl, idx) => {
-          ctx.fillText(sl.trim(), W / 2, H * 0.82 + idx * 34);
-        });
-        ctx.restore();
-      }
-
-      // 8. GLOBAL TIMELINE PROGRESS LINE
-      ctx.save();
-      ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
-      ctx.fillRect(80, H - 110, W - 160, 6);
-
+      ctx.textAlign = "right";
       ctx.fillStyle = motionStyle === "fintech-alpha"
         ? "#10b981"
         : motionStyle === "stoic-gold"
@@ -723,8 +527,365 @@ export default function KineticMotionPage() {
         ? "#ef4444"
         : motionStyle === "retro-arcade"
         ? "#ec4899"
-        : "#ffffff";
-      ctx.fillRect(80, H - 110, (W - 160) * globalProgress, 6);
+        : "#38bdf8";
+      ctx.fillText(sceneBadge, W - 60, 68);
+      ctx.restore();
+
+      // 3. ZONE 1: UPPER SHOWCASE STAGE (Y: 100 to 440)
+      ctx.save();
+      ctx.globalAlpha = transitionAlpha;
+      const cardY = 100;
+      const cardW = W - 120;
+      const cardH = 260;
+      const cardX = 60;
+
+      if (sceneIndex === 0) {
+        // Scene 1: Terminal Command Prompt Card (Code to Video Demo)
+        ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardW, cardH, 20);
+        ctx.fill();
+        ctx.stroke();
+
+        // Terminal Top Dots
+        ctx.fillStyle = "#ef4444";
+        ctx.beginPath();
+        ctx.arc(cardX + 24, cardY + 24, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#f59e0b";
+        ctx.beginPath();
+        ctx.arc(cardX + 44, cardY + 24, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#10b981";
+        ctx.beginPath();
+        ctx.arc(cardX + 64, cardY + 24, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.font = "600 13px monospace";
+        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.textAlign = "left";
+        ctx.fillText("buatprompt-director ~ zsh", cardX + 88, cardY + 28);
+
+        // Terminal Prompt Content with cursor blink
+        ctx.font = "700 20px monospace";
+        ctx.fillStyle = "#38bdf8";
+        ctx.fillText("> buatprompt --mode viral-hook", cardX + 24, cardY + 85);
+
+        const cursorBlink = Math.sin(elapsed * 6) > 0;
+        ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+        ctx.font = "500 16px monospace";
+        ctx.fillText(
+          `topic: "${topicIdea.slice(0, 32)}${topicIdea.length > 32 ? "..." : ""}"${cursorBlink ? " ▌" : ""}`,
+          cardX + 24,
+          cardY + 125
+        );
+
+        // Sub Pills inside card
+        ctx.fillStyle = "rgba(16, 185, 129, 0.15)";
+        ctx.strokeStyle = "rgba(16, 185, 129, 0.4)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(cardX + 24, cardY + 160, cardW - 48, 44, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#10b981";
+        ctx.font = "700 15px monospace";
+        ctx.fillText("✓ 52s Golden Retention Sweet Spot Terkunci", cardX + 42, cardY + 188);
+      } else if (sceneIndex === 1) {
+        // Scene 2: The Agitation / Problem Grid Cards
+        ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
+        ctx.strokeStyle = "rgba(239, 68, 68, 0.3)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardW, cardH, 20);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = "800 18px sans-serif";
+        ctx.fillStyle = "#ef4444";
+        ctx.textAlign = "left";
+        ctx.fillText("⚠️ 3 AKAR MASALAH KEGAGALAN KONTEN:", cardX + 24, cardY + 42);
+
+        const problems = [
+          { tag: "❌ CARA LAMA", desc: "Naskah datar, drop-off 80% di detik ke-5" },
+          { tag: "📉 ALGORITMA", desc: "Swipe-away cepat jika visual statis > 2s" },
+          { tag: "💸 RUGI WAKTU", desc: "Buka OBS & edit klip CapCut berjam-jam" },
+        ];
+
+        problems.forEach((p, idx) => {
+          const itemY = cardY + 70 + idx * 56;
+          ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+          ctx.beginPath();
+          ctx.roundRect(cardX + 20, itemY, cardW - 40, 44, 10);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.font = "700 13px monospace";
+          ctx.fillStyle = "#f43f5e";
+          ctx.fillText(p.tag, cardX + 34, itemY + 27);
+
+          ctx.font = "500 14px sans-serif";
+          ctx.fillStyle = "#e2e8f0";
+          ctx.fillText(p.desc, cardX + 155, itemY + 27);
+        });
+      } else if (sceneIndex === 2) {
+        // Scene 3: The Breakthrough Reveal Decision Cards
+        ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
+        ctx.strokeStyle = "rgba(16, 185, 129, 0.3)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardW, cardH, 20);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = "800 18px sans-serif";
+        ctx.fillStyle = "#10b981";
+        ctx.textAlign = "left";
+        ctx.fillText("💡 BLUEPRINT SOLUSI TERBUKTI OTORITAS:", cardX + 24, cardY + 42);
+
+        const solutions = [
+          { icon: "🎯", title: "Naskah 4 Babak Sutradara", tag: "10s • 15s • 15s • 12s" },
+          { icon: "🏛️", title: `Doktrin: ${activeVaultInfo?.name || "Otoritas Industri"}`, tag: "Tervalidasi" },
+          { icon: "⚡", title: "Spring Physics + In-Browser Audio Muxing", tag: "DIPILIH ✓" },
+        ];
+
+        solutions.forEach((s, idx) => {
+          const itemY = cardY + 70 + idx * 56;
+          const isSelected = idx === 2;
+
+          ctx.fillStyle = isSelected ? "rgba(16, 185, 129, 0.15)" : "rgba(255, 255, 255, 0.05)";
+          ctx.strokeStyle = isSelected ? "rgba(16, 185, 129, 0.6)" : "rgba(255, 255, 255, 0.08)";
+          ctx.lineWidth = isSelected ? 2 : 1;
+          ctx.beginPath();
+          ctx.roundRect(cardX + 20, itemY, cardW - 40, 44, 10);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.font = "16px sans-serif";
+          ctx.fillText(s.icon, cardX + 32, itemY + 28);
+
+          ctx.font = "700 14px sans-serif";
+          ctx.fillStyle = isSelected ? "#ffffff" : "#cbd5e1";
+          ctx.fillText(s.title, cardX + 60, itemY + 27);
+
+          ctx.textAlign = "right";
+          ctx.font = "700 12px monospace";
+          ctx.fillStyle = isSelected ? "#10b981" : "#94a3b8";
+          ctx.fillText(s.tag, cardX + cardW - 35, itemY + 27);
+          ctx.textAlign = "left";
+        });
+      } else {
+        // Scene 4: The Animated Pipeline Checklist (Like Opuscar video frame 55!)
+        ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
+        ctx.strokeStyle = "rgba(56, 189, 248, 0.3)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardW, cardH, 20);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = "800 18px sans-serif";
+        ctx.fillStyle = "#38bdf8";
+        ctx.textAlign = "left";
+        ctx.fillText("🎬 PIPELINE KINETIC STUDIO:", cardX + 24, cardY + 40);
+
+        const checklist = [
+          { label: "Gambar & Visual Hook 9:16 HD", ready: true },
+          { label: "Voiceover Suara & Foley SFX Muxed", ready: true },
+          { label: "Alur Naskah Otoritas 4 Babak", ready: true },
+        ];
+
+        checklist.forEach((c, idx) => {
+          const itemY = cardY + 62 + idx * 42;
+          ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+          ctx.beginPath();
+          ctx.roundRect(cardX + 20, itemY, cardW - 40, 36, 8);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#10b981";
+          ctx.font = "700 15px monospace";
+          ctx.fillText("●", cardX + 34, itemY + 23);
+
+          ctx.fillStyle = "#e2e8f0";
+          ctx.font = "600 14px sans-serif";
+          ctx.fillText(c.label, cardX + 54, itemY + 23);
+        });
+
+        // The Big Glowing Green Ready Button
+        const readyY = cardY + 194;
+        const pulse = Math.sin(elapsed * 4) * 0.08;
+        ctx.fillStyle = "rgba(16, 185, 129, 0.25)";
+        ctx.strokeStyle = "#10b981";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(cardX + 20, readyY, cardW - 40, 48, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = "800 16px monospace";
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "center";
+        ctx.fillText("✓ FILM.MP4 SIAP DIUNDUH", cardX + cardW / 2, readyY + 30);
+        ctx.textAlign = "left";
+      }
+      ctx.restore();
+
+      // 4. ZONE 2: DYNAMIC CENTER KINETIC TYPOGRAPHY (Y: 480 to 680)
+      // Words pop in phrase-by-phrase in the focal center right above the character
+      ctx.save();
+      ctx.globalAlpha = transitionAlpha;
+      const timedPhrases = extractTimedPhrases(
+        currentHeadline,
+        currentSubtext,
+        currentHighlight,
+        currentMetric
+      );
+
+      // Identify active phrase based on scene local progress
+      const activePhrase =
+        timedPhrases.find((p) => sceneLocalProgress >= p.startPct && sceneLocalProgress < p.endPct) ||
+        timedPhrases[timedPhrases.length - 1];
+
+      const phraseDuration = Math.max(activePhrase.endPct - activePhrase.startPct, 0.1);
+      const phraseProgress = (sceneLocalProgress - activePhrase.startPct) / phraseDuration;
+      const phraseBounce =
+        0.92 + Math.sin(Math.min(phraseProgress * 3.5, 1) * Math.PI) * 0.14;
+
+      const phraseCenterY = 560;
+      ctx.translate(W / 2, phraseCenterY);
+      ctx.scale(phraseBounce, phraseBounce);
+
+      // Render Badge if present
+      if (activePhrase.badge) {
+        ctx.font = "800 18px monospace";
+        ctx.fillStyle = "#10b981";
+        ctx.textAlign = "center";
+        ctx.fillText(`[ ${activePhrase.badge} ]`, 0, -50);
+      }
+
+      // Font style based on archetype
+      if (motionStyle === "stoic-gold") {
+        ctx.font = "bold 52px serif";
+      } else if (motionStyle === "cyber-hud" || motionStyle === "retro-arcade") {
+        ctx.font = "900 50px monospace";
+      } else if (motionStyle === "swiss-minimalist") {
+        ctx.font = "900 56px sans-serif";
+      } else {
+        ctx.font = "800 56px sans-serif";
+      }
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      // Render Active Phrase with Highlight Box
+      const pText = activePhrase.phraseText;
+      const textWidth = ctx.measureText(pText).width;
+      const boxH = 68;
+
+      // Dynamic Highlight Box
+      const accentColor =
+        motionStyle === "fintech-alpha"
+          ? "#10b981"
+          : motionStyle === "stoic-gold"
+          ? "#f59e0b"
+          : motionStyle === "swiss-minimalist"
+          ? "#ef4444"
+          : motionStyle === "retro-arcade"
+          ? "#ec4899"
+          : "#38bdf8";
+
+      const hasHighlightWord =
+        activePhrase.highlightWord && pText.includes(activePhrase.highlightWord);
+
+      if (hasHighlightWord) {
+        ctx.fillStyle = `${accentColor}25`;
+        ctx.strokeStyle = accentColor;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.roundRect(-textWidth / 2 - 20, -boxH / 2, textWidth + 40, boxH, 16);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = accentColor;
+        ctx.shadowColor = accentColor;
+        ctx.shadowBlur = 18;
+      } else {
+        ctx.fillStyle = "#ffffff";
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.fillText(pText, 0, 0);
+      ctx.restore();
+
+      // 5. ZONE 3: BOTTOM LIVING 3D VOXEL AVATAR (Y: 720 to 1280)
+      if (showMascot) {
+        ctx.save();
+        ctx.globalAlpha = transitionAlpha;
+
+        // Is character actively speaking?
+        const isTalking =
+          isPlaying && sceneLocalProgress > 0.04 && sceneLocalProgress < 0.92;
+
+        if (characterLayout === "single") {
+          // Single character anchored at center bottom
+          drawVoxelAvatar(ctx, {
+            cx: W / 2,
+            cy: 1040,
+            scale: 1.08,
+            emotion: currentEmotion,
+            isTalking,
+            elapsed,
+            outfit: "beanie-striped",
+          });
+        } else {
+          // Duo character layout (Like in Opuscar video frame 15 & 55!)
+          // Host (Left)
+          drawVoxelAvatar(ctx, {
+            cx: W * 0.30,
+            cy: 1040,
+            scale: 0.96,
+            emotion: currentEmotion,
+            isTalking: isTalking && sceneLocalProgress < 0.5,
+            elapsed,
+            outfit: "beanie-striped",
+          });
+
+          // Specialist / Friend in orange hoodie & glasses (Right)
+          drawVoxelAvatar(ctx, {
+            cx: W * 0.70,
+            cy: 1040,
+            scale: 0.96,
+            emotion: currentEmotion === "shocked" ? "skeptical" : currentEmotion,
+            isTalking: isTalking && sceneLocalProgress >= 0.5,
+            elapsed,
+            outfit: "hoodie-glasses",
+          });
+        }
+        ctx.restore();
+      }
+
+      // 6. GLOBAL TIMELINE PROGRESS LINE AT BOTTOM
+      ctx.save();
+      ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+      ctx.fillRect(80, H - 50, W - 160, 6);
+
+      ctx.fillStyle =
+        motionStyle === "fintech-alpha"
+          ? "#10b981"
+          : motionStyle === "stoic-gold"
+          ? "#f59e0b"
+          : motionStyle === "swiss-minimalist"
+          ? "#ef4444"
+          : motionStyle === "retro-arcade"
+          ? "#ec4899"
+          : "#ffffff";
+      ctx.fillRect(80, H - 50, (W - 160) * globalProgress, 6);
       ctx.restore();
 
       if (isPlaying) {
@@ -739,28 +900,66 @@ export default function KineticMotionPage() {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [mode, scenes, singleHeadline, singleMetric, singleSubtext, motionStyle, totalDurationSec, isPlaying, showMascot]);
+  }, [
+    mode,
+    scenes,
+    singleHeadline,
+    singleMetric,
+    singleSubtext,
+    motionStyle,
+    totalDurationSec,
+    isPlaying,
+    showMascot,
+    characterLayout,
+    audioEnabled,
+    sfxEnabled,
+    topicIdea,
+    activeVaultInfo,
+  ]);
 
-  // In-Browser Native Video Recorder
+  // In-Browser Native Video Recorder WITH EMBEDDED AUDIO
   const recordAndDownloadVideo = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     setIsRecording(true);
     setRecordProgress(0);
-    startTimeRef.current = Date.now(); // reset cycle to frame 0
 
-    // Capture canvas stream at 30fps
-    const stream = (canvas as any).captureStream(30);
+    // Initialize & resume audio engine
+    const { ctx, dest } = getOrCreateAudioEngine();
+    if (ctx.state === "suspended") {
+      await ctx.resume();
+    }
 
-    let mimeType = "video/webm;codecs=vp9";
+    // Start BGM during recording if enabled
+    if (bgmEnabled && loFiBgmRef.current) {
+      loFiBgmRef.current.start();
+    }
+
+    // Reset loop timing to 0
+    startTimeRef.current = Date.now();
+    lastSceneIndexRef.current = -1;
+
+    // Capture canvas visual stream at 30fps
+    const canvasStream = (canvas as any).captureStream(30);
+
+    // Grab audio tracks from Web Audio destination node
+    const audioTracks = dest.stream.getAudioTracks();
+
+    // Mux video and audio into a single stream
+    const combinedStream = new MediaStream([
+      ...canvasStream.getVideoTracks(),
+      ...audioTracks,
+    ]);
+
+    let mimeType = "video/webm;codecs=vp9,opus";
     if (!MediaRecorder.isTypeSupported(mimeType)) {
       mimeType = "video/webm";
     }
 
-    const recorder = new MediaRecorder(stream, {
+    const recorder = new MediaRecorder(combinedStream, {
       mimeType,
-      videoBitsPerSecond: 8000000 // 8 Mbps high quality HD
+      videoBitsPerSecond: 8000000, // 8 Mbps high quality HD
     });
 
     const chunks: Blob[] = [];
@@ -775,7 +974,7 @@ export default function KineticMotionPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `kinetic-${mode}-story-${totalDurationSec}s.webm`;
+      a.download = `buatprompt-kinetic-${mode}-${totalDurationSec}s-audio.webm`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -786,7 +985,7 @@ export default function KineticMotionPage() {
 
     recorder.start();
 
-    // Track recording progress bar
+    // Track recording progress
     const totalMs = totalDurationSec * 1000;
     const intervalMs = 150;
     let elapsedMs = 0;
@@ -809,12 +1008,6 @@ export default function KineticMotionPage() {
     setScenes(updated);
   };
 
-  const copyToClipboard = async (key: string, text: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
-  };
-
   return (
     <div className="py-8 sm:py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
       <Link
@@ -828,19 +1021,19 @@ export default function KineticMotionPage() {
       <div className="mb-8">
         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-mono font-medium text-emerald-300 mb-2">
           <Film className="h-3.5 w-3.5" />
-          <span>MULTI-SCENE KINETIC DIRECTOR & AFTER EFFECTS ENGINE</span>
+          <span>MULTI-SCENE KINETIC DIRECTOR & OPUSCAR AFTER EFFECTS ENGINE</span>
         </div>
         <h1 className="font-mono text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
           Multi-Scene Kinetic Video Studio
         </h1>
         <p className="mt-2 text-sm text-zinc-400 max-w-3xl">
-          Hasil sekelas biro iklan internasional! Lengkap dengan **Karakter Maskot 3D Animasi Responsif**, tipografi kinetic membesar-mengecil berpegas (*spring physics*), kalkulator durasi naskah otomatis, dan unduh langsung video 26 detik utuh tanpa CapCut.
+          Hasil sekelas biro iklan internasional! Dilengkapi **Showcase Card Interaktif**, **Tipografi Kinetik Tengah Berpegas (*karaoke-style*)**, **Karakter 3D Voxel dengan Mulut Bergerak Bicara (*lip-sync*)**, serta **Full Audio Muxing (Voiceover + SFX + BGM)** langsung terunduh ke file video tanpa CapCut!
         </p>
       </div>
 
-      {/* Mode Switcher */}
+      {/* Mode & Audio Controls Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setMode("multi")}
@@ -851,8 +1044,10 @@ export default function KineticMotionPage() {
             }`}
           >
             <Layers className="h-4 w-4" />
-            <span>FULL 4-SCENE STORY MOVIE (26 DETIK)</span>
-            <span className="bg-emerald-500/20 text-emerald-800 text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase ml-1">Rekomendasi</span>
+            <span>FULL 4-SCENE STORY MOVIE ({totalDurationSec}s)</span>
+            <span className="bg-emerald-500/20 text-emerald-800 text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase ml-1">
+              Rekomendasi
+            </span>
           </button>
 
           <button
@@ -865,23 +1060,56 @@ export default function KineticMotionPage() {
             }`}
           >
             <Play className="h-4 w-4 fill-current" />
-            <span>SINGLE HOOK CLIP (6 DETIK)</span>
+            <span>SINGLE HOOK CLIP (6s)</span>
           </button>
         </div>
 
-        {/* Mascot Toggle Button */}
-        <button
-          type="button"
-          onClick={() => setShowMascot(!showMascot)}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${
-            showMascot
-              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-              : "border-white/10 bg-black/40 text-zinc-400 hover:text-white"
-          }`}
-        >
-          <Smile className="h-3.5 w-3.5" />
-          <span>Maskot 3D Avatar: {showMascot ? "AKTIF ✓" : "NONAKTIF"}</span>
-        </button>
+        {/* Audio & Character Controls */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Audio Voiceover Toggle */}
+          <button
+            type="button"
+            onClick={() => {
+              getOrCreateAudioEngine();
+              setAudioEnabled(!audioEnabled);
+            }}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${
+              audioEnabled
+                ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-300"
+                : "border-white/10 bg-black/40 text-zinc-500 hover:text-white"
+            }`}
+          >
+            {audioEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+            <span>Voiceover: {audioEnabled ? "AKTIF ✓" : "MUTE"}</span>
+          </button>
+
+          {/* Lo-Fi BGM Toggle */}
+          <button
+            type="button"
+            onClick={() => {
+              getOrCreateAudioEngine();
+              setBgmEnabled(!bgmEnabled);
+            }}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${
+              bgmEnabled
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                : "border-white/10 bg-black/40 text-zinc-500 hover:text-white"
+            }`}
+          >
+            <Music className="h-3.5 w-3.5" />
+            <span>BGM Lo-Fi: {bgmEnabled ? "ON ✓" : "OFF"}</span>
+          </button>
+
+          {/* Character Layout Toggle */}
+          <button
+            type="button"
+            onClick={() => setCharacterLayout(characterLayout === "single" ? "duo" : "single")}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border border-white/10 bg-black/40 text-zinc-300 hover:text-white transition-colors cursor-pointer"
+          >
+            {characterLayout === "single" ? <User className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5 text-emerald-400" />}
+            <span>Avatar: {characterLayout === "single" ? "1 Host" : "Duo (Host + Friend)"}</span>
+          </button>
+        </div>
       </div>
 
       {/* Word Count & Duration Pacing Alert */}
@@ -897,9 +1125,11 @@ export default function KineticMotionPage() {
                 <span className="text-zinc-400">Estimasi Bicara: </span>
                 <span className="text-emerald-300 font-bold">~{estimatedSeconds} Detik</span>
                 <span className="text-zinc-500 mx-2">•</span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                  isPacingOverLimit ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"
-                }`}>
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    isPacingOverLimit ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"
+                  }`}
+                >
                   {isPacingOverLimit ? "TERLALU PANJANG (>55s)" : "RETENSI OPTIMAL ✓"}
                 </span>
               </>
@@ -908,7 +1138,15 @@ export default function KineticMotionPage() {
                 <span className="text-emerald-300 font-bold">AI Idea-to-Script Mode</span>
                 <span className="text-zinc-500 mx-2">•</span>
                 <span className="text-zinc-400">Target Durasi: </span>
-                <span className="text-cyan-300 font-bold">{durationTarget === "55s" ? "52-55 Detik (Golden Sweet Spot)" : "26 Detik (Express Quick Hook)"}</span>
+                <span className="text-cyan-300 font-bold">
+                  {durationTarget === "55s" ? "52-55 Detik (Golden Sweet Spot)" : "26 Detik (Express Quick Hook)"}
+                </span>
+                {isAudioLoading && (
+                  <>
+                    <span className="text-zinc-500 mx-2">•</span>
+                    <span className="text-amber-300 animate-pulse">⏳ Prefetching Audio...</span>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -927,7 +1165,8 @@ export default function KineticMotionPage() {
             <span>PANDUAN RETENSI ALGORITMA: OPTIMASI DURASI & NASKAH</span>
           </div>
           <p className="text-xs font-mono text-zinc-300 leading-relaxed">
-            {warningMessage || `Naskah Anda (${wordCount} kata / ~${estimatedSeconds} detik) melebihi batas retensi optimal 55-60 detik. Menonton video vertikal terlalu lama berpotensi meningkatkan drop-off penonton.`}
+            {warningMessage ||
+              `Naskah Anda (${wordCount} kata / ~${estimatedSeconds} detik) melebihi batas retensi optimal 55-60 detik.`}
           </p>
           <div className="flex flex-wrap gap-2 pt-1">
             <button
@@ -954,7 +1193,6 @@ export default function KineticMotionPage() {
         {/* Left Column: Form & Scene Controls */}
         <div className="lg:col-span-6 space-y-6">
           {mode === "multi" ? (
-            /* Multi-Scene Controls */
             <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-6 space-y-5 shadow-xl">
               {/* TWO TABS: IDEA-TO-SCRIPT VS CUSTOM SCRIPT */}
               <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/50 border border-white/10">
@@ -1057,7 +1295,7 @@ export default function KineticMotionPage() {
 
                     <div>
                       <label className="block text-[10px] font-mono text-zinc-400 mb-1">
-                        AIR-GAP KNOWLEDGE VAULT (LOCAL BRAIN)
+                        AIR-GAP KNOWLEDGE VAULT
                       </label>
                       <select
                         value={vaultDomain}
@@ -1067,17 +1305,16 @@ export default function KineticMotionPage() {
                         }}
                         className="w-full rounded-lg border border-white/10 bg-black/40 px-2.5 py-2 text-xs text-white font-mono focus:border-emerald-400 focus:outline-none"
                       >
-                        <option value="stoic_motivation">🏛️ Stoic & Motivasi (Kutipan Barat & Timur)</option>
-                        <option value="financial_wealth">📈 Finansial & Wealth (Warren Buffett, 50/30/20)</option>
-                        <option value="affiliate_conversion">💼 Affiliate & Persuasion (Cialdini, Story-Selling)</option>
-                        <option value="culinary_coffee">☕ Kuliner & Kopi (Fisika Ekstraksi & 90°C)</option>
-                        <option value="skincare_beauty">✨ Skincare & Beauty (Dermatologi & Sandwich)</option>
-                        <option value="tech_productivity">⚡ Tech & Productivity (Steve Jobs, Pareto 80/20)</option>
+                        <option value="stoic_motivation">🏛️ Stoic & Motivasi (Marcus Aurelius)</option>
+                        <option value="financial_wealth">📈 Finansial & Wealth (Buffett, 50/30/20)</option>
+                        <option value="affiliate_conversion">💼 Affiliate (Cialdini, Persuasi)</option>
+                        <option value="culinary_coffee">☕ Kuliner & Kopi (Ekstraksi 90°C)</option>
+                        <option value="skincare_beauty">✨ Skincare & Beauty (Dermatologi)</option>
+                        <option value="tech_productivity">⚡ Tech & Productivity (Steve Jobs, 80/20)</option>
                       </select>
                     </div>
                   </div>
 
-                  {/* Active Knowledge Vault Info Display */}
                   {activeVaultInfo && (
                     <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs font-mono space-y-1 animate-in fade-in">
                       <div className="flex items-center justify-between text-emerald-300 font-bold">
@@ -1100,27 +1337,14 @@ export default function KineticMotionPage() {
                   <div className="flex gap-2 pt-1">
                     <button
                       type="button"
-                      onClick={() => {
-                        const nextSeed = variantSeed + 1;
-                        setVariantSeed(nextSeed);
-                        handleGenerateStory("idea", undefined, nextSeed);
-                      }}
-                      title="Eksplorasi sudut pandang lain dari vault yang sama (Kreativitas Kombinatorial)"
-                      className="px-3.5 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 font-mono text-xs font-bold text-zinc-300 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <Shuffle className="h-3.5 w-3.5 text-cyan-400" />
-                      <span className="hidden sm:inline">VARIASI #{variantSeed + 1}</span>
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => handleGenerateStory("idea")}
                       disabled={isGeneratingStory || !topicIdea.trim()}
-                      className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 px-4 py-3 font-mono text-xs font-bold text-white transition-opacity hover:opacity-95 cursor-pointer disabled:opacity-50 shadow-lg shadow-emerald-950/40"
+                      className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2.5 font-mono text-xs font-bold text-white shadow-lg hover:opacity-95 transition-opacity cursor-pointer disabled:opacity-50"
                     >
                       {isGeneratingStory ? (
                         <>
                           <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                          <span>MENYUSUN NASKAH {durationTarget === "55s" ? "52-55s" : "26s"} & 4 SCENE...</span>
+                          <span>MENYUSUN 4 SCENE LENGKAP...</span>
                         </>
                       ) : (
                         <>
@@ -1129,6 +1353,19 @@ export default function KineticMotionPage() {
                         </>
                       )}
                     </button>
+                    <button
+                      type="button"
+                      title="Acak variasi kombinasi naskah (Combinatorial Seed)"
+                      onClick={() => {
+                        const newSeed = variantSeed + 1;
+                        setVariantSeed(newSeed);
+                        handleGenerateStory("idea", undefined, newSeed);
+                      }}
+                      className="flex items-center justify-center gap-1 px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-mono text-zinc-300 transition-colors cursor-pointer"
+                    >
+                      <Shuffle className="h-3.5 w-3.5 text-cyan-400" />
+                      <span className="hidden sm:inline">VARIASI</span>
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -1136,63 +1373,20 @@ export default function KineticMotionPage() {
                 <div className="space-y-3 pb-4 border-b border-white/10">
                   <div className="flex items-center justify-between">
                     <label className="block text-xs font-mono font-semibold text-zinc-300">
-                      PASTE NASKAH MENTAH / ARTIKEL PANJANG *
+                      PASTE ARTIKEL / NASKAH PANJANG ANDA
                     </label>
-                    <span className="text-[10px] font-mono text-cyan-400">
-                      Pacing Guard Aktif
+                    <span className="text-[10px] font-mono text-zinc-400">
+                      Akan dibedah presisi jadi 4 Babak
                     </span>
                   </div>
                   <textarea
                     rows={4}
                     value={rawScriptInput}
                     onChange={(e) => setRawScriptInput(e.target.value)}
-                    placeholder="Paste naskah Anda di sini... BuatPrompt akan menganalisis jumlah kata, mengestimasi durasi bicara, dan membedahnya ke dalam 4 scene beruntun."
-                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:border-cyan-400 focus:outline-none font-mono"
+                    placeholder="Contoh: Salin draf materi konten atau artikel Anda di sini... Sistem akan otomatis menghitung jumlah kata dan durasi bicaranya."
+                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:border-cyan-400 focus:outline-none font-mono font-medium leading-relaxed"
                   />
-
-                  {/* Pacing Guard Info for Custom Script */}
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-black/30 border border-white/5 text-[11px] font-mono">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-3.5 w-3.5 text-cyan-400" />
-                      <span className="text-zinc-400">Naskah:</span>
-                      <span className="text-white font-bold">{wordCount} Kata</span>
-                      <span className="text-zinc-500">•</span>
-                      <span className="text-emerald-300 font-bold">~{estimatedSeconds}s</span>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      isPacingOverLimit ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"
-                    }`}>
-                      {isPacingOverLimit ? "TERLALU PANJANG (>55s)" : "RETENSI PAS ✓"}
-                    </span>
-                  </div>
-
-                  {/* Target Duration Selector for custom breakdown */}
-                  <div className="flex items-center justify-between text-xs font-mono text-zinc-400">
-                    <span>Durasi Alokasi:</span>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setDurationTarget("55s")}
-                        className={`px-2.5 py-1 rounded text-[10px] font-bold border transition-all ${
-                          durationTarget === "55s" ? "border-cyan-400 bg-cyan-500/20 text-cyan-300" : "border-white/5 text-zinc-400"
-                        }`}
-                      >
-                        52s (4 Scene)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDurationTarget("26s")}
-                        className={`px-2.5 py-1 rounded text-[10px] font-bold border transition-all ${
-                          durationTarget === "26s" ? "border-cyan-400 bg-cyan-500/20 text-cyan-300" : "border-white/5 text-zinc-400"
-                        }`}
-                      >
-                        26s (4 Scene)
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <div className="flex gap-2 pt-1">
                     {isPacingOverLimit && (
                       <button
                         type="button"
@@ -1335,23 +1529,10 @@ export default function KineticMotionPage() {
                       className="w-full rounded-lg border border-white/10 bg-black/50 px-3 py-1.5 text-xs text-zinc-300 font-mono focus:border-emerald-400 focus:outline-none"
                     />
                   </div>
-
-                  {/* Director Blueprint Metadata */}
-                  <div className="pt-2 border-t border-white/5 grid grid-cols-2 gap-2 text-[10px] font-mono text-zinc-400">
-                    <div>
-                      <span className="text-zinc-500">FX Animasi:</span>{" "}
-                      <span className="text-cyan-300">{scenes[activeSceneTab].kineticFx}</span>
-                    </div>
-                    <div>
-                      <span className="text-zinc-500">SFX Audio:</span>{" "}
-                      <span className="text-amber-300">{scenes[activeSceneTab].foleyCue}</span>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
           ) : (
-            /* Single Clip Mode Controls */
             <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-6 space-y-4 shadow-xl">
               <div>
                 <label className="block text-xs font-mono font-semibold text-zinc-300 mb-1.5">
@@ -1413,7 +1594,7 @@ export default function KineticMotionPage() {
                 { id: "cyber-hud", name: "Cyberpunk Tech HUD" },
                 { id: "stoic-gold", name: "Dark Stoic & Warm Ember" },
                 { id: "swiss-minimalist", name: "Swiss Bauhaus Minimalist" },
-                { id: "retro-arcade", name: "Retro Arcade & Neon Synth" }
+                { id: "retro-arcade", name: "Retro Arcade & Neon Synth" },
               ].map((st) => (
                 <button
                   key={st.id}
@@ -1441,21 +1622,21 @@ export default function KineticMotionPage() {
                 {isRecording ? (
                   <>
                     <RefreshCw className="h-4 w-4 animate-spin" />
-                    <span>MEREKAM CANVAS SECARA NATIVE ({recordProgress}%)...</span>
+                    <span>MEREKAM CANVAS + FULL AUDIO ({recordProgress}%)...</span>
                   </>
                 ) : (
                   <>
                     <Download className="h-4 w-4" />
                     <span>
                       {mode === "multi"
-                        ? `REKAM & DOWNLOAD FULL ${totalDurationSec}s VIDEO (9:16 HD)`
+                        ? `REKAM & DOWNLOAD FULL ${totalDurationSec}s VIDEO + AUDIO (9:16 HD)`
                         : `REKAM & DOWNLOAD CLIP ${totalDurationSec}s (9:16 HD)`}
                     </span>
                   </>
                 )}
               </button>
               <p className="text-[11px] font-mono text-zinc-400 text-center mt-2">
-                ⚡ 100% Client-side. Tidak perlu OBS. Video utuh 4-scene langsung terunduh siap posting.
+                ⚡ 100% In-Browser. Voiceover + Foley SFX + Lo-Fi BGM otomatis termuxing ke file video. Siap posting tanpa CapCut.
               </p>
             </div>
           </div>
@@ -1472,24 +1653,24 @@ export default function KineticMotionPage() {
 
             {/* The Actual HTML5 Canvas */}
             <div className="w-full h-full rounded-[26px] overflow-hidden relative bg-black">
-              <canvas
-                ref={canvasRef}
-                className="w-full h-full object-cover"
-              />
+              <canvas ref={canvasRef} className="w-full h-full object-cover" />
 
               {/* Recording Overlay Tag */}
               {isRecording && (
                 <div className="absolute top-6 left-4 flex items-center gap-2 bg-rose-500/90 text-white font-mono text-[10px] px-2.5 py-1 rounded-full shadow-lg z-30 animate-pulse">
                   <span className="w-2 h-2 rounded-full bg-white" />
-                  <span>REC {recordProgress}%</span>
+                  <span>REC + AUDIO {recordProgress}%</span>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-3 font-mono text-xs text-zinc-400">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-3 font-mono text-xs text-zinc-400">
             <button
-              onClick={() => setIsPlaying(!isPlaying)}
+              onClick={() => {
+                getOrCreateAudioEngine();
+                setIsPlaying(!isPlaying);
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:text-white transition-colors cursor-pointer"
             >
               {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 fill-current" />}
@@ -1497,7 +1678,7 @@ export default function KineticMotionPage() {
             </button>
             <span className="text-zinc-600">|</span>
             <span className="text-[11px] text-zinc-400">
-              Durasi Total: {totalDurationSec}s • 720 × 1280 (9:16)
+              Durasi: {totalDurationSec}s • 720 × 1280 (9:16 HD)
             </span>
           </div>
         </div>
