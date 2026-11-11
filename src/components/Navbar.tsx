@@ -24,6 +24,7 @@ import {
   Users,
   Play,
   Scan,
+  Calendar,
   Image as ImageIcon
 } from "lucide-react";
 
@@ -34,6 +35,7 @@ const ICON_MAP: Record<string, any> = {
   Play: Play,
   Users: Users,
   Scan: Scan,
+  Calendar: Calendar,
   Image: ImageIcon,
   Camera: Camera,
   Film: Film,

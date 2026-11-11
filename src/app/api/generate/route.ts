@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import {
   getVisionSystemPrompt,
+  buildMultiAngleCampaign,
+  buildSevenDaySprint,
   buildCharacterAnchorPrompt,
   buildI2VMotionPrompt,
   buildCinemaPipelinePrompt,
@@ -79,6 +81,7 @@ export async function POST(req: NextRequest) {
       let taskPrompt = "";
       if (type === "cinema-pipeline") taskPrompt = buildCinemaPipelinePrompt(extraParams as any);
       else if (type === "i2v-motion") taskPrompt = buildI2VMotionPrompt(extraParams as any);
+      else if (type === "content-sprint") taskPrompt = buildSevenDaySprint(extraParams as any);
       else if (type === "google-flow-director") taskPrompt = buildGoogleFlowDirectorPrompt(extraParams as any);
       else if (type === "viral-hook") taskPrompt = buildViralHookPrompt(extraParams as any);
       else if (type === "infografis") taskPrompt = buildInfographicPrompt(extraParams as any);
@@ -96,6 +99,16 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. High-Fidelity Autonomous Production Engine (Offline/Direct Synthesis Mode)
+    if (type === "batch-angles") {
+      const data = buildMultiAngleCampaign(extraParams as any);
+      return NextResponse.json(data);
+    }
+
+    if (type === "content-sprint") {
+      const prompt = buildSevenDaySprint(extraParams as any);
+      return NextResponse.json({ prompt });
+    }
+
     if (type === "character-board") {
       const data = buildCharacterAnchorPrompt(extraParams as any);
       return NextResponse.json(data);

@@ -224,3 +224,4 @@ export default function I2VMotionDirectorPage() {
     </div>
   );
 }
+

@@ -17,6 +17,10 @@ import {
   Palette,
   BookOpen,
   Gamepad2,
+  Users,
+  Play,
+  Scan,
+  Calendar,
   Image as ImageIcon
 } from "lucide-react";
 
@@ -35,10 +39,14 @@ const ICON_MAP: Record<string, any> = {
   Palette: Palette,
   BookOpen: BookOpen,
   Gamepad2: Gamepad2,
+  Users: Users,
+  Play: Play,
+  Scan: Scan,
+  Calendar: Calendar,
 };
 
 const CATEGORIES = [
-  { id: "all", label: "Semua Tool (14)" },
+  { id: "all", label: `Semua Studio Tools (${ALL_TOOLS.length})` },
   { id: "google-flow", label: "Google Flow Special" },
   { id: "cinematic-video", label: "Video Sinematik" },
   { id: "visual-art", label: "Visual & Art" },

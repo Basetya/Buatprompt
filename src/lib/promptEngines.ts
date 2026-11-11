@@ -3,7 +3,168 @@
  * Advanced orchestration specialized for Google Flow (Veo 2 & Imagen 3), Midjourney v6.1, Kling, and Claude.
  */
 
-// 1. AI Character & Object Anchor Studio (NEW GAME-CHANGER)
+// 1. 1-Click Product to 5 Viral Angles (GAME CHANGER FOR SOLOPRENEURS)
+export interface MultiAngleParams {
+  productName: string;
+  productBenefit: string;
+  targetAudience?: string;
+  targetPlatform?: "tiktok" | "reels" | "shorts";
+}
+
+export interface VideoAngleCard {
+  angleName: string;
+  psychologyHook: string;
+  veoPrompt: string;
+  elevenLabsVoiceover: string;
+  capcutCaptions: string;
+  tiktokCaptionAndTags: string;
+}
+
+export function buildMultiAngleCampaign(params: MultiAngleParams): {
+  productName: string;
+  angles: VideoAngleCard[];
+} {
+  const { productName, productBenefit, targetAudience = "Audiens umum pembeli online", targetPlatform = "tiktok" } = params;
+
+  return {
+    productName,
+    angles: [
+      {
+        angleName: "ANGLE 1: THE SKEPTICAL REVIEWER (Rasa Ragu Menjadi Bukti)",
+        psychologyHook: "Mengakomodasi keraguan audiens sebelum mereka skeptis duluan.",
+        veoPrompt: `[GOOGLE FLOW (VEO 2) DIRECTIVE]
+Subject: Real person in casual everyday clothes examining ${productName} with slight furrowed brow of skepticism, then expression relaxes into genuine pleasantly surprised smile.
+Optics: 35mm cinema lens, handheld camera movement with subtle natural shake, switching to slow push-in dolly zoom.
+Lighting: Natural daylight coming from side window, realistic skin texture and true-to-life reflections on ${productName}.
+Action Pacing: Medium shot, subjek membuka kemasan, menguji penggunaan produk dengan teliti, mengangguk puas. 4K 24fps natural realism.`,
+        elevenLabsVoiceover: `Jujur ya, awalnya gue mikir produk ini cuma overclaim kayak yang lain. Tapi setelah coba sendiri buat ${productBenefit}, hasilnya beneran di luar ekspektasi. Nggak nyesel sama sekali coba ini.`,
+        capcutCaptions: `0:00 - AWALNYA SAYA PIKIR GIMMICK! 🤨
+0:03 - COBAIN LANGSUNG BUAT ${productBenefit.toUpperCase()}
+0:07 - TERNYATA HASILNYA SEBAGUS INI 😱
+0:10 - LINK DI KERANJANG KUNING SEKARANG 👇`,
+        tiktokCaptionAndTags: `Kira-kira beneran worth it nggak ya? 🤔 Ternyata ${productName} beneran nolong banget buat ${productBenefit}! Cobain deh mumpung masih ready batch ini. #RekomendasiProduk #ViralDiTikTok #ReviewJujur #TikTokShopIndo #RacunTikTok`
+      },
+      {
+        angleName: "ANGLE 2: THE SHOCKING PATTERN INTERRUPT (Anti-Boring Penahan Scroll)",
+        psychologyHook: "Menghentikan refleks scroll jempol audiens di detik pertama dengan peringatan darurat.",
+        veoPrompt: `[GOOGLE FLOW (VEO 2) DIRECTIVE]
+Subject: Sudden dynamic movement, hand sharply reaching out towards the lens gesturing 'STOP' with palm, then pulling back to reveal ${productName} floating in center frame.
+Optics: 24mm wide angle lens with dramatic motion blur and high dynamic range.
+Lighting: High-contrast dramatic studio lighting with vibrant neon rim light cutting across the silhouette of ${productName}.
+Action Pacing: Fast snap zoom in frame 1, settling into smooth 360-degree orbital pan around the hero product. Master cinematic commercial, 4K 24fps.`,
+        elevenLabsVoiceover: `Stop buang-buang uang kamu sebelum nonton video ini! Kalau kamu lagi cari solusi buat ${productBenefit}, jangan asal pilih sebelum kenal produk yang satu ini.`,
+        capcutCaptions: `0:00 - STOP BUANG UANG! 🛑
+0:03 - JANGAN ASAL BELI SEBELUM TAHU INI
+0:07 - RAHASIA ${productBenefit.toUpperCase()} LEBIH CEPAT
+0:10 - JANGAN SAMPAI NYESEL KEHABISAN ⚡`,
+        tiktokCaptionAndTags: `Nyesel banget baru tahu sekarang! 😭 Jangan sampai salah pilih lagi ya guys. Cek keranjang kuning mumpung harganya lagi diskon! #TipsBermanfaat #HatiHatiBeli #WajibTahu #SolusiPraktis #PromoSpesial`
+      },
+      {
+        angleName: "ANGLE 3: LUXURY AESTHETIC CINEMATIC B-ROLL (Sensori ASMR Visual)",
+        psychologyHook: "Menyentuh kepuasan visual dan audio audiens dengan estetika komersial mewah.",
+        veoPrompt: `[GOOGLE FLOW (VEO 2) DIRECTIVE]
+Subject: Ultra-detailed macro commercial shot of ${productName} resting on a premium dark matte granite pedestal.
+Optics: 85mm macro lens f/1.4, razor-sharp focal plane, creamy circular optical bokeh in the background.
+Lighting: Volumetric golden hour studio softbox paired with delicate specular rim light accentuating textures and branding details.
+Action Pacing: Ultra-smooth slow-motion glide forward (100fps slow-motion feel), subtle atmospheric mist and delicate dust motes catching the warm light. Pristine 4K cinematic luxury spot.`,
+        elevenLabsVoiceover: `Ketenangan dimulai saat kamu memilih kualitas terbaik. Dibuat khusus untuk menyempurnakan hari kamu dengan ${productBenefit}. Rasakan perbedaannya sekarang.`,
+        capcutCaptions: `0:00 - THE ART OF LUXURY ✨
+0:03 - DIRANCANG KHUSUS UNTUK KUALITAS TERBAIK
+0:07 - HASIL NYATA: ${productBenefit.toUpperCase()}
+0:10 - UPGRADE SEKARANG JUGA 🛒`,
+        tiktokCaptionAndTags: `Definisi ada harga ada kualitas ✨ Buat kamu yang selalu mengutamakan kesempurnaan. Cek detailnya di bio atau keranjang kuning ya! #AestheticVibes #LuxuryLifestyle #CinematicProduct #RekomendasiPremium #SelfCare`
+      },
+      {
+        angleName: "ANGLE 4: RELATABLE POV DRAMA (Keseharian yang Terbantu)",
+        psychologyHook: "Menghubungkan masalah sehari-hari yang dialami jutaan orang dengan solusi produk.",
+        veoPrompt: `[GOOGLE FLOW (VEO 2) DIRECTIVE]
+Subject: POV first-person perspective, hand picking up ${productName} from a busy work desk / kitchen counter amid morning routine.
+Optics: 28mm natural eye-level lens, smooth organic camera movement simulating human perspective.
+Lighting: Warm home ambient daylight, authentic cozy atmosphere without artificial studio flatness.
+Action Pacing: Subject effortlessly uses ${productName}, visible sigh of relief and satisfaction, placing it down neatly. 4K 24fps authentic slice-of-life.`,
+        elevenLabsVoiceover: `POV: Kamu akhirnya nemu satu barang yang bikin rutinitas harian nggak lagi bikin pusing. Ngebantu banget pas lagi butuh ${productBenefit}. Hidup jadi jauh lebih sat-set!`,
+        capcutCaptions: `0:00 - POV: AKHIRNYA NEMU PENYELAMAT! 🥺
+0:03 - RUTINITAS JADI LEBIH GAMPANG
+0:07 - SOLUSI BUAT ${productBenefit.toUpperCase()}
+0:10 - CEK DI LINK BIO / KERANJANG!`,
+        tiktokCaptionAndTags: `Siapa yang relate banget sama masalah ini? 🙋‍♂️ Sekarang rutinitas harian jadi jauh lebih santai berkat ${productName}. Save video ini biar nggak lupa! #POVLife #LifeHacksIndo #TipsHarian #RutinitasPraktis #AnakKantor`
+      },
+      {
+        angleName: "ANGLE 5: FLASH SALE URGENCY (Pemicu Keputusan Cepat)",
+        psychologyHook: "Memicu FOMO (Fear of Missing Out) dengan batas waktu dan diskon kuota terbatas.",
+        veoPrompt: `[GOOGLE FLOW (VEO 2) DIRECTIVE]
+Subject: High-energy product showcase, hands rapidly packing ${productName} into sleek packaging with unboxing satisfaction, sticker label applied smoothly.
+Optics: 35mm dynamic prime, fast rhythmic snap-cuts, energetic push-in transitions.
+Lighting: Bright high-key commercial lighting, saturated vibrant highlights, clean modern pop aesthetic.
+Action Pacing: Fast-paced rhythmic movement, product presented proudly directly to the lens with thumbs-up gesture. 4K high kinetic energy.`,
+        elevenLabsVoiceover: `Pemberitahuan kilat! Stok ${productName} untuk promo kali ini sisa sedikit banget. Kalau kamu mau dapat diskon spesial buat ${productBenefit}, langsung amankan pesanan sekarang sebelum harga kembali normal.`,
+        capcutCaptions: `0:00 - PROMO KILAT HARI INI! ⚡
+0:03 - SISA STOK TERBATAS BANGET
+0:07 - SPESIAL BUAT ${productBenefit.toUpperCase()}
+0:10 - KLIK KERANJANG KUNING SEKARANG! 🏃‍♂️`,
+        tiktokCaptionAndTags: `Jangan sampai gigit jari pas harga udah naik normal lagi! 🏃‍♂️ Amankan promo diskon ${productName} sekarang juga sebelum kehabisan slot. #FlashSale #DiskonSpesial #PromoTikTokShop #MurahBanget #BorongSekarang`
+      }
+    ]
+  };
+}
+
+// 2. 7-Day Content Sprint & Bulk Calendar Engine
+export interface SprintParams {
+  channelNiche: string;
+  heroProduct: string;
+}
+
+export function buildSevenDaySprint(params: SprintParams): string {
+  const { channelNiche, heroProduct } = params;
+
+  return `[BUATPROMPT STUDIO — 7-DAY CONTENT SPRINT CALENDAR]
+NICHE: ${channelNiche.toUpperCase()} | HERO PRODUCT: "${heroProduct}"
+STRATEGI: Siklus 1 Minggu Penuh Menghindari Shadowban & Memaksimalkan Penjualan
+
+HARI 1: EDUKASI MASALAH (The Problem Agitator)
+• Fokus: Mengupas 1 masalah utama yang dialami audiens tanpa langsung jualan hard-sell.
+• Hook: "3 Kebiasaan sepele yang bikin [masalah] makin parah setiap hari..."
+• Visual Prompt: 35mm cinema lens, close-up ekspresi audiens merasa terganggu dengan masalah, pencahayaan moody.
+• Call to Action: "Tulis di kolom komentar, kamu sering ngalamin nomor berapa?"
+
+HARI 2: DEBUNKING MITOS (The Truth Teller)
+• Fokus: Membongkar salah kaprah umum di niche ${channelNiche}.
+• Hook: "Stop percaya kalau mau [hasil] harus pakai cara ribet ini!"
+• Visual Prompt: Split screen visual kontras antara cara lama yang gagal vs cara baru yang cerdas.
+• Call to Action: "Share video ini ke temen kamu yang masih pakai cara lama!"
+
+HARI 3: THE HERO REVEAL (Solusi Spotlight)
+• Fokus: Memperkenalkan ${heroProduct} sebagai jawaban tuntas atas masalah Hari 1 & 2.
+• Hook: "Ini barang yang bikin hidup gue jauh lebih santai 7 hari terakhir..."
+• Visual Prompt: Macro 85mm f/1.4 commercial B-Roll, lighting studio lembut, demo pemakaian halus.
+• Call to Action: "Cek keranjang kuning sekarang mumpung masih ready stock."
+
+HARI 4: BEFORE / AFTER TRANSFORMATION (Social Proof)
+• Fokus: Menampilkan bukti perubahan nyata sebelum dan sesudah menggunakan produk.
+• Hook: "Dari kondisi kayak gini... jadi kayak gini cuma dalam hitungan hari?!"
+• Visual Prompt: Visual transisi halus stop-motion atau match-cut sinematik 4K.
+• Call to Action: "Jangan tunda lagi, buktikan sendiri perubahannya hari ini."
+
+HARI 5: FLASH SALE URGENCY (Direct Hard Sell)
+• Fokus: Menembak audiens yang sudah hangat dengan dorongan diskon / promo terbatas.
+• Hook: "Khusus yang nonton video ini sebelum jam 12 malam nanti!"
+• Visual Prompt: Energetic snap zoom, unboxing cepat, kemasan siap kirim, high-key commercial lighting.
+• Call to Action: "Klik keranjang kuning sekarang sebelum promo ditutup otomatis!"
+
+HARI 6: PRO TIP / SECRET HACK (Nilai Tambah Eksklusif)
+• Fokus: Memberikan tips rahasia cara memaksimalkan pemakaian ${heroProduct}.
+• Hook: "Rahasia memaksimalkan ${heroProduct} yang jarang orang tahu!"
+• Visual Prompt: POV first-person perspective, detail tangan menggunakan fitur khusus produk.
+• Call to Action: "Save video ini biar nggak lupa pas barangnya sampai di rumah!"
+
+HARI 7: COMMUNITY Q&A (Interaksi & Engagement)
+• Fokus: Menjawab pertanyaan umum dari calon pembeli yang masih ragu.
+• Hook: "Banyak yang nanya di DM: 'Kak, ${heroProduct} beneran tahan lama nggak sih?'"
+• Visual Prompt: Kamera handheld natural santai, uji ketahanan produk di depan kamera.
+• Call to Action: "Masih ada pertanyaan? Tulis di komen, langsung gue jawab!"`;
+}
+
+// 3. AI Character & Object Anchor Studio
 export interface CharacterAnchorParams {
   characterName: string;
   genderAndAge: string;
@@ -49,12 +210,12 @@ Setiap kali Anda membuat scene baru di Google Flow, tempelkan ANCHOR TOKEN ini d
   };
 }
 
-// 2. Image-to-Video (I2V) Motion Director (NEW GAME-CHANGER)
+// 4. Image-to-Video (I2V) Motion Director
 export interface I2VMotionParams {
   primarySubject: string;
   desiredAction: string;
   cameraMovement: "dolly-in" | "dolly-out" | "orbit-pan" | "static-subtle" | "fpv-tracking";
-  physicsDetails?: string; // e.g. "hair flutter, steam rising"
+  physicsDetails?: string;
   pacingSpeed: "slow-cinematic" | "medium-dynamic" | "fast-impact";
 }
 
@@ -92,7 +253,7 @@ COPY-PASTE I2V MOTION PROMPT:
 "${desiredAction}. ${cameraDescriptions[cameraMovement]} Secondary micro-motion: ${physicsDetails || "natural eye blink and gentle clothing wave"}. Hyper-realistic physical motion dynamics, 24fps cinematic stability, flawless temporal coherence."`;
 }
 
-// 3. Full Cinema Production Bible (NEW GAME-CHANGER)
+// 5. Full Cinema Production Bible
 export interface CinemaPipelineParams {
   storyTitle: string;
   logline: string;
@@ -163,11 +324,7 @@ Langkah 3: Masukkan "Google Veo 2 Motion Prompt" ke box motion prompt Veo 2.
 Hasilnya: Video sinematik berkesinambungan 100% konsisten tanpa distorsi!`;
 }
 
-// 4. Visual Forensic Inspector 2.0 (NEW GAME-CHANGER)
-export interface ForensicInspectorParams {
-  imageBase64: string;
-}
-
+// 6. Visual Forensic Inspector 2.0
 export function buildForensicInspectorData() {
   return {
     cameraAndLens: {
@@ -202,7 +359,7 @@ export function buildForensicInspectorData() {
   };
 }
 
-// 5. Existing Google Flow Multi-Shot Director Engine
+// 7. Google Flow Multi-Shot Director Engine
 export interface GoogleFlowDirectorParams {
   projectName: string;
   genre: string;
@@ -254,7 +411,7 @@ blur, low resolution, warped hands, erratic camera jerkiness, floating artifacts
 OUTPUT RESOLUTION: 4K Ultra-HD 24fps, Aspect Ratio 16:9 Cinematic, Master Director Grade.`;
 }
 
-// 6. Universal Prompt Matrix
+// 8. Universal Prompt Matrix
 export interface PromptMatrixResult {
   googleFlow: string;
   midjourney: string;
@@ -285,7 +442,7 @@ Format: Provide (1) Scene Concept, (2) Camera Framing & Lenses, (3) Color Gradin
   };
 }
 
-// 7. Viral Hook & Retention Engineer
+// 9. Viral Hook & Retention Engineer
 export interface ViralHookParams {
   productOrTopic: string;
   targetPlatform: "tiktok" | "reels" | "shorts";
@@ -300,98 +457,70 @@ Target Platform: ${targetPlatform.toUpperCase()}
 Topic / Product: "${productOrTopic}"
 Selected Hook Strategy: ${hookStyle.toUpperCase()}
 
-=======================================================
-VARIASI 1: THE CURIOSITY GAP (Penahan Scroll 0-3 Detik)
-- Hook Verbal (Voiceover): "Kebanyakan orang salah mengira [masalah umum], padahal rahasianya ada di sini..."
-- Visual Action (Frame 1): Kamera zoom-in mendadak ke ekspresi terkejut / objek yang disembunyikan di balik tangan.
-- On-Screen Text (Bold Typography): "JANGAN SCROLL DULU! 🛑"
-- Sound Design: Sound effect 'Record Scratch' atau 'Whoosh Sub-Bass'.
-- Mengapa Efektif: Membuka 'open-loop' di otak audiens sehingga mereka terdorong menonton hingga terjawab di detik 10.
+VARIASI 1: THE CURIOSITY GAP (0-3s)
+- Hook Verbal: "Kebanyakan orang salah mengira [masalah], padahal solusinya..."
+- Visual Action: Zoom-in mendadak ke ekspresi terkejut di Frame 1.
+- Text On Screen: "JANGAN SCROLL DULU! 🛑"
 
-=======================================================
-VARIASI 2: THE PATTERN INTERRUPT (Anti-Boring Visual)
-- Hook Verbal (Voiceover): "Stop buang-buang uang untuk ${productOrTopic} sebelum kamu tahu trik ini!"
-- Visual Action (Frame 1): Aksi dramatis yang tidak biasa (misal: melempar produk lama ke keranjang, atau gesture tangan 'stop' langsung ke lensa).
-- On-Screen Text (Neon Text): "STOP KETIPU LAGI! ⚠️"
-- Sound Design: Sound effect 'Glitch' atau 'Impact Thud'.
-- Mengapa Efektif: Menghentikan refleks jempol pengguna yang terbiasa scroll cepat dengan visual kontras tinggi.
+VARIASI 2: THE PATTERN INTERRUPT
+- Hook Verbal: "Stop buang uang kamu buat ${productOrTopic} sebelum tahu ini!"
+- Visual Action: Tangan bergerak tajam ke arah kamera 'STOP'.
+- Text On Screen: "STOP KETIPU LAGI! ⚠️"
 
-=======================================================
-VARIASI 3: THE BEFORE/AFTER TRANSFORMATION
-- Hook Verbal (Voiceover): "Dari kondisi kayak gini... jadi kayak gini cuma dalam hitungan hari?!"
-- Visual Action (Frame 1): Layar split-screen tajam menunjukkan kontras problem vs hasil nyata.
-- On-Screen Text: "HASILNYA BIKIN KAGET 😱"
-- Sound Design: Sound effect 'Ting!' ceria di detik kedua.
-- Call To Action (Detik 10-15): "Cek link keranjang kuning sekarang sebelum kehabisan batch hari ini!"`;
+VARIASI 3: BEFORE / AFTER TRANSFORMATION
+- Hook Verbal: "Dari kayak gini... jadi kayak gini cuma dalam hitungan hari?!"
+- Visual Action: Split screen kontras problem vs hasil nyata.
+- CTA: "Cek keranjang kuning sekarang mumpung batch promo masih ready!"`;
 }
 
-// 8. Vision System Prompt
+// 10. Vision System Prompt
 export function getVisionSystemPrompt(params: {
   mediaType: "image" | "video";
   targetModel?: "veo" | "imagen3" | "midjourney" | "kling" | "sora" | "runway";
   language?: "id" | "en";
   mode?: "short" | "long";
 }) {
-  const { mediaType, targetModel = "veo", language = "id", mode = "short" } = params;
-
+  const { mediaType } = params;
   if (mediaType === "video") {
-    return `You are a world-class AI Director and Cinematic Prompt Architect specialized in Google Flow (Google Veo 2), Kling AI, Sora, and Runway Gen-3.
-Deconstruct the video into:
-1. Core Subject & Continuous Physical Motion
-2. Camera Optics & Exact Movement
-3. Lighting Setup & Specular Reflections
-4. Color Grade & Visual Textures
-5. Output Director Prompt in English and Indonesian summary.`;
+    return `You are a world-class AI Director specialized in Google Flow (Veo 2). Output camera moves, lighting, motion dynamics, and clean director prompt.`;
   }
-
-  return `You are an elite AI Visual Analyst and Optical Prompt Engineer specialized in Google Flow (Imagen 3) and Midjourney v6.1.
-Deconstruct the image into:
-1. Subject Anatomical Precision & Materials
-2. Environment Depth & Composition
-3. Photographic Lens & Framing (e.g. 85mm f/1.4)
-4. Lighting Rig (3-point studio softbox, rim light)
-5. Production-ready prompt for Google Flow and Midjourney.`;
+  return `You are an elite AI Visual Analyst specialized in Google Flow (Imagen 3) and Midjourney v6.1. Deconstruct optics, lighting rig, framing, and master prompt.`;
 }
 
-// 9. Infographic & Sales Page & Storyboard Engines
+// 11. Helper Prompts (Infografis, Sales Page, Storyboard, Coloring Book, Game, Optimizer)
 export function buildInfographicPrompt(params: any): string {
   return `[BUATPROMPT STUDIO — INFOGRAPHIC 20-POINT ARCHITECTURE]
-Headline: "${params.title}"
-Subjudul: ${params.subtitle || "(generate otomatis)"}
-Tujuan: ${params.purpose} | Format: ${params.format} | Gaya: ${params.style} | Rasio: ${params.ratio}
-CTA: ${params.cta || "Simpan untuk Nanti →"}
-Poin Isi: ${params.points || "(generate 3–5 poin bernilai tinggi)"}
-Hasilkan SATU prompt gambar infografis 20-poin siap salin dengan header, hero icon, content cards, palet warna harmonis, dan footer CTA box.`;
+Headline: "${params.title}" | Format: ${params.format} | Gaya: ${params.style}
+Poin: ${params.points || "(generate 3–5 poin bernilai tinggi)"}
+Buatkan prompt gambar infografis 20-poin rapi siap salin.`;
 }
 
 export function buildSalesPagePrompt(params: any): string {
   return `[BUATPROMPT STUDIO — HIGH-CONVERSION SALES ARCHITECTURE]
-Produk: "${params.namaProduk}" | Kategori: ${params.jenisProduk} | Tujuan: ${params.tujuan}
-Deskripsi: ${params.deskripsi || "Solusi premium teruji"}
-Target: ${params.target || "Konsumen modern"} | Harga: ${params.harga || "Penawaran Terbaik"} | CTA: ${params.cta || "Dapatkan Sekarang"}
+Produk: "${params.namaProduk}" | Kategori: ${params.jenisProduk}
 Buatkan naskah sales page 16 bagian lengkap (Hook, Agitation, Solution, Benefits, Proof, FAQ, CTA).`;
 }
 
 export function buildStoryboardPrompt(params: any): string {
   return `[BUATPROMPT STUDIO — COMMERCE STORYBOARD BLUEPRINT]
-Produk: "${params.productName}" | Platform: ${params.platform.toUpperCase()} | Tone: ${params.tone} | Durasi: ${params.duration}
-Buatkan storyboard 3-beat (Scene 1 Hook 0-3s, Scene 2 Demo 3-8s, Scene 3 CTA 8-10s) lengkap dengan arahan visual kamera, teks voiceover, on-screen text, dan caption/hashtag viral.`;
+Produk: "${params.productName}" | Platform: ${params.platform}
+Buatkan storyboard 3-beat (Hook, Demo, CTA) lengkap dengan visual kamera, voiceover, teks layar, dan hashtag.`;
 }
 
 export function buildColoringBookPrompt(params: any): string {
   return `[BUATPROMPT STUDIO — PRINTABLE COLORING BOOK ENGINE]
-Tema: ${params.theme} | Usia: ${params.age} | Halaman: ${params.pageCount} hal.
-Buatkan satu dokumen HTML utuh (HTML/CSS/JS) dengan inline SVG sketsa hitam-putih tebal siap cetak/unduh PDF (@media print).`;
+Tema: ${params.theme} | Usia: ${params.age}
+Buatkan satu file HTML utuh dengan inline SVG sketsa hitam-putih tebal siap unduh PDF (@media print).`;
 }
 
 export function buildGamePrompt(params: any): string {
   return `[BUATPROMPT STUDIO — HTML5 CANVAS MINI-GAME ENGINE]
-Tema: ${params.theme} | Usia: ${params.age} | Gameplay: ${params.gameType}
-Buatkan satu file HTML utuh mini-game interaktif ramah sentuh dengan audio Web Audio API, skor, dan pesan menang.`;
+Tema: ${params.theme} | Gameplay: ${params.gameType}
+Buatkan satu file HTML utuh mini-game interaktif anak siap main di browser.`;
 }
 
 export function buildOptimizerPrompt(rawPrompt: string, targetAi: string = "Google Flow & Gemini"): string {
   return `[BUATPROMPT STUDIO — MASTER PROMPT REFINERY]
-Prompt Mentah: "${rawPrompt}" | Target: ${targetAi}
+Prompt: "${rawPrompt}" | Target: ${targetAi}
 Tulis ulang menjadi OPTIMIZED PROMPT lengkap dengan Persona, Context, Action Steps, dan Negative Constraints.`;
 }

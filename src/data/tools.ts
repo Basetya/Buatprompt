@@ -136,6 +136,44 @@ export const ALL_TOOLS: ToolItem[] = [
 
   // --- COMMERCE & GROWTH ---
   {
+    id: "batch-angles",
+    tool_key: "batch-angles",
+    title: "1-CLICK 5 VIRAL ANGLES & HOLY TRINITY",
+    name: "5 Viral Angles Multiplier",
+    path: "/batch-angles",
+    icon: "Flame",
+    color: "text-rose-400",
+    iconBg: "bg-rose-500/15",
+    badge: "SOLOPRENEUR",
+    badgeColor: "bg-rose-500/20 text-rose-300 border-rose-500/30",
+    featured: true,
+    category: "commerce-growth",
+    description: "1 Produk jadi 5 sudut pandang script berbeda (Skeptic, Pattern Interrupt, Luxury B-Roll, POV, Flash Sale) dengan The Holy Trinity Clipboard (Veo 2, ElevenLabs, CapCut, TikTok SEO).",
+    samples: [
+      "5 Angle video anti-shadowban untuk affiliator TikTok",
+      "Export 1-klik terpisah naskah audio ElevenLabs & prompt Veo 2"
+    ]
+  },
+  {
+    id: "content-sprint",
+    tool_key: "content-sprint",
+    title: "7-DAY CONTENT SPRINT CALENDAR",
+    name: "7-Day Content Sprint",
+    path: "/content-sprint",
+    icon: "Calendar",
+    color: "text-cyan-400",
+    iconBg: "bg-cyan-500/15",
+    badge: "CALENDAR",
+    badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
+    featured: true,
+    category: "commerce-growth",
+    description: "Cetak biru posting 1 minggu penuh (Senin s/d Minggu) dengan struktur algoritma warming: Problem Agitator, Mitos, Hero Reveal, hingga Flash Sale.",
+    samples: [
+      "Jadwal video TikTok 7 hari berurutan tanpa bingung ide",
+      "Pemanasan algoritma dari edukasi santai ke hard selling"
+    ]
+  },
+  {
     id: "viral-hook",
     tool_key: "viral-hook",
     title: "VIRAL HOOK & RETENTION LAB",
