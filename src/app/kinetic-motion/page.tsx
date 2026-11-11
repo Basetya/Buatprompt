@@ -139,6 +139,7 @@ export default function KineticMotionPage() {
   const [scenes, setScenes] = useState<StoryScene[]>(DEFAULT_SCENES);
   const [activeSceneTab, setActiveSceneTab] = useState(0);
   const [showMascot, setShowMascot] = useState(true);
+  const [showUpperCard, setShowUpperCard] = useState(true);
 
   // Audio Engine State
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -171,6 +172,7 @@ export default function KineticMotionPage() {
   // Web Audio Graph References
   const audioCtxRef = useRef<AudioContext | null>(null);
   const audioDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
   const loFiBgmRef = useRef<ProceduralLoFiBGM | null>(null);
   const audioBuffersRef = useRef<Record<number, AudioBuffer>>({});
   const activeAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
@@ -194,8 +196,13 @@ export default function KineticMotionPage() {
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
       const ctx = new AudioCtxClass();
       const dest = ctx.createMediaStreamDestination();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.5;
+
       audioCtxRef.current = ctx;
       audioDestRef.current = dest;
+      analyserRef.current = analyser;
 
       loFiBgmRef.current = new ProceduralLoFiBGM(ctx, [ctx.destination, dest]);
     }
@@ -398,6 +405,9 @@ export default function KineticMotionPage() {
             try {
               const src = audioCtxRef.current.createBufferSource();
               src.buffer = buf;
+              if (analyserRef.current) {
+                src.connect(analyserRef.current);
+              }
               src.connect(audioCtxRef.current.destination);
               src.connect(audioDestRef.current);
               src.start();
@@ -407,6 +417,19 @@ export default function KineticMotionPage() {
             }
           }
         }
+      }
+
+      // Real-time acoustic vocal volume for natural lip-sync (closed when silent)
+      let currentVocalVolume = 0;
+      if (analyserRef.current) {
+        const freqData = new Uint8Array(analyserRef.current.frequencyBinCount);
+        analyserRef.current.getByteFrequencyData(freqData);
+        let sum = 0;
+        const speechBins = Math.min(freqData.length, 32);
+        for (let i = 2; i < speechBins; i++) {
+          sum += freqData[i];
+        }
+        currentVocalVolume = sum / Math.max(speechBins - 2, 1);
       }
 
       // Spring physics calculation
@@ -539,17 +562,16 @@ export default function KineticMotionPage() {
       ctx.fillText(sceneBadge, W - 60, 68);
       ctx.restore();
 
-      // 3. ZONE 1: UPPER SHOWCASE STAGE (Y: 100 to 440)
-      ctx.save();
-      ctx.globalAlpha = transitionAlpha;
-      const cardY = 100;
-      const cardW = W - 120;
-      const cardH = 260;
-      const cardX = 60;
+      // 3. ZONE 1: UPPER SHOWCASE STAGE (Y: 100 to 350)
+      if (showUpperCard) {
+        ctx.save();
+        ctx.globalAlpha = transitionAlpha;
+        const cardY = 100;
+        const cardW = W - 120;
+        const cardH = 250;
+        const cardX = 60;
 
-      if (sceneIndex === 0) {
-        // Scene 1: Terminal Command Prompt Card (Code to Video Demo)
-        ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
+        ctx.fillStyle = "rgba(15, 23, 42, 0.78)";
         ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -557,195 +579,177 @@ export default function KineticMotionPage() {
         ctx.fill();
         ctx.stroke();
 
-        // Terminal Top Dots
-        ctx.fillStyle = "#ef4444";
-        ctx.beginPath();
-        ctx.arc(cardX + 24, cardY + 24, 6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#f59e0b";
-        ctx.beginPath();
-        ctx.arc(cardX + 44, cardY + 24, 6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#10b981";
-        ctx.beginPath();
-        ctx.arc(cardX + 64, cardY + 24, 6, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.font = "600 13px monospace";
-        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-        ctx.textAlign = "left";
-        ctx.fillText("buatprompt-director ~ zsh", cardX + 88, cardY + 28);
-
-        // Terminal Prompt Content with cursor blink
-        ctx.font = "700 20px monospace";
-        ctx.fillStyle = "#38bdf8";
-        ctx.fillText("> buatprompt --mode viral-hook", cardX + 24, cardY + 85);
-
-        const cursorBlink = Math.sin(elapsed * 6) > 0;
-        ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-        ctx.font = "500 16px monospace";
-        ctx.fillText(
-          `topic: "${topicIdea.slice(0, 32)}${topicIdea.length > 32 ? "..." : ""}"${cursorBlink ? " ▌" : ""}`,
-          cardX + 24,
-          cardY + 125
-        );
-
-        // Sub Pills inside card
-        ctx.fillStyle = "rgba(16, 185, 129, 0.15)";
-        ctx.strokeStyle = "rgba(16, 185, 129, 0.4)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(cardX + 24, cardY + 160, cardW - 48, 44, 12);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = "#10b981";
-        ctx.font = "700 15px monospace";
-        ctx.fillText("✓ 52s Golden Retention Sweet Spot Terkunci", cardX + 42, cardY + 188);
-      } else if (sceneIndex === 1) {
-        // Scene 2: The Agitation / Problem Grid Cards
-        ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
-        ctx.strokeStyle = "rgba(239, 68, 68, 0.3)";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(cardX, cardY, cardW, cardH, 20);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.font = "800 18px sans-serif";
-        ctx.fillStyle = "#ef4444";
-        ctx.textAlign = "left";
-        ctx.fillText("⚠️ 3 AKAR MASALAH KEGAGALAN KONTEN:", cardX + 24, cardY + 42);
-
-        const problems = [
-          { tag: "❌ CARA LAMA", desc: "Naskah datar, drop-off 80% di detik ke-5" },
-          { tag: "📉 ALGORITMA", desc: "Swipe-away cepat jika visual statis > 2s" },
-          { tag: "💸 RUGI WAKTU", desc: "Buka OBS & edit klip CapCut berjam-jam" },
-        ];
-
-        problems.forEach((p, idx) => {
-          const itemY = cardY + 70 + idx * 56;
-          ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+        if (sceneIndex === 0) {
+          // Scene 1: Focused Topic Showcase (Content-Driven, NO Dev Leak)
+          ctx.fillStyle = "rgba(56, 189, 248, 0.15)";
+          ctx.strokeStyle = "rgba(56, 189, 248, 0.4)";
+          ctx.lineWidth = 1;
           ctx.beginPath();
-          ctx.roundRect(cardX + 20, itemY, cardW - 40, 44, 10);
+          ctx.roundRect(cardX + 20, cardY + 20, 160, 30, 8);
           ctx.fill();
           ctx.stroke();
 
-          ctx.font = "700 13px monospace";
-          ctx.fillStyle = "#f43f5e";
-          ctx.fillText(p.tag, cardX + 34, itemY + 27);
+          ctx.font = "800 12px monospace";
+          ctx.fillStyle = "#38bdf8";
+          ctx.textAlign = "center";
+          ctx.fillText("💡 TOPIK UTAMA", cardX + 100, cardY + 39);
 
-          ctx.font = "500 14px sans-serif";
-          ctx.fillStyle = "#e2e8f0";
-          ctx.fillText(p.desc, cardX + 155, itemY + 27);
-        });
-      } else if (sceneIndex === 2) {
-        // Scene 3: The Breakthrough Reveal Decision Cards
-        ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
-        ctx.strokeStyle = "rgba(16, 185, 129, 0.3)";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(cardX, cardY, cardW, cardH, 20);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.font = "800 18px sans-serif";
-        ctx.fillStyle = "#10b981";
-        ctx.textAlign = "left";
-        ctx.fillText("💡 BLUEPRINT SOLUSI TERBUKTI OTORITAS:", cardX + 24, cardY + 42);
-
-        const solutions = [
-          { icon: "🎯", title: "Naskah 4 Babak Sutradara", tag: "10s • 15s • 15s • 12s" },
-          { icon: "🏛️", title: `Doktrin: ${activeVaultInfo?.name || "Otoritas Industri"}`, tag: "Tervalidasi" },
-          { icon: "⚡", title: "Spring Physics + In-Browser Audio Muxing", tag: "DIPILIH ✓" },
-        ];
-
-        solutions.forEach((s, idx) => {
-          const itemY = cardY + 70 + idx * 56;
-          const isSelected = idx === 2;
-
-          ctx.fillStyle = isSelected ? "rgba(16, 185, 129, 0.15)" : "rgba(255, 255, 255, 0.05)";
-          ctx.strokeStyle = isSelected ? "rgba(16, 185, 129, 0.6)" : "rgba(255, 255, 255, 0.08)";
-          ctx.lineWidth = isSelected ? 2 : 1;
-          ctx.beginPath();
-          ctx.roundRect(cardX + 20, itemY, cardW - 40, 44, 10);
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.font = "16px sans-serif";
-          ctx.fillText(s.icon, cardX + 32, itemY + 28);
-
-          ctx.font = "700 14px sans-serif";
-          ctx.fillStyle = isSelected ? "#ffffff" : "#cbd5e1";
-          ctx.fillText(s.title, cardX + 60, itemY + 27);
-
+          // Category Badge
           ctx.textAlign = "right";
-          ctx.font = "700 12px monospace";
-          ctx.fillStyle = isSelected ? "#10b981" : "#94a3b8";
-          ctx.fillText(s.tag, cardX + cardW - 35, itemY + 27);
+          ctx.font = "600 12px monospace";
+          ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+          ctx.fillText(`NICHE: ${targetNiche.toUpperCase()}`, cardX + cardW - 20, cardY + 39);
+
+          // Content Topic Title (Auto-wrap clean 2 lines if needed)
           ctx.textAlign = "left";
-        });
-      } else {
-        // Scene 4: The Animated Pipeline Checklist (Like Opuscar video frame 55!)
-        ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
-        ctx.strokeStyle = "rgba(56, 189, 248, 0.3)";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(cardX, cardY, cardW, cardH, 20);
-        ctx.fill();
-        ctx.stroke();
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "800 20px sans-serif";
+          const displayTopic = topicIdea.trim() || currentHeadline;
+          const words = displayTopic.split(" ");
+          let line1 = "";
+          let line2 = "";
+          for (let w of words) {
+            if ((line1 + " " + w).length < 28) {
+              line1 = (line1 + " " + w).trim();
+            } else {
+              line2 = (line2 + " " + w).trim();
+            }
+          }
+          ctx.fillText(`"${line1}`, cardX + 24, cardY + 95);
+          if (line2) {
+            ctx.fillText(`${line2}"`, cardX + 24, cardY + 128);
+          } else {
+            ctx.fillText('"', cardX + 24 + ctx.measureText(`"${line1}`).width, cardY + 95);
+          }
 
-        ctx.font = "800 18px sans-serif";
-        ctx.fillStyle = "#38bdf8";
-        ctx.textAlign = "left";
-        ctx.fillText("🎬 PIPELINE KINETIC STUDIO:", cardX + 24, cardY + 40);
-
-        const checklist = [
-          { label: "Gambar & Visual Hook 9:16 HD", ready: true },
-          { label: "Voiceover Suara & Foley SFX Muxed", ready: true },
-          { label: "Alur Naskah Otoritas 4 Babak", ready: true },
-        ];
-
-        checklist.forEach((c, idx) => {
-          const itemY = cardY + 62 + idx * 42;
-          ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+          // Sub highlight pill
+          ctx.fillStyle = "rgba(16, 185, 129, 0.12)";
+          ctx.strokeStyle = "rgba(16, 185, 129, 0.35)";
+          ctx.lineWidth = 1;
           ctx.beginPath();
-          ctx.roundRect(cardX + 20, itemY, cardW - 40, 36, 8);
+          ctx.roundRect(cardX + 20, cardY + 168, cardW - 40, 48, 12);
           ctx.fill();
           ctx.stroke();
 
           ctx.fillStyle = "#10b981";
-          ctx.font = "700 15px monospace";
-          ctx.fillText("●", cardX + 34, itemY + 23);
+          ctx.font = "700 14px monospace";
+          ctx.fillText("● Analisis & Fakta Terbuka Tanpa Sensor", cardX + 38, cardY + 198);
+        } else if (sceneIndex === 1) {
+          // Scene 2: Critical Facts & Pain Points (Content-Driven)
+          ctx.font = "800 16px sans-serif";
+          ctx.fillStyle = "#ef4444";
+          ctx.textAlign = "left";
+          ctx.fillText("⚠️ TITIK KRITIS YANG HARUS DIPERHATIKAN:", cardX + 24, cardY + 40);
 
-          ctx.fillStyle = "#e2e8f0";
-          ctx.font = "600 14px sans-serif";
-          ctx.fillText(c.label, cardX + 54, itemY + 23);
-        });
+          const painPoints = [
+            { tag: "🛑 MASALAH 1", desc: "Pola kebiasaan yang terus berulang tanpa disadari" },
+            { tag: "📉 DAMPAKNYA", desc: "Hasil tidak maksimal & tenaga terbuang sia-sia" },
+            { tag: "⏱️ JEBAKANNYA", desc: "Banyak orang baru tersadar saat terlambat" },
+          ];
 
-        // The Big Glowing Green Ready Button
-        const readyY = cardY + 194;
-        const pulse = Math.sin(elapsed * 4) * 0.08;
-        ctx.fillStyle = "rgba(16, 185, 129, 0.25)";
-        ctx.strokeStyle = "#10b981";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.roundRect(cardX + 20, readyY, cardW - 40, 48, 12);
-        ctx.fill();
-        ctx.stroke();
+          painPoints.forEach((p, idx) => {
+            const itemY = cardY + 62 + idx * 54;
+            ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(cardX + 20, itemY, cardW - 40, 44, 10);
+            ctx.fill();
+            ctx.stroke();
 
-        ctx.font = "800 16px monospace";
-        ctx.fillStyle = "#ffffff";
-        ctx.textAlign = "center";
-        ctx.fillText("✓ FILM.MP4 SIAP DIUNDUH", cardX + cardW / 2, readyY + 30);
-        ctx.textAlign = "left";
+            ctx.font = "700 12px monospace";
+            ctx.fillStyle = "#f43f5e";
+            ctx.fillText(p.tag, cardX + 32, itemY + 27);
+
+            ctx.font = "500 13px sans-serif";
+            ctx.fillStyle = "#e2e8f0";
+            ctx.fillText(p.desc, cardX + 140, itemY + 27);
+          });
+        } else if (sceneIndex === 2) {
+          // Scene 3: Solution Blueprint (Content-Driven)
+          ctx.font = "800 16px sans-serif";
+          ctx.fillStyle = "#10b981";
+          ctx.textAlign = "left";
+          ctx.fillText("✨ FORMULA SOLUSI TERUJI & TERVALIDASI:", cardX + 24, cardY + 40);
+
+          const solutionSteps = [
+            { icon: "🎯", step: "LANGKAH 1", desc: "Identifikasi kebocoran & ubah sudut pandang" },
+            { icon: "⚡", step: "LANGKAH 2", desc: "Terapkan formula teruji secara disiplin" },
+            { icon: "💎", step: "HASIL AKHIR", desc: "Kondisi stabil & hasil terukur berkelanjutan" },
+          ];
+
+          solutionSteps.forEach((s, idx) => {
+            const itemY = cardY + 62 + idx * 54;
+            const isHighlight = idx === 1;
+
+            ctx.fillStyle = isHighlight ? "rgba(16, 185, 129, 0.15)" : "rgba(255, 255, 255, 0.04)";
+            ctx.strokeStyle = isHighlight ? "rgba(16, 185, 129, 0.5)" : "rgba(255, 255, 255, 0.08)";
+            ctx.lineWidth = isHighlight ? 1.5 : 1;
+            ctx.beginPath();
+            ctx.roundRect(cardX + 20, itemY, cardW - 40, 44, 10);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.font = "16px sans-serif";
+            ctx.fillText(s.icon, cardX + 32, itemY + 28);
+
+            ctx.font = "700 12px monospace";
+            ctx.fillStyle = isHighlight ? "#10b981" : "#94a3b8";
+            ctx.fillText(s.step, cardX + 62, itemY + 27);
+
+            ctx.font = "500 13px sans-serif";
+            ctx.fillStyle = isHighlight ? "#ffffff" : "#cbd5e1";
+            ctx.fillText(s.desc, cardX + 155, itemY + 27);
+          });
+        } else {
+          // Scene 4: Conclusion & Action Call
+          ctx.font = "800 16px sans-serif";
+          ctx.fillStyle = "#38bdf8";
+          ctx.textAlign = "left";
+          ctx.fillText("📌 KESIMPULAN & TINDAKAN LANGSUNG:", cardX + 24, cardY + 40);
+
+          const actions = [
+            { icon: "💾", label: "Simpan video ini agar bisa dipelajari ulang kapan saja" },
+            { icon: "🚀", label: "Bagikan ke rekan terdekat yang menghadapi hal serupa" },
+          ];
+
+          actions.forEach((a, idx) => {
+            const itemY = cardY + 65 + idx * 50;
+            ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+            ctx.beginPath();
+            ctx.roundRect(cardX + 20, itemY, cardW - 40, 42, 8);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.font = "16px sans-serif";
+            ctx.fillText(a.icon, cardX + 32, itemY + 26);
+
+            ctx.fillStyle = "#e2e8f0";
+            ctx.font = "600 13px sans-serif";
+            ctx.fillText(a.label, cardX + 60, itemY + 26);
+          });
+
+          // Action Pulse Button
+          const btnY = cardY + 175;
+          ctx.fillStyle = "rgba(16, 185, 129, 0.22)";
+          ctx.strokeStyle = "#10b981";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(cardX + 20, btnY, cardW - 40, 48, 12);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.font = "800 15px monospace";
+          ctx.fillStyle = "#ffffff";
+          ctx.textAlign = "center";
+          ctx.fillText("✓ TONTON ULANG DARI AWAL", cardX + cardW / 2, btnY + 29);
+          ctx.textAlign = "left";
+        }
+        ctx.restore();
       }
-      ctx.restore();
 
-      // 4. ZONE 2: DYNAMIC CENTER KINETIC TYPOGRAPHY (Y: 480 to 680)
-      // Words pop in phrase-by-phrase in the focal center right above the character
+      // 4. ZONE 2: DYNAMIC CENTER KINETIC TYPOGRAPHY (Rapid Karaoke Pop-In)
       ctx.save();
       ctx.globalAlpha = transitionAlpha;
       const timedPhrases = extractTimedPhrases(
@@ -755,48 +759,21 @@ export default function KineticMotionPage() {
         currentMetric
       );
 
-      // Identify active phrase based on scene local progress
+      // Active phrase based on scene local progress
       const activePhrase =
         timedPhrases.find((p) => sceneLocalProgress >= p.startPct && sceneLocalProgress < p.endPct) ||
         timedPhrases[timedPhrases.length - 1];
 
-      const phraseDuration = Math.max(activePhrase.endPct - activePhrase.startPct, 0.1);
+      const phraseDuration = Math.max(activePhrase.endPct - activePhrase.startPct, 0.08);
       const phraseProgress = (sceneLocalProgress - activePhrase.startPct) / phraseDuration;
       const phraseBounce =
-        0.92 + Math.sin(Math.min(phraseProgress * 3.5, 1) * Math.PI) * 0.14;
+        0.94 + Math.sin(Math.min(phraseProgress * 3.5, 1) * Math.PI) * 0.12;
 
-      const phraseCenterY = 560;
+      // Positioned comfortably in the center focal zone
+      const phraseCenterY = showUpperCard ? 670 : 590;
       ctx.translate(W / 2, phraseCenterY);
       ctx.scale(phraseBounce, phraseBounce);
 
-      // Render Badge if present
-      if (activePhrase.badge) {
-        ctx.font = "800 18px monospace";
-        ctx.fillStyle = "#10b981";
-        ctx.textAlign = "center";
-        ctx.fillText(`[ ${activePhrase.badge} ]`, 0, -50);
-      }
-
-      // Font style based on archetype
-      if (motionStyle === "stoic-gold") {
-        ctx.font = "bold 52px serif";
-      } else if (motionStyle === "cyber-hud" || motionStyle === "retro-arcade") {
-        ctx.font = "900 50px monospace";
-      } else if (motionStyle === "swiss-minimalist") {
-        ctx.font = "900 56px sans-serif";
-      } else {
-        ctx.font = "800 56px sans-serif";
-      }
-
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-
-      // Render Active Phrase with Highlight Box
-      const pText = activePhrase.phraseText;
-      const textWidth = ctx.measureText(pText).width;
-      const boxH = 68;
-
-      // Dynamic Highlight Box
       const accentColor =
         motionStyle === "fintech-alpha"
           ? "#10b981"
@@ -808,15 +785,51 @@ export default function KineticMotionPage() {
           ? "#ec4899"
           : "#38bdf8";
 
+      // Render Badge if present
+      if (activePhrase.badge) {
+        ctx.font = "800 18px monospace";
+        ctx.fillStyle = accentColor;
+        ctx.textAlign = "center";
+        ctx.fillText(`[ ${activePhrase.badge} ]`, 0, -45);
+      }
+
+      // Font Family based on Archetype
+      const fontFamily =
+        motionStyle === "stoic-gold"
+          ? "serif"
+          : motionStyle === "cyber-hud" || motionStyle === "retro-arcade"
+          ? "monospace"
+          : "sans-serif";
+
+      // Dynamic font auto-scaler with strict boundary protection so text NEVER truncates
+      const pText = activePhrase.phraseText;
+      const maxAllowedWidth = W - 140; // 580px max
+      let fontSize = 48;
+      ctx.font = `800 ${fontSize}px ${fontFamily}`;
+      let textWidth = ctx.measureText(pText).width;
+
+      while (textWidth > maxAllowedWidth && fontSize > 26) {
+        fontSize -= 2;
+        ctx.font = `800 ${fontSize}px ${fontFamily}`;
+        textWidth = ctx.measureText(pText).width;
+      }
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
       const hasHighlightWord =
         activePhrase.highlightWord && pText.includes(activePhrase.highlightWord);
+
+      // Clamped highlight box so it NEVER clips on borders
+      const boxW = Math.min(textWidth + 36, W - 80);
+      const boxH = fontSize + 24;
 
       if (hasHighlightWord) {
         ctx.fillStyle = `${accentColor}25`;
         ctx.strokeStyle = accentColor;
         ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.roundRect(-textWidth / 2 - 20, -boxH / 2, textWidth + 40, boxH, 16);
+        ctx.roundRect(-boxW / 2, -boxH / 2, boxW, boxH, 16);
         ctx.fill();
         ctx.stroke();
 
@@ -831,46 +844,46 @@ export default function KineticMotionPage() {
       ctx.fillText(pText, 0, 0);
       ctx.restore();
 
-      // 5. ZONE 3: BOTTOM LIVING 3D VOXEL AVATAR (Y: 720 to 1280)
+      // 5. ZONE 3: BOTTOM LIVING 3D VOXEL AVATAR (Anchored at Y: 1140, Scale: 0.74)
       if (showMascot) {
         ctx.save();
         ctx.globalAlpha = transitionAlpha;
 
-        // Is character actively speaking?
         const isTalking =
-          isPlaying && sceneLocalProgress > 0.04 && sceneLocalProgress < 0.92;
+          isPlaying && sceneLocalProgress > 0.02 && sceneLocalProgress < 0.94;
 
         if (characterLayout === "single") {
-          // Single character anchored at center bottom
+          // Single character anchored at center bottom with acoustic lip-sync
           drawVoxelAvatar(ctx, {
             cx: W / 2,
-            cy: 1040,
-            scale: 1.08,
+            cy: 1140,
+            scale: 0.74,
             emotion: currentEmotion,
             isTalking,
+            vocalVolume: currentVocalVolume,
             elapsed,
             outfit: "beanie-striped",
           });
         } else {
-          // Duo character layout (Like in Opuscar video frame 15 & 55!)
-          // Host (Left)
+          // Duo character layout (Host on Left, Friend on Right)
           drawVoxelAvatar(ctx, {
             cx: W * 0.30,
-            cy: 1040,
-            scale: 0.96,
+            cy: 1140,
+            scale: 0.64,
             emotion: currentEmotion,
             isTalking: isTalking && sceneLocalProgress < 0.5,
+            vocalVolume: sceneLocalProgress < 0.5 ? currentVocalVolume : 0,
             elapsed,
             outfit: "beanie-striped",
           });
 
-          // Specialist / Friend in orange hoodie & glasses (Right)
           drawVoxelAvatar(ctx, {
             cx: W * 0.70,
-            cy: 1040,
-            scale: 0.96,
+            cy: 1140,
+            scale: 0.64,
             emotion: currentEmotion === "shocked" ? "skeptical" : currentEmotion,
             isTalking: isTalking && sceneLocalProgress >= 0.5,
+            vocalVolume: sceneLocalProgress >= 0.5 ? currentVocalVolume : 0,
             elapsed,
             outfit: "hoodie-glasses",
           });
@@ -918,6 +931,7 @@ export default function KineticMotionPage() {
     totalDurationSec,
     isPlaying,
     showMascot,
+    showUpperCard,
     characterLayout,
     audioEnabled,
     sfxEnabled,
@@ -1156,7 +1170,35 @@ export default function KineticMotionPage() {
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border border-white/10 bg-black/40 text-zinc-300 hover:text-white transition-colors cursor-pointer"
           >
             {characterLayout === "single" ? <User className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5 text-emerald-400" />}
-            <span>Avatar: {characterLayout === "single" ? "1 Host" : "Duo (Host + Friend)"}</span>
+            <span>Avatar: {characterLayout === "single" ? "1 Host" : "Duo"}</span>
+          </button>
+
+          {/* Showcase Card Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowUpperCard(!showUpperCard)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${
+              showUpperCard
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                : "border-white/10 bg-black/40 text-zinc-500 hover:text-white"
+            }`}
+          >
+            <Layers className="h-3.5 w-3.5" />
+            <span>Showcase: {showUpperCard ? "ON ✓" : "OFF"}</span>
+          </button>
+
+          {/* Character Mascot Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowMascot(!showMascot)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${
+              showMascot
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                : "border-white/10 bg-black/40 text-zinc-500 hover:text-white"
+            }`}
+          >
+            <Smile className="h-3.5 w-3.5" />
+            <span>Maskot: {showMascot ? "ON ✓" : "OFF"}</span>
           </button>
         </div>
       </div>

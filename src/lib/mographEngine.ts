@@ -2,7 +2,8 @@
  * BUATPROMPT MOGRAPH ENGINE
  * -------------------------------------------------------------
  * Audio Synthesizer (Foley SFX & Lo-Fi BGM Generator),
- * Timed Phrase Segmentation, and Expressive Voxel Character Drawing.
+ * Rapid Dynamic Phrase Segmentation (Karaoke Pacing),
+ * and Acoustic-Driven Voxel Character Drawing.
  * 100% Client-Side Web Audio API & HTML5 Canvas.
  */
 
@@ -15,86 +16,69 @@ export interface TimedPhrase {
 }
 
 /**
- * Splits scene headline and subtext into 3 punchy, dynamic phrases
- * (2-4 words each) with exact timing windows for karaoke-style delivery.
+ * Splits scene headline and subtext into rapid, punchy 2-3 word phrases
+ * (changing every 0.9 to 1.3 seconds) for real karaoke-style dynamic typography.
+ * Headline and subtext are parsed into distinct phrase segments so narrative flows naturally.
  */
+function splitIntoPunchyPhrases(text: string): string[] {
+  const clean = text.replace(/["#*~`_—–]/g, " ").trim();
+  const rawWords = clean
+    .split(/\s+/)
+    .map((w) => w.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9%]+$/g, "").trim())
+    .filter((w) => w.length > 0);
+
+  const phrases: string[] = [];
+  let i = 0;
+  while (i < rawWords.length) {
+    const remaining = rawWords.length - i;
+    let take = 2;
+    if (remaining === 3) {
+      take = 3;
+    } else if (remaining === 4) {
+      take = 2;
+    } else if (remaining > 3) {
+      take = i % 4 === 0 ? 3 : 2;
+    } else {
+      take = remaining;
+    }
+
+    const chunk = rawWords.slice(i, i + take).join(" ").toUpperCase();
+    if (chunk) {
+      phrases.push(chunk);
+    }
+    i += take;
+  }
+  return phrases;
+}
+
 export function extractTimedPhrases(
   headline: string,
   subtext: string,
   highlightKeyword?: string,
   metricBadge?: string
 ): TimedPhrase[] {
-  const cleanHeadline = headline.trim().toUpperCase();
-  const words = cleanHeadline.split(/\s+/).filter(Boolean);
+  const headPhrases = splitIntoPunchyPhrases(headline);
+  const subPhrases = splitIntoPunchyPhrases(subtext);
+  const allPhrases = [...headPhrases, ...subPhrases];
 
-  if (words.length <= 3) {
-    return [
-      {
-        phraseText: words.join(" "),
-        highlightWord: highlightKeyword?.toUpperCase(),
-        startPct: 0.0,
-        endPct: 0.35,
-        badge: metricBadge,
-      },
-      {
-        phraseText: extractPunchySubtext(subtext, 0),
-        highlightWord: highlightKeyword?.toUpperCase(),
-        startPct: 0.35,
-        endPct: 0.70,
-      },
-      {
-        phraseText: extractPunchySubtext(subtext, 1) || (metricBadge || "PERHATIKAN!"),
-        highlightWord: highlightKeyword?.toUpperCase(),
-        startPct: 0.70,
-        endPct: 1.0,
-        badge: metricBadge,
-      },
-    ];
+  if (allPhrases.length === 0) {
+    return [{ phraseText: "PERHATIKAN INI", startPct: 0, endPct: 1 }];
   }
 
-  // Divide headline words into 2 parts
-  const mid = Math.ceil(words.length / 2);
-  const part1 = words.slice(0, mid).join(" ");
-  const part2 = words.slice(mid).join(" ");
-  const punchySub = extractPunchySubtext(subtext, 0);
+  const total = allPhrases.length;
+  return allPhrases.map((pText, idx) => {
+    const startPct = idx / total;
+    const endPct = (idx + 1) / total;
+    const isLast = idx === total - 1;
 
-  return [
-    {
-      phraseText: part1,
+    return {
+      phraseText: pText,
       highlightWord: highlightKeyword?.toUpperCase(),
-      startPct: 0.0,
-      endPct: 0.32,
-    },
-    {
-      phraseText: part2,
-      highlightWord: highlightKeyword?.toUpperCase(),
-      startPct: 0.32,
-      endPct: 0.68,
-      badge: metricBadge,
-    },
-    {
-      phraseText: punchySub || (metricBadge || "SIMAK CARANYA"),
-      highlightWord: highlightKeyword?.toUpperCase(),
-      startPct: 0.68,
-      endPct: 1.0,
-      badge: metricBadge,
-    },
-  ];
-}
-
-function extractPunchySubtext(subtext: string, part: number): string {
-  if (!subtext) return "";
-  const cleaned = subtext.replace(/[#*`~]/g, "").trim();
-  const sentences = cleaned.split(/[.!?]+/).map((s) => s.trim()).filter(Boolean);
-
-  if (sentences.length > part && sentences[part].length > 0) {
-    const sWords = sentences[part].split(/\s+/).filter(Boolean);
-    return sWords.slice(0, 4).join(" ").toUpperCase();
-  }
-
-  const allWords = cleaned.split(/\s+/).filter(Boolean);
-  const start = part * 4;
-  return allWords.slice(start, start + 4).join(" ").toUpperCase();
+      startPct,
+      endPct,
+      badge: isLast ? metricBadge : undefined,
+    };
+  });
 }
 
 /**
@@ -213,7 +197,7 @@ export class ProceduralLoFiBGM {
     this.audioCtx = audioCtx;
     this.destinations = destinations;
     this.masterGain = audioCtx.createGain();
-    this.masterGain.gain.setValueAtTime(0.16, audioCtx.currentTime);
+    this.masterGain.gain.setValueAtTime(0.14, audioCtx.currentTime);
     destinations.forEach((d) => this.masterGain.connect(d));
   }
 
@@ -354,7 +338,7 @@ export async function fetchAndDecodeTTS(
 
 /**
  * Expressive 3D Voxel Character Drawing on Canvas
- * Anchored at bottom, with expressive eyes, mouth flap, and animated hand gestures.
+ * Anchored at bottom, with acoustic-driven real-time mouth flap, expressive eyes, and gestures.
  */
 export function drawVoxelAvatar(
   ctx: CanvasRenderingContext2D,
@@ -364,89 +348,83 @@ export function drawVoxelAvatar(
     scale: number;
     emotion: "shocked" | "skeptical" | "celebrate" | "point-cta";
     isTalking: boolean;
+    vocalVolume?: number; // 0 to 255 from Web Audio Analyser
     elapsed: number;
     outfit: "beanie-striped" | "hoodie-glasses";
   }
 ) {
-  const { cx, cy, scale, emotion, isTalking, elapsed, outfit } = options;
+  const { cx, cy, scale, emotion, isTalking, vocalVolume = 0, elapsed, outfit } = options;
 
   ctx.save();
   ctx.translate(cx, cy);
   ctx.scale(scale, scale);
 
   // 1. Natural idle bobbing & breathing
-  const idleBob = Math.sin(elapsed * 2.8) * 5;
-  const headSway = Math.sin(elapsed * 1.6) * 0.035;
+  const idleBob = Math.sin(elapsed * 2.8) * 4;
+  const headSway = Math.sin(elapsed * 1.6) * 0.03;
 
   ctx.translate(0, idleBob);
 
   // 2. CHEST / SHOULDERS (Bottom Anchored)
   ctx.save();
   if (outfit === "beanie-striped") {
-    // Striped sailor shirt
     ctx.fillStyle = "#1e40af";
-    ctx.fillRect(-90, 80, 180, 220);
+    ctx.fillRect(-85, 75, 170, 230);
 
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(-90, 110, 180, 22);
-    ctx.fillRect(-90, 155, 180, 22);
-    ctx.fillRect(-90, 200, 180, 22);
+    ctx.fillRect(-85, 105, 170, 20);
+    ctx.fillRect(-85, 145, 170, 20);
+    ctx.fillRect(-85, 185, 170, 20);
 
     ctx.fillStyle = "#1d4ed8";
-    ctx.fillRect(-45, 70, 90, 24);
+    ctx.fillRect(-40, 65, 80, 22);
   } else {
-    // Orange Hoodie
     ctx.fillStyle = "#ea580c";
-    ctx.fillRect(-90, 80, 180, 220);
+    ctx.fillRect(-85, 75, 170, 230);
 
     ctx.fillStyle = "#c2410c";
-    ctx.fillRect(-55, 150, 110, 65);
+    ctx.fillRect(-50, 140, 100, 60);
 
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(-22, 90, 6, 45);
-    ctx.fillRect(16, 90, 6, 45);
+    ctx.fillRect(-18, 85, 5, 40);
+    ctx.fillRect(13, 85, 5, 40);
 
-    ctx.font = "bold 44px sans-serif";
+    ctx.font = "bold 40px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("✻", 0, 142);
+    ctx.fillText("✻", 0, 136);
   }
   ctx.restore();
 
   // 3. HAND GESTURES BASED ON EMOTION
   ctx.save();
-  ctx.fillStyle = "#f5c59f"; // Skin
+  ctx.fillStyle = "#f5c59f";
   ctx.strokeStyle = "#d49b77";
   ctx.lineWidth = 2;
 
   if (emotion === "shocked") {
-    // Left hand raised to cheek in surprise
     const handBob = Math.sin(elapsed * 4) * 4;
-    ctx.fillRect(-105, 10 + handBob, 32, 45);
-    ctx.strokeRect(-105, 10 + handBob, 32, 45);
+    ctx.fillRect(-98, 15 + handBob, 28, 42);
+    ctx.strokeRect(-98, 15 + handBob, 28, 42);
   } else if (emotion === "skeptical") {
-    // Right hand to chin in thought
-    ctx.fillRect(20, 40, 42, 30);
-    ctx.strokeRect(20, 40, 42, 30);
+    ctx.fillRect(16, 42, 38, 28);
+    ctx.strokeRect(16, 42, 38, 28);
   } else if (emotion === "celebrate") {
-    // Both hands raised in victory
     const cheer = Math.sin(elapsed * 5) * 8;
-    ctx.fillRect(-115, -10 + cheer, 30, 40);
-    ctx.strokeRect(-115, -10 + cheer, 30, 40);
-    ctx.fillRect(85, -10 - cheer, 30, 40);
-    ctx.strokeRect(85, -10 - cheer, 30, 40);
+    ctx.fillRect(-105, -5 + cheer, 28, 38);
+    ctx.strokeRect(-105, -5 + cheer, 28, 38);
+    ctx.fillRect(78, -5 - cheer, 28, 38);
+    ctx.strokeRect(78, -5 - cheer, 28, 38);
   } else if (emotion === "point-cta") {
-    // Right hand pointing upwards toward the kinetic text / CTA
-    const pointBob = Math.sin(elapsed * 3.5) * 6;
-    ctx.fillRect(75, -25 + pointBob, 26, 60);
-    ctx.strokeRect(75, -25 + pointBob, 26, 60);
-    // Index finger point
-    ctx.fillRect(80, -45 + pointBob, 16, 22);
+    const pointBob = Math.sin(elapsed * 3.5) * 5;
+    ctx.fillRect(70, -20 + pointBob, 24, 55);
+    ctx.strokeRect(70, -20 + pointBob, 24, 55);
+    ctx.fillRect(75, -40 + pointBob, 14, 20);
   }
   ctx.restore();
 
   // 4. NECK
   ctx.fillStyle = "#d49b77";
-  ctx.fillRect(-22, 55, 44, 30);
+  ctx.fillRect(-20, 50, 40, 28);
 
   // 5. HEAD (Voxel Block with 3D Shading)
   ctx.save();
@@ -454,47 +432,47 @@ export function drawVoxelAvatar(
 
   // Front face
   ctx.fillStyle = "#f5c59f";
-  ctx.fillRect(-65, -75, 130, 130);
+  ctx.fillRect(-60, -70, 120, 120);
 
   // Side 3D shading
   ctx.fillStyle = "#e2b28c";
-  ctx.fillRect(60, -75, 15, 130);
+  ctx.fillRect(55, -70, 14, 120);
 
   // Bottom shadow
   ctx.fillStyle = "#d49b77";
-  ctx.fillRect(-65, 45, 130, 10);
+  ctx.fillRect(-60, 42, 120, 8);
 
   // Nose
   ctx.fillStyle = "#e2b28c";
-  ctx.fillRect(-10, -5, 20, 16);
+  ctx.fillRect(-9, -4, 18, 14);
 
   // Cheeks
-  ctx.fillStyle = "rgba(239, 68, 68, 0.22)";
-  ctx.fillRect(-55, 0, 24, 14);
-  ctx.fillRect(31, 0, 24, 14);
+  ctx.fillStyle = "rgba(239, 68, 68, 0.2)";
+  ctx.fillRect(-50, 2, 22, 12);
+  ctx.fillRect(28, 2, 22, 12);
 
   // 6. HAIR / BEANIE
   if (outfit === "beanie-striped") {
     ctx.fillStyle = "#2563eb";
-    ctx.fillRect(-72, -145, 144, 80);
+    ctx.fillRect(-66, -135, 132, 75);
 
     ctx.fillStyle = "#1d4ed8";
-    ctx.fillRect(-76, -82, 152, 22);
+    ctx.fillRect(-70, -76, 140, 20);
 
     ctx.fillStyle = "#1e40af";
-    ctx.fillRect(-24, -172, 48, 30);
-    ctx.fillRect(-18, -180, 36, 12);
+    ctx.fillRect(-22, -160, 44, 26);
+    ctx.fillRect(-16, -168, 32, 10);
 
     ctx.fillStyle = "#451a03";
-    ctx.fillRect(-60, -60, 24, 20);
-    ctx.fillRect(36, -60, 24, 20);
-    ctx.fillRect(-14, -60, 28, 16);
+    ctx.fillRect(-55, -56, 22, 18);
+    ctx.fillRect(33, -56, 22, 18);
+    ctx.fillRect(-12, -56, 24, 14);
   } else {
     ctx.fillStyle = "#3e2723";
-    ctx.fillRect(-72, -110, 144, 45);
-    ctx.fillRect(-72, -75, 18, 55);
-    ctx.fillRect(54, -75, 18, 55);
-    ctx.fillRect(-45, -68, 90, 15);
+    ctx.fillRect(-66, -102, 132, 42);
+    ctx.fillRect(-66, -70, 16, 50);
+    ctx.fillRect(50, -70, 16, 50);
+    ctx.fillRect(-42, -64, 84, 14);
   }
 
   // 7. EYES & EYEBROWS (Expressive & Blinking)
@@ -502,9 +480,9 @@ export function drawVoxelAvatar(
 
   if (outfit === "hoodie-glasses") {
     ctx.strokeStyle = "#18181b";
-    ctx.lineWidth = 6;
-    ctx.strokeRect(-50, -32, 40, 34);
-    ctx.strokeRect(10, -32, 40, 34);
+    ctx.lineWidth = 5;
+    ctx.strokeRect(-46, -30, 36, 30);
+    ctx.strokeRect(10, -30, 36, 30);
     ctx.beginPath();
     ctx.moveTo(-10, -15);
     ctx.lineTo(10, -15);
@@ -514,81 +492,97 @@ export function drawVoxelAvatar(
   // Eyebrows
   ctx.fillStyle = "#29180f";
   if (emotion === "shocked") {
-    ctx.fillRect(-48, -48, 32, 7);
-    ctx.fillRect(16, -48, 32, 7);
+    ctx.fillRect(-44, -45, 30, 6);
+    ctx.fillRect(14, -45, 30, 6);
   } else if (emotion === "skeptical") {
-    ctx.fillRect(-48, -50, 32, 7);
-    ctx.fillRect(16, -38, 32, 7);
+    ctx.fillRect(-44, -47, 30, 6);
+    ctx.fillRect(14, -36, 30, 6);
   } else {
-    ctx.fillRect(-48, -42, 32, 6);
-    ctx.fillRect(16, -42, 32, 6);
+    ctx.fillRect(-44, -39, 30, 5);
+    ctx.fillRect(14, -39, 30, 5);
   }
 
   // Eyes with Glossy Highlights
   if (isBlinking) {
     ctx.fillStyle = "#29180f";
-    ctx.fillRect(-42, -20, 22, 4);
-    ctx.fillRect(20, -20, 22, 4);
+    ctx.fillRect(-38, -18, 20, 3.5);
+    ctx.fillRect(18, -18, 20, 3.5);
   } else if (emotion === "celebrate") {
     ctx.strokeStyle = "#29180f";
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 3.5;
     ctx.beginPath();
-    ctx.arc(-31, -16, 11, Math.PI, 0);
+    ctx.arc(-28, -15, 10, Math.PI, 0);
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(31, -16, 11, Math.PI, 0);
+    ctx.arc(28, -15, 10, Math.PI, 0);
     ctx.stroke();
   } else {
     ctx.fillStyle = "#0f172a";
-    const eyeH = emotion === "shocked" ? 24 : 18;
-    ctx.fillRect(-42, -22, 19, eyeH);
-    ctx.fillRect(23, -22, 19, eyeH);
+    const eyeH = emotion === "shocked" ? 22 : 16;
+    ctx.fillRect(-38, -20, 18, eyeH);
+    ctx.fillRect(20, -20, 18, eyeH);
 
-    // White gloss reflection
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(-40, -20, 7, 7);
-    ctx.fillRect(25, -20, 7, 7);
+    ctx.fillRect(-36, -18, 6, 6);
+    ctx.fillRect(22, -18, 6, 6);
   }
 
-  // 8. MOUTH FLAP (Harmonic Lip-Sync)
-  if (isTalking) {
-    const mouthHeight = Math.abs(Math.sin(elapsed * 15)) * 16 + 5;
+  // 8. ACOUSTIC-DRIVEN MOUTH LIP-SYNC
+  // Uses real-time vocal acoustic volume from Web Audio Analyser!
+  const hasVoiceEnergy = vocalVolume > 8;
+  const isMouthActive = isTalking && (vocalVolume > 0 ? hasVoiceEnergy : Math.sin(elapsed * 12) > 0.2);
+
+  if (isMouthActive) {
+    // If real-time volume is present, scale mouth height directly with sound wave
+    const targetHeight = vocalVolume > 0
+      ? Math.min(Math.max((vocalVolume / 32) * 16, 6), 18)
+      : Math.abs(Math.sin(elapsed * 14)) * 10 + 5;
+
     ctx.fillStyle = "#0f172a";
-    ctx.fillRect(-20, 15, 40, mouthHeight);
+    ctx.beginPath();
+    ctx.roundRect(-16, 14, 32, targetHeight, 4);
+    ctx.fill();
 
     // White upper teeth
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(-17, 15, 34, 4);
+    ctx.beginPath();
+    ctx.roundRect(-13, 14, 26, 3.5, 2);
+    ctx.fill();
 
     // Pink tongue
-    if (mouthHeight > 10) {
+    if (targetHeight > 9) {
       ctx.fillStyle = "#f43f5e";
-      ctx.fillRect(-14, 15 + mouthHeight - 6, 28, 6);
+      ctx.beginPath();
+      ctx.roundRect(-10, 14 + targetHeight - 5, 20, 5, 2);
+      ctx.fill();
     }
   } else {
+    // Closed mouth: clean stylish subtle line
     ctx.fillStyle = "#18181b";
-    ctx.fillRect(-16, 22, 32, 4);
+    ctx.beginPath();
+    ctx.roundRect(-12, 18, 24, 3, 1.5);
+    ctx.fill();
   }
 
   // 9. EMOTIONAL OVERLAYS
   if (emotion === "shocked") {
-    ctx.font = "bold 38px monospace";
+    ctx.font = "bold 34px monospace";
     ctx.fillStyle = "#ef4444";
     ctx.textAlign = "center";
-    ctx.fillText("!", 0, -195);
+    ctx.fillText("!", 0, -180);
   } else if (emotion === "skeptical") {
-    ctx.font = "bold 34px monospace";
+    ctx.font = "bold 30px monospace";
     ctx.fillStyle = "#06b6d4";
     ctx.textAlign = "center";
-    ctx.fillText("?", 52, -160);
+    ctx.fillText("?", 48, -145);
   } else if (emotion === "celebrate") {
-    ctx.font = "26px sans-serif";
+    ctx.font = "24px sans-serif";
     ctx.fillStyle = "#facc15";
-    ctx.fillText("★", -65, -150);
-    ctx.fillText("★", 65, -150);
+    ctx.fillText("★", -58, -135);
+    ctx.fillText("★", 58, -135);
   } else if (emotion === "point-cta") {
-    ctx.font = "30px sans-serif";
-    ctx.fillText("🔖", 0, -190);
+    ctx.font = "26px sans-serif";
+    ctx.fillText("🔖", 0, -170);
   }
 
   ctx.restore();
