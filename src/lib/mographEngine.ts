@@ -9,43 +9,58 @@
 
 export interface TimedPhrase {
   phraseText: string;
+  words: string[];
   highlightWord?: string;
   startPct: number; // 0 to 1
   endPct: number;   // 0 to 1
   badge?: string;
+  hasSentencePause?: boolean;
 }
 
 /**
- * Splits scene headline and subtext into rapid, punchy 2-3 word phrases
- * (changing every 0.9 to 1.3 seconds) for real karaoke-style dynamic typography.
- * Headline and subtext are parsed into distinct phrase segments so narrative flows naturally.
+ * Splits scene headline and subtext into punchy 3-4 word editorial beats
+ * with character-weighted timing so caption cadence matches real speech speed.
  */
-function splitIntoPunchyPhrases(text: string): string[] {
+function splitIntoPunchyPhrases(text: string): Array<{ text: string; words: string[]; pauseAfter: boolean }> {
   const clean = text.replace(/["#*~`_—–]/g, " ").trim();
-  const rawWords = clean
-    .split(/\s+/)
-    .map((w) => w.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9%]+$/g, "").trim())
-    .filter((w) => w.length > 0);
+  const rawTokens = clean.split(/\s+/).filter((w) => w.length > 0);
 
-  const phrases: string[] = [];
+  const words: Array<{ word: string; pauseAfter: boolean }> = [];
+  for (const tok of rawTokens) {
+    const pauseAfter = /[.,!?;:]$/.test(tok);
+    const cleaned = tok.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9%]+$/g, "").trim();
+    if (cleaned.length > 0) {
+      words.push({ word: cleaned.toUpperCase(), pauseAfter });
+    }
+  }
+
+  const phrases: Array<{ text: string; words: string[]; pauseAfter: boolean }> = [];
   let i = 0;
-  while (i < rawWords.length) {
-    const remaining = rawWords.length - i;
-    let take = 2;
-    if (remaining === 3) {
-      take = 3;
-    } else if (remaining === 4) {
-      take = 2;
-    } else if (remaining > 3) {
-      take = i % 4 === 0 ? 3 : 2;
-    } else {
-      take = remaining;
+  while (i < words.length) {
+    const remaining = words.length - i;
+    let take = Math.min(3, remaining);
+    if (remaining === 4) {
+      take = 4;
+    } else if (remaining >= 5) {
+      // Break naturally at punctuation if within 2..4 words
+      let pBreak = -1;
+      for (let k = 1; k < Math.min(4, remaining); k++) {
+        if (words[i + k].pauseAfter) {
+          pBreak = k + 1;
+          break;
+        }
+      }
+      take = pBreak > 0 ? pBreak : (i % 2 === 0 ? 3 : 4);
     }
 
-    const chunk = rawWords.slice(i, i + take).join(" ").toUpperCase();
-    if (chunk) {
-      phrases.push(chunk);
-    }
+    const slice = words.slice(i, i + take);
+    const wList = slice.map((s) => s.word);
+    const lastPause = slice[slice.length - 1]?.pauseAfter || false;
+    phrases.push({
+      text: wList.join(" "),
+      words: wList,
+      pauseAfter: lastPause,
+    });
     i += take;
   }
   return phrases;
@@ -58,25 +73,35 @@ export function extractTimedPhrases(
   metricBadge?: string
 ): TimedPhrase[] {
   const headPhrases = splitIntoPunchyPhrases(headline);
+  if (headPhrases.length > 0) {
+    headPhrases[headPhrases.length - 1].pauseAfter = true;
+  }
   const subPhrases = splitIntoPunchyPhrases(subtext);
   const allPhrases = [...headPhrases, ...subPhrases];
 
   if (allPhrases.length === 0) {
-    return [{ phraseText: "PERHATIKAN INI", startPct: 0, endPct: 1 }];
+    return [{ phraseText: "PERHATIKAN INI", words: ["PERHATIKAN", "INI"], startPct: 0, endPct: 1 }];
   }
 
-  const total = allPhrases.length;
-  return allPhrases.map((pText, idx) => {
-    const startPct = idx / total;
-    const endPct = (idx + 1) / total;
-    const isLast = idx === total - 1;
+  // Weight each phrase duration by its character count + natural punctuation pause
+  const weights = allPhrases.map((p) => p.text.length + 5 + (p.pauseAfter ? 6 : 0));
+  const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+  let acc = 0;
+  return allPhrases.map((p, idx) => {
+    const startPct = acc / totalWeight;
+    acc += weights[idx];
+    const endPct = idx === allPhrases.length - 1 ? 1 : acc / totalWeight;
+    const isLast = idx === allPhrases.length - 1;
 
     return {
-      phraseText: pText,
+      phraseText: p.text,
+      words: p.words,
       highlightWord: highlightKeyword?.toUpperCase(),
       startPct,
       endPct,
       badge: isLast ? metricBadge : undefined,
+      hasSentencePause: p.pauseAfter,
     };
   });
 }

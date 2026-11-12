@@ -347,6 +347,20 @@ export default function KineticMotionPage() {
       });
     }
 
+    // Subtle animated pixel/block grid (Reference 2 editorial motion style)
+    const pixelBlocks: Array<{ col: number; row: number; phase: number; speed: number }> = [];
+    const blockSize = 40;
+    const cols = Math.ceil(W / blockSize);
+    const rows = Math.ceil(H / blockSize);
+    for (let i = 0; i < 36; i++) {
+      pixelBlocks.push({
+        col: Math.floor(Math.random() * cols),
+        row: Math.floor(Math.random() * rows),
+        phase: Math.random() * Math.PI * 2,
+        speed: Math.random() * 1.4 + 0.6,
+      });
+    }
+
     const render = () => {
       const now = Date.now();
       if (!startTimeRef.current) startTimeRef.current = now;
@@ -360,7 +374,8 @@ export default function KineticMotionPage() {
       let currentSubtext = singleSubtext;
       let currentMetric = singleMetric;
       let currentHighlight = "";
-      let sceneBadge = "● BUATPROMPT KINETIC";
+      let currentSceneDuration = singleDuration;
+      let timeInScene = loopTime;
       let sceneLocalProgress = globalProgress;
       let currentEmotion: "shocked" | "skeptical" | "celebrate" | "point-cta" = "shocked";
 
@@ -375,14 +390,19 @@ export default function KineticMotionPage() {
             currentMetric = s.metric;
             currentHighlight = s.highlightKeyword;
             currentEmotion = s.characterEmotion || "shocked";
-            sceneBadge = `SCENE ${i + 1}/${scenes.length} • ${s.stageName}`;
-            const timeInScene = loopTime - accumulatedTime;
+            currentSceneDuration = s.durationSec;
+            timeInScene = loopTime - accumulatedTime;
             sceneLocalProgress = timeInScene / s.durationSec;
             break;
           }
           accumulatedTime += s.durationSec;
         }
       }
+
+      // Sync caption progression directly to actual TTS AudioBuffer duration so words NEVER lag after voice ends
+      const activeAudioBuf = audioBuffersRef.current[sceneIndex];
+      const speechDur = activeAudioBuf ? Math.max(activeAudioBuf.duration * 0.96, 1.0) : currentSceneDuration * 0.92;
+      const speechProgress = Math.min(Math.max(timeInScene / speechDur, 0), 1);
 
       // Check for scene transition to trigger Foley & Voiceover Audio
       if (sceneIndex !== lastSceneIndexRef.current) {
@@ -548,32 +568,72 @@ export default function KineticMotionPage() {
         }
       }
 
-      // 2. TOP HEADER BAR & SCENE BADGE
-      ctx.save();
-      ctx.font = "700 16px monospace";
-      ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
-      ctx.fillText("BUATPROMPT STUDIO", 60, 68);
+      // 1B. ANIMATED PIXEL BLOCK GRID OVERLAY (Editorial Motion Texture)
+      const accentColor =
+        motionStyle === "fintech-alpha"
+          ? "#10b981"
+          : motionStyle === "stoic-gold"
+          ? "#f59e0b"
+          : motionStyle === "swiss-minimalist"
+          ? "#ef4444"
+          : motionStyle === "retro-arcade"
+          ? "#ec4899"
+          : "#38bdf8";
 
-      ctx.textAlign = "right";
-      ctx.fillStyle = motionStyle === "fintech-alpha"
-        ? "#10b981"
-        : motionStyle === "stoic-gold"
-        ? "#f59e0b"
-        : motionStyle === "swiss-minimalist"
-        ? "#ef4444"
-        : motionStyle === "retro-arcade"
-        ? "#ec4899"
-        : "#38bdf8";
-      ctx.fillText(sceneBadge, W - 60, 68);
+      ctx.save();
+      pixelBlocks.forEach((b) => {
+        const pulseAlpha = (Math.sin(elapsed * b.speed + b.phase) * 0.5 + 0.5) * 0.055;
+        ctx.fillStyle = `rgba(255, 255, 255, ${pulseAlpha.toFixed(3)})`;
+        ctx.fillRect(b.col * blockSize, b.row * blockSize, blockSize - 2, blockSize - 2);
+      });
       ctx.restore();
 
-      // 3. ZONE 1: UPPER SHOWCASE STAGE (Y: 100 to 350)
+      // 2. TOP HEADER BAR & 4-SEGMENT PILL PROGRESS INDICATOR
+      ctx.save();
+      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.font = "800 16px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("BUATPROMPT", 60, 62);
+
+      // 4-Segment Horizontal Progress Pills (Top Right - clean editorial style)
+      const segCount = mode === "multi" ? scenes.length : 1;
+      const segW = 32;
+      const segGap = 8;
+      const totalSegW = segCount * segW + (segCount - 1) * segGap;
+      const segStartX = W - 60 - totalSegW;
+
+      for (let i = 0; i < segCount; i++) {
+        const sx = segStartX + i * (segW + segGap);
+        const sy = 53;
+        ctx.fillStyle = "rgba(255, 255, 255, 0.16)";
+        ctx.beginPath();
+        ctx.roundRect(sx, sy, segW, 6, 3);
+        ctx.fill();
+
+        let fillRatio = 0;
+        if (i < sceneIndex) fillRatio = 1;
+        else if (i === sceneIndex) fillRatio = Math.min(Math.max(sceneLocalProgress, 0.05), 1);
+
+        if (fillRatio > 0) {
+          ctx.fillStyle = accentColor;
+          ctx.beginPath();
+          ctx.roundRect(sx, sy, segW * fillRatio, 6, 3);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+
+      // Helper for clean text truncation on showcase cards
+      const clipLine = (txt: string, maxLen: number) =>
+        txt.length > maxLen ? txt.slice(0, maxLen - 1).trim() + "…" : txt;
+
+      // 3. ZONE 1: UPPER SHOWCASE STAGE (Y: 96 to 346)
       if (showUpperCard) {
         ctx.save();
         ctx.globalAlpha = transitionAlpha;
-        const cardY = 100;
+        const cardY = 96;
         const cardW = W - 120;
-        const cardH = 250;
+        const cardH = 248;
         const cardX = 60;
 
         ctx.fillStyle = "rgba(15, 23, 42, 0.78)";
@@ -585,46 +645,51 @@ export default function KineticMotionPage() {
         ctx.stroke();
 
         if (sceneIndex === 0) {
-          // Scene 1: Focused Topic Showcase (Content-Driven, NO Dev Leak)
-          ctx.fillStyle = "rgba(56, 189, 248, 0.15)";
-          ctx.strokeStyle = "rgba(56, 189, 248, 0.4)";
+          // Scene 1: Focused Topic Showcase (Fixed greedy word-wrap, NO system/niche tags)
+          ctx.fillStyle = `${accentColor}22`;
+          ctx.strokeStyle = `${accentColor}66`;
           ctx.lineWidth = 1;
           ctx.beginPath();
-          ctx.roundRect(cardX + 20, cardY + 20, 160, 30, 8);
+          ctx.roundRect(cardX + 20, cardY + 20, 155, 30, 8);
           ctx.fill();
           ctx.stroke();
 
           ctx.font = "800 12px monospace";
-          ctx.fillStyle = "#38bdf8";
+          ctx.fillStyle = accentColor;
           ctx.textAlign = "center";
-          ctx.fillText("💡 TOPIK UTAMA", cardX + 100, cardY + 39);
+          ctx.fillText("💡 TOPIK UTAMA", cardX + 97, cardY + 39);
 
-          // Category Badge
           ctx.textAlign = "right";
-          ctx.font = "600 12px monospace";
-          ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
-          ctx.fillText(`NICHE: ${targetNiche.toUpperCase()}`, cardX + cardW - 20, cardY + 39);
+          ctx.font = "700 12px monospace";
+          ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+          ctx.fillText(clipLine(currentMetric || "FOKUS HARI INI", 18), cardX + cardW - 22, cardY + 39);
 
-          // Content Topic Title (Auto-wrap clean 2 lines if needed)
+          // Proper sequential greedy wrap (never swaps word order!)
           ctx.textAlign = "left";
           ctx.fillStyle = "#ffffff";
           ctx.font = "800 20px sans-serif";
-          const displayTopic = topicIdea.trim() || currentHeadline;
+          const displayTopic = (topicIdea.trim() || currentHeadline).replace(/\s+/g, " ");
           const words = displayTopic.split(" ");
           let line1 = "";
           let line2 = "";
-          for (let w of words) {
-            if ((line1 + " " + w).length < 28) {
-              line1 = (line1 + " " + w).trim();
+          let inLine2 = false;
+          for (const w of words) {
+            if (!inLine2 && (line1 ? `${line1} ${w}` : w).length <= 34) {
+              line1 = line1 ? `${line1} ${w}` : w;
             } else {
-              line2 = (line2 + " " + w).trim();
+              inLine2 = true;
+              const next2 = line2 ? `${line2} ${w}` : w;
+              if (next2.length <= 36) {
+                line2 = next2;
+              }
             }
           }
-          ctx.fillText(`"${line1}`, cardX + 24, cardY + 95);
+
           if (line2) {
+            ctx.fillText(`"${line1}`, cardX + 24, cardY + 95);
             ctx.fillText(`${line2}"`, cardX + 24, cardY + 128);
           } else {
-            ctx.fillText('"', cardX + 24 + ctx.measureText(`"${line1}`).width, cardY + 95);
+            ctx.fillText(`"${line1}"`, cardX + 24, cardY + 108);
           }
 
           // Sub highlight pill
@@ -632,24 +697,29 @@ export default function KineticMotionPage() {
           ctx.strokeStyle = "rgba(16, 185, 129, 0.35)";
           ctx.lineWidth = 1;
           ctx.beginPath();
-          ctx.roundRect(cardX + 20, cardY + 168, cardW - 40, 48, 12);
+          ctx.roundRect(cardX + 20, cardY + 170, cardW - 40, 48, 12);
           ctx.fill();
           ctx.stroke();
 
           ctx.fillStyle = "#10b981";
           ctx.font = "700 14px monospace";
-          ctx.fillText("● Analisis & Fakta Terbuka Tanpa Sensor", cardX + 38, cardY + 198);
+          ctx.fillText(`● ${clipLine(currentHeadline, 42)}`, cardX + 36, cardY + 199);
         } else if (sceneIndex === 1) {
-          // Scene 2: Critical Facts & Pain Points (Content-Driven)
-          ctx.font = "800 16px sans-serif";
+          // Scene 2: Topic-Specific Problem Card derived from actual scene text
+          ctx.font = "800 15px sans-serif";
           ctx.fillStyle = "#ef4444";
           ctx.textAlign = "left";
-          ctx.fillText("⚠️ TITIK KRITIS YANG HARUS DIPERHATIKAN:", cardX + 24, cardY + 40);
+          ctx.fillText(`⚠️ ${clipLine(currentHeadline, 44)}`, cardX + 24, cardY + 40);
+
+          const subSentences = currentSubtext
+            .split(/[.!?]+/)
+            .map((s) => s.trim())
+            .filter(Boolean);
 
           const painPoints = [
-            { tag: "🛑 MASALAH 1", desc: "Pola kebiasaan yang terus berulang tanpa disadari" },
-            { tag: "📉 DAMPAKNYA", desc: "Hasil tidak maksimal & tenaga terbuang sia-sia" },
-            { tag: "⏱️ JEBAKANNYA", desc: "Banyak orang baru tersadar saat terlambat" },
+            { tag: "🛑 FAKTA 1", desc: clipLine(subSentences[0] || currentHeadline, 44) },
+            { tag: "📉 DAMPAK", desc: clipLine(subSentences[1] || "Kebocoran halus yang terus berulang", 44) },
+            { tag: "⚠️ STATUS", desc: clipLine(`${currentMetric} — Perlu segera dihentikan`, 44) },
           ];
 
           painPoints.forEach((p, idx) => {
@@ -668,19 +738,24 @@ export default function KineticMotionPage() {
 
             ctx.font = "500 13px sans-serif";
             ctx.fillStyle = "#e2e8f0";
-            ctx.fillText(p.desc, cardX + 140, itemY + 27);
+            ctx.fillText(p.desc, cardX + 132, itemY + 27);
           });
         } else if (sceneIndex === 2) {
-          // Scene 3: Solution Blueprint (Content-Driven)
-          ctx.font = "800 16px sans-serif";
+          // Scene 3: Topic-Specific Solution Card derived from actual scene text
+          ctx.font = "800 15px sans-serif";
           ctx.fillStyle = "#10b981";
           ctx.textAlign = "left";
-          ctx.fillText("✨ FORMULA SOLUSI TERUJI & TERVALIDASI:", cardX + 24, cardY + 40);
+          ctx.fillText(`✨ ${clipLine(currentHeadline, 44)}`, cardX + 24, cardY + 40);
+
+          const subSentences = currentSubtext
+            .split(/[.!?]+/)
+            .map((s) => s.trim())
+            .filter(Boolean);
 
           const solutionSteps = [
-            { icon: "🎯", step: "LANGKAH 1", desc: "Identifikasi kebocoran & ubah sudut pandang" },
-            { icon: "⚡", step: "LANGKAH 2", desc: "Terapkan formula teruji secara disiplin" },
-            { icon: "💎", step: "HASIL AKHIR", desc: "Kondisi stabil & hasil terukur berkelanjutan" },
+            { tag: "LANGKAH 1", desc: clipLine(subSentences[0] || currentHeadline, 43) },
+            { tag: "LANGKAH 2", desc: clipLine(subSentences[1] || "Kunci eksekusi konsisten setiap hari", 43) },
+            { tag: "TARGET", desc: clipLine(`${currentMetric} — Terukur & aman`, 43) },
           ];
 
           solutionSteps.forEach((s, idx) => {
@@ -695,27 +770,29 @@ export default function KineticMotionPage() {
             ctx.fill();
             ctx.stroke();
 
-            ctx.font = "16px sans-serif";
-            ctx.fillText(s.icon, cardX + 32, itemY + 28);
-
             ctx.font = "700 12px monospace";
             ctx.fillStyle = isHighlight ? "#10b981" : "#94a3b8";
-            ctx.fillText(s.step, cardX + 62, itemY + 27);
+            ctx.fillText(`● ${s.tag}`, cardX + 32, itemY + 27);
 
             ctx.font = "500 13px sans-serif";
             ctx.fillStyle = isHighlight ? "#ffffff" : "#cbd5e1";
-            ctx.fillText(s.desc, cardX + 155, itemY + 27);
+            ctx.fillText(s.desc, cardX + 135, itemY + 27);
           });
         } else {
-          // Scene 4: Conclusion & Action Call
-          ctx.font = "800 16px sans-serif";
-          ctx.fillStyle = "#38bdf8";
+          // Scene 4: Topic-Specific Conclusion & Action Call
+          ctx.font = "800 15px sans-serif";
+          ctx.fillStyle = accentColor;
           ctx.textAlign = "left";
-          ctx.fillText("📌 KESIMPULAN & TINDAKAN LANGSUNG:", cardX + 24, cardY + 40);
+          ctx.fillText(`📌 ${clipLine(currentHeadline, 44)}`, cardX + 24, cardY + 40);
+
+          const subSentences = currentSubtext
+            .split(/[.!?]+/)
+            .map((s) => s.trim())
+            .filter(Boolean);
 
           const actions = [
-            { icon: "💾", label: "Simpan video ini agar bisa dipelajari ulang kapan saja" },
-            { icon: "🚀", label: "Bagikan ke rekan terdekat yang menghadapi hal serupa" },
+            { tag: "POIN", label: clipLine(subSentences[0] || "Simpan video ini untuk panduan praktis", 46) },
+            { tag: "AKSI", label: clipLine(subSentences[1] || "Bagikan ke rekan yang membutuhkan", 46) },
           ];
 
           actions.forEach((a, idx) => {
@@ -727,12 +804,13 @@ export default function KineticMotionPage() {
             ctx.fill();
             ctx.stroke();
 
-            ctx.font = "16px sans-serif";
-            ctx.fillText(a.icon, cardX + 32, itemY + 26);
+            ctx.font = "700 12px monospace";
+            ctx.fillStyle = accentColor;
+            ctx.fillText(`◆ ${a.tag}`, cardX + 32, itemY + 26);
 
             ctx.fillStyle = "#e2e8f0";
             ctx.font = "600 13px sans-serif";
-            ctx.fillText(a.label, cardX + 60, itemY + 26);
+            ctx.fillText(a.label, cardX + 100, itemY + 26);
           });
 
           // Action Pulse Button
@@ -748,13 +826,13 @@ export default function KineticMotionPage() {
           ctx.font = "800 15px monospace";
           ctx.fillStyle = "#ffffff";
           ctx.textAlign = "center";
-          ctx.fillText("✓ TONTON ULANG DARI AWAL", cardX + cardW / 2, btnY + 29);
+          ctx.fillText(`✓ ${clipLine(currentMetric || "SIMPAN & PRAKTIKKAN", 30)}`, cardX + cardW / 2, btnY + 29);
           ctx.textAlign = "left";
         }
         ctx.restore();
       }
 
-      // 4. ZONE 2: DYNAMIC CENTER KINETIC TYPOGRAPHY (Rapid Karaoke Pop-In)
+      // 4. ZONE 2: DYNAMIC MULTI-WORD KARAOKE REVEAL (Synced to AudioBuffer Duration)
       ctx.save();
       ctx.globalAlpha = transitionAlpha;
       const timedPhrases = extractTimedPhrases(
@@ -764,41 +842,25 @@ export default function KineticMotionPage() {
         currentMetric
       );
 
-      // Active phrase based on scene local progress
+      // Drive phrase selection from speechProgress so captions NEVER lag after voice stops
       const activePhrase =
-        timedPhrases.find((p) => sceneLocalProgress >= p.startPct && sceneLocalProgress < p.endPct) ||
+        timedPhrases.find((p) => speechProgress >= p.startPct && speechProgress < p.endPct) ||
         timedPhrases[timedPhrases.length - 1];
 
-      const phraseDuration = Math.max(activePhrase.endPct - activePhrase.startPct, 0.08);
-      const phraseProgress = (sceneLocalProgress - activePhrase.startPct) / phraseDuration;
-      const phraseBounce =
-        0.94 + Math.sin(Math.min(phraseProgress * 3.5, 1) * Math.PI) * 0.12;
+      const phraseDuration = Math.max(activePhrase.endPct - activePhrase.startPct, 0.05);
+      const phraseProgress = Math.min(Math.max((speechProgress - activePhrase.startPct) / phraseDuration, 0), 1);
 
-      // Positioned comfortably in the center focal zone
-      const phraseCenterY = showUpperCard ? 670 : 590;
-      ctx.translate(W / 2, phraseCenterY);
-      ctx.scale(phraseBounce, phraseBounce);
+      // Positioned closer above the avatar head for tight speaker-caption cohesion
+      const phraseCenterY = showUpperCard ? 745 : 640;
 
-      const accentColor =
-        motionStyle === "fintech-alpha"
-          ? "#10b981"
-          : motionStyle === "stoic-gold"
-          ? "#f59e0b"
-          : motionStyle === "swiss-minimalist"
-          ? "#ef4444"
-          : motionStyle === "retro-arcade"
-          ? "#ec4899"
-          : "#38bdf8";
-
-      // Render Badge if present
+      // Render Metric Badge above the beat if present
       if (activePhrase.badge) {
-        ctx.font = "800 18px monospace";
+        ctx.font = "800 17px monospace";
         ctx.fillStyle = accentColor;
         ctx.textAlign = "center";
-        ctx.fillText(`[ ${activePhrase.badge} ]`, 0, -45);
+        ctx.fillText(`[ ${activePhrase.badge} ]`, W / 2, phraseCenterY - 82);
       }
 
-      // Font Family based on Archetype
       const fontFamily =
         motionStyle === "stoic-gold"
           ? "serif"
@@ -806,47 +868,107 @@ export default function KineticMotionPage() {
           ? "monospace"
           : "sans-serif";
 
-      // Dynamic font auto-scaler with strict boundary protection so text NEVER truncates
-      const pText = activePhrase.phraseText;
-      const maxAllowedWidth = W - 140; // 580px max
-      let fontSize = 48;
-      ctx.font = `800 ${fontSize}px ${fontFamily}`;
-      let textWidth = ctx.measureText(pText).width;
+      const words = activePhrase.words && activePhrase.words.length > 0
+        ? activePhrase.words
+        : activePhrase.phraseText.split(" ");
 
-      while (textWidth > maxAllowedWidth && fontSize > 26) {
+      // Auto-scale font size & wrap into up to 2 crisp editorial lines
+      const maxLineWidth = W - 130; // 590px max
+      let fontSize = 46;
+      const buildLines = (fSize: number) => {
+        ctx.font = `800 ${fSize}px ${fontFamily}`;
+        const spaceW = ctx.measureText(" ").width * 1.15;
+        const lines: Array<Array<{ word: string; w: number; idx: number }>> = [[]];
+        let curW = 0;
+
+        words.forEach((word, idx) => {
+          const w = ctx.measureText(word).width;
+          if (lines[lines.length - 1].length > 0 && curW + spaceW + w > maxLineWidth) {
+            lines.push([{ word, w, idx }]);
+            curW = w;
+          } else {
+            lines[lines.length - 1].push({ word, w, idx });
+            curW += (lines[lines.length - 1].length > 1 ? spaceW : 0) + w;
+          }
+        });
+        return { lines, spaceW };
+      };
+
+      let layout = buildLines(fontSize);
+      while (layout.lines.length > 2 && fontSize > 28) {
         fontSize -= 2;
-        ctx.font = `800 ${fontSize}px ${fontFamily}`;
-        textWidth = ctx.measureText(pText).width;
+        layout = buildLines(fontSize);
       }
 
-      ctx.textAlign = "center";
+      // Compute which word inside this beat is currently active based on speechProgress
+      const activeWordFloat = phraseProgress * words.length;
+      const activeWordIdx = Math.min(Math.floor(activeWordFloat), words.length - 1);
+      const lineHeight = fontSize * 1.32;
+      const startY = phraseCenterY - ((layout.lines.length - 1) * lineHeight) / 2;
+
+      ctx.textAlign = "left";
       ctx.textBaseline = "middle";
 
-      const hasHighlightWord =
-        activePhrase.highlightWord && pText.includes(activePhrase.highlightWord);
+      layout.lines.forEach((line, lineIdx) => {
+        const lineW =
+          line.reduce((acc, item) => acc + item.w, 0) +
+          Math.max(0, line.length - 1) * layout.spaceW;
+        let cursorX = W / 2 - lineW / 2;
+        const lineY = startY + lineIdx * lineHeight;
 
-      // Clamped highlight box so it NEVER clips on borders
-      const boxW = Math.min(textWidth + 36, W - 80);
-      const boxH = fontSize + 24;
+        line.forEach((item) => {
+          const isSpoken = item.idx <= activeWordIdx;
+          const isCurrentWord = item.idx === activeWordIdx;
+          const isKeyword =
+            activePhrase.highlightWord &&
+            item.word.includes(activePhrase.highlightWord);
 
-      if (hasHighlightWord) {
-        ctx.fillStyle = `${accentColor}25`;
-        ctx.strokeStyle = accentColor;
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.roundRect(-boxW / 2, -boxH / 2, boxW, boxH, 16);
-        ctx.fill();
-        ctx.stroke();
+          // Pop scale on the currently spoken word (Reference 1 & 2 energy)
+          const wordProgress = isCurrentWord ? activeWordFloat - activeWordIdx : 1;
+          const wordScale = isCurrentWord
+            ? 1 + Math.sin(Math.min(wordProgress * 2.5, 1) * Math.PI) * 0.12
+            : 1;
 
-        ctx.fillStyle = accentColor;
-        ctx.shadowColor = accentColor;
-        ctx.shadowBlur = 18;
-      } else {
-        ctx.fillStyle = "#ffffff";
-        ctx.shadowBlur = 0;
-      }
+          ctx.save();
+          ctx.translate(cursorX + item.w / 2, lineY);
+          ctx.scale(wordScale, wordScale);
+          ctx.font = `800 ${fontSize}px ${fontFamily}`;
 
-      ctx.fillText(pText, 0, 0);
+          if (isKeyword && isSpoken) {
+            // Glowing accent pill behind keyword
+            const padX = 12;
+            const padY = 8;
+            ctx.fillStyle = `${accentColor}2A`;
+            ctx.strokeStyle = accentColor;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(-item.w / 2 - padX, -fontSize / 2 - padY / 2, item.w + padX * 2, fontSize + padY, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = accentColor;
+            ctx.shadowColor = accentColor;
+            ctx.shadowBlur = 14;
+          } else if (isCurrentWord) {
+            ctx.fillStyle = accentColor;
+            ctx.shadowColor = accentColor;
+            ctx.shadowBlur = 10;
+          } else if (isSpoken) {
+            ctx.fillStyle = "#ffffff";
+            ctx.shadowBlur = 0;
+          } else {
+            // Upcoming words in this beat appear subtly muted until spoken!
+            ctx.fillStyle = "rgba(255, 255, 255, 0.36)";
+            ctx.shadowBlur = 0;
+          }
+
+          ctx.fillText(item.word, -item.w / 2, 0);
+          ctx.restore();
+
+          cursorX += item.w + layout.spaceW;
+        });
+      });
+
       ctx.restore();
 
       // 5. ZONE 3: BOTTOM LIVING 3D VOXEL AVATAR (Anchored at Y: 1140, Scale: 0.74)
@@ -855,7 +977,7 @@ export default function KineticMotionPage() {
         ctx.globalAlpha = transitionAlpha;
 
         const isTalking =
-          isPlaying && sceneLocalProgress > 0.02 && sceneLocalProgress < 0.94;
+          isPlaying && speechProgress < 0.99 && sceneLocalProgress > 0.01;
 
         if (characterLayout === "single") {
           // Single character anchored at center bottom with acoustic lip-sync
@@ -895,24 +1017,6 @@ export default function KineticMotionPage() {
         }
         ctx.restore();
       }
-
-      // 6. GLOBAL TIMELINE PROGRESS LINE AT BOTTOM
-      ctx.save();
-      ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
-      ctx.fillRect(80, H - 50, W - 160, 6);
-
-      ctx.fillStyle =
-        motionStyle === "fintech-alpha"
-          ? "#10b981"
-          : motionStyle === "stoic-gold"
-          ? "#f59e0b"
-          : motionStyle === "swiss-minimalist"
-          ? "#ef4444"
-          : motionStyle === "retro-arcade"
-          ? "#ec4899"
-          : "#ffffff";
-      ctx.fillRect(80, H - 50, (W - 160) * globalProgress, 6);
-      ctx.restore();
 
       if (isPlaying) {
         animationFrameRef.current = requestAnimationFrame(render);

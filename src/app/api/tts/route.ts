@@ -44,6 +44,80 @@ function fetchGoogleTTSFallback(text: string, lang: string = "id"): Promise<Buff
 }
 
 /**
+ * Phonetic normalizer so Indonesian Neural TTS (id-ID-ArdiNeural / GadisNeural)
+ * pronounces common English loanwords & creator/tech terms naturally
+ * instead of reading them letter-by-letter with Indonesian spelling.
+ */
+function normalizeIndonesianEnglishTTS(input: string): string {
+  const phoneticMap: Record<string, string> = {
+    lifestyle: "laifstail",
+    inflation: "infleisyenn",
+    autodebet: "otodebet",
+    save: "seiv",
+    share: "syer",
+    scroll: "skrol",
+    followers: "folowers",
+    follower: "folower",
+    affiliate: "afili-et",
+    skincare: "skinker",
+    breakout: "brek-aut",
+    purging: "perjing",
+    content: "konten",
+    creator: "kri-eiter",
+    viral: "vairel",
+    hook: "huk",
+    mindset: "mainset",
+    cashflow: "kesflou",
+    budget: "bajet",
+    budgeting: "bajeting",
+    gadget: "gejet",
+    flagship: "fleksyip",
+    upgrade: "apgreid",
+    download: "daunlod",
+    passive: "pesif",
+    income: "inkam",
+    feedback: "fitbek",
+    branding: "brending",
+    storytelling: "stori teling",
+    closing: "klosing",
+    checkout: "cek-aut",
+    review: "ri-vyu",
+    growth: "grout",
+    scale: "skeil",
+    update: "apdeit",
+    online: "onlain",
+    offline: "oflain",
+    skill: "skil",
+    agent: "eijen",
+    github: "git-hab",
+    design: "disain",
+    swipe: "swaip",
+    workflow: "werkflou",
+    deadline: "dedlain",
+    freelance: "frilens",
+    marketing: "mar-keting",
+    personal: "per-sonal",
+    finance: "fainens",
+    financial: "fainensyel",
+    wealth: "welt",
+    profit: "profit",
+    margin: "marjin",
+    revenue: "revenyu",
+    engagement: "engeijmen",
+    algorithm: "algoritma",
+    retention: "ritensyen",
+    highlight: "hailait",
+    caption: "kepsen",
+    voiceover: "vois-over",
+  };
+
+  return input.replace(/\b[a-zA-Z]+\b/g, (word) => {
+    const lower = word.toLowerCase();
+    return phoneticMap[lower] || word;
+  });
+}
+
+/**
  * Generate Microsoft Azure / Edge Neural TTS with natural Indonesian prosody,
  * emotional inflection, and breathing pauses.
  */
@@ -55,12 +129,14 @@ async function generateMicrosoftNeuralTTS(
 ): Promise<Buffer> {
   const tempFile = path.join(os.tmpdir(), `tts_neural_${Date.now()}_${Math.random().toString(36).slice(2)}.mp3`);
   
-  // Clean text: strip quotes, brackets, and emojis
-  const clean = text
+  // Clean text: strip quotes, brackets, and emojis, then normalize English loanwords
+  const stripped = text
     .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "")
     .replace(/["\\`*_~[\]]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+
+  const clean = normalizeIndonesianEnglishTTS(stripped);
 
   const cmd = `edge-tts --voice ${voice} --rate="${rate}" --pitch="${pitch}" --text "${clean}" --write-media "${tempFile}"`;
 
