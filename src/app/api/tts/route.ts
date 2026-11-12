@@ -172,6 +172,27 @@ async function generateMicrosoftNeuralTTS(
   }
 }
 
+/**
+ * Formats text for natural Indonesian neural speech phrasing:
+ * - Converts ALL-CAPS headlines to natural sentence case so TTS doesn't flatten them
+ * - Inserts subtle breathing commas before Indonesian conjunctions for melodic pitch contours
+ */
+function formatNaturalSpeechProsody(input: string): string {
+  // Lowercase ALL-CAPS words (>2 chars) except common acronyms (HP, AI, CV, HRD, UMKM, BBM, KPR, ATS, STAR)
+  const acronyms = new Set(["HP", "AI", "CV", "HRD", "UMKM", "BBM", "KPR", "ATS", "STAR", "HD", "SD", "SMP", "SMA"]);
+  let out = input.replace(/\b[A-Z]{3,}\b/g, (w) => (acronyms.has(w) ? w : w.toLowerCase()));
+
+  // Insert natural breathing pause before conjunctions if no punctuation precedes them
+  out = out.replace(
+    /([a-zA-Z0-9])\s+(tapi|tetapi|namun|karena|sehingga|supaya|agar|sedangkan|padahal)\b/gi,
+    "$1, $2"
+  );
+
+  // Add slight dramatic breath pause after hook ? or !
+  out = out.replace(/([?!])\s+/g, "$1 ... ");
+  return out;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -187,28 +208,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Text is required" }, { status: 400 });
     }
 
-    // 1. Determine Natural Emotional Prosody & Cadence Tuning
-    let rate = customRate || "+0%";
-    let pitch = customPitch || "+0Hz";
-    let formattedText = text.trim();
+    // 1. Voice-Specific Natural Emotional Prosody & Cadence Tuning
+    const isFemale = voice.toLowerCase().includes("gadis");
+    let rate = customRate || (isFemale ? "-2%" : "+0%");
+    let pitch = customPitch || (isFemale ? "-2Hz" : "+0Hz");
+    const formattedText = formatNaturalSpeechProsody(text.trim());
 
     if (emotion === "shocked") {
-      // Hook: Intense, energetic, slightly higher pitch, dramatic pause before explanation
-      rate = customRate || "+10%";
-      pitch = customPitch || "+3Hz";
-      formattedText = formattedText.replace(/([?!])\s+/g, "$1 ... ");
+      rate = customRate || (isFemale ? "+4%" : "+10%");
+      pitch = customPitch || (isFemale ? "+1Hz" : "+3Hz");
     } else if (emotion === "skeptical") {
-      // Agitation: Serious, concerned, lower pitch, slightly slower pacing for gravity
-      rate = customRate || "-4%";
-      pitch = customPitch || "-2Hz";
+      rate = customRate || (isFemale ? "-6%" : "-4%");
+      pitch = customPitch || (isFemale ? "-5Hz" : "-2Hz");
     } else if (emotion === "celebrate") {
-      // Solution: Confident, clear, bright, inspiring tempo
-      rate = customRate || "+6%";
-      pitch = customPitch || "+2Hz";
+      rate = customRate || (isFemale ? "+2%" : "+6%");
+      pitch = customPitch || (isFemale ? "+0Hz" : "+2Hz");
     } else if (emotion === "point-cta") {
-      // CTA: Warm, friendly, conversational, clear call to action
-      rate = customRate || "+2%";
-      pitch = customPitch || "+0Hz";
+      rate = customRate || (isFemale ? "-2%" : "+2%");
+      pitch = customPitch || (isFemale ? "-2Hz" : "+0Hz");
     }
 
     // 2. Try Microsoft Azure / Edge Neural TTS first
