@@ -173,6 +173,41 @@ async function generateMicrosoftNeuralTTS(
 }
 
 /**
+ * 100% Offline Local Piper ONNX TTS using standalone D:\Projects\LocalVoiceEngine
+ */
+async function generatePiperLocalTTS(text: string): Promise<Buffer> {
+  const speakScript = process.env.LOCAL_VOICE_SCRIPT || ["D:", "Projects", "LocalVoiceEngine", "speak.ps1"].join("\\");
+  const tempWav = path.join(os.tmpdir(), `tts_piper_${Date.now()}_${Math.random().toString(36).slice(2)}.wav`);
+  const clean = normalizeIndonesianEnglishTTS(
+    text
+      .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "")
+      .replace(/["\\`*_~[\]]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+
+  try {
+    await execPromise(
+      `powershell -NoProfile -ExecutionPolicy Bypass -File "${speakScript}" -Text "${clean.replace(/"/g, "'")}" -OutFile "${tempWav}"`,
+      { timeout: 10000 }
+    );
+    if (fs.existsSync(tempWav)) {
+      const buffer = fs.readFileSync(tempWav);
+      fs.unlinkSync(tempWav);
+      if (buffer.length > 500) {
+        return buffer;
+      }
+    }
+    throw new Error("Piper generated empty WAV file");
+  } catch (err) {
+    if (fs.existsSync(tempWav)) {
+      try { fs.unlinkSync(tempWav); } catch (_) {}
+    }
+    throw err;
+  }
+}
+
+/**
  * Formats text for natural Indonesian neural speech phrasing:
  * - Converts ALL-CAPS headlines to natural sentence case so TTS doesn't flatten them
  * - Inserts subtle breathing commas before Indonesian conjunctions for melodic pitch contours
@@ -228,23 +263,41 @@ export async function POST(req: NextRequest) {
       pitch = customPitch || (isFemale ? "-2Hz" : "+0Hz");
     }
 
-    // 2. Try Microsoft Azure / Edge Neural TTS first
+    // 2. If explicitly requested Piper local OR try Microsoft Neural first
+    if (voice !== "piper-id-news") {
+      try {
+        const neuralBuffer = await generateMicrosoftNeuralTTS(formattedText, voice, rate, pitch);
+        return new NextResponse(new Uint8Array(neuralBuffer), {
+          status: 200,
+          headers: {
+            "Content-Type": "audio/mpeg",
+            "Content-Length": neuralBuffer.length.toString(),
+            "X-TTS-Engine": "Microsoft-Azure-Neural",
+            "Cache-Control": "public, max-age=86400",
+          },
+        });
+      } catch (neuralErr) {
+        console.warn("Neural TTS unavailable, switching to local Piper offline fallback:", neuralErr);
+      }
+    }
+
+    // 3. 100% Offline Local Piper ONNX TTS Fallback
     try {
-      const neuralBuffer = await generateMicrosoftNeuralTTS(formattedText, voice, rate, pitch);
-      return new NextResponse(new Uint8Array(neuralBuffer), {
+      const piperWav = await generatePiperLocalTTS(formattedText);
+      return new NextResponse(new Uint8Array(piperWav), {
         status: 200,
         headers: {
-          "Content-Type": "audio/mpeg",
-          "Content-Length": neuralBuffer.length.toString(),
-          "X-TTS-Engine": "Microsoft-Azure-Neural",
+          "Content-Type": "audio/wav",
+          "Content-Length": piperWav.length.toString(),
+          "X-TTS-Engine": "Piper-ONNX-Offline",
           "Cache-Control": "public, max-age=86400",
         },
       });
-    } catch (neuralErr) {
-      console.warn("Neural TTS unavailable, switching to fallback:", neuralErr);
+    } catch (piperErr) {
+      console.warn("Piper local TTS fallback failed:", piperErr);
     }
 
-    // 3. Fallback to Google TTS if Neural is unreachable
+    // 4. Final Fallback to Google TTS if both Neural and Piper fail
     const fallbackBuffer = await fetchGoogleTTSFallback(formattedText, "id");
     return new NextResponse(new Uint8Array(fallbackBuffer), {
       status: 200,
