@@ -182,6 +182,7 @@ export default function KineticMotionPage() {
   const audioBuffersRef = useRef<Record<number, AudioBuffer>>({});
   const activeAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const lastSceneIndexRef = useRef<number>(-1);
+  const playedSceneAudioRef = useRef<number>(-1);
 
   // Word count & pacing calculation
   const currentAnalyzedText = creationTab === "script" ? rawScriptInput : topicIdea;
@@ -217,23 +218,27 @@ export default function KineticMotionPage() {
     return { ctx: audioCtxRef.current, dest: audioDestRef.current! };
   }, []);
 
-  // Pre-fetch Microsoft Azure / Edge Neural TTS audio for all scenes
+  // Pre-fetch Microsoft Azure / Edge Neural TTS audio for all scenes in parallel
   const prefetchTTSForScenes = useCallback(
     async (sceneList: StoryScene[], voice: string = voiceActor) => {
       try {
         setIsAudioLoading(true);
         const { ctx } = getOrCreateAudioEngine();
-        for (let i = 0; i < sceneList.length; i++) {
-          const s = sceneList[i];
-          const spokenText = `${s.headline}. ${s.subtext}`;
-          const buf = await fetchAndDecodeTTS(ctx, spokenText, {
-            voice,
-            emotion: s.characterEmotion || "normal",
-          });
-          if (buf) {
-            audioBuffersRef.current[i] = buf;
-          }
-        }
+        await Promise.all(
+          sceneList.map(async (s, i) => {
+            const spokenText = `${s.headline}. ${s.subtext}`;
+            const buf = await fetchAndDecodeTTS(ctx, spokenText, {
+              voice,
+              emotion: s.characterEmotion || "normal",
+            });
+            if (buf) {
+              audioBuffersRef.current[i] = buf;
+              if (i === 0 && playedSceneAudioRef.current === 0) {
+                playedSceneAudioRef.current = -1;
+              }
+            }
+          })
+        );
       } catch (err) {
         console.warn("Audio prefetch notice:", err);
       } finally {
@@ -404,29 +409,37 @@ export default function KineticMotionPage() {
       const speechDur = activeAudioBuf ? Math.max(activeAudioBuf.duration * 0.96, 1.0) : currentSceneDuration * 0.92;
       const speechProgress = Math.min(Math.max(timeInScene / speechDur, 0), 1);
 
-      // Check for scene transition to trigger Foley & Voiceover Audio
+      // Check for scene transition to trigger Foley SFX
       if (sceneIndex !== lastSceneIndexRef.current) {
         lastSceneIndexRef.current = sceneIndex;
+        playedSceneAudioRef.current = -1;
 
-        // Play Foley Whoosh on scene entry
-        if (sfxEnabled && audioCtxRef.current && audioDestRef.current) {
+        if (sfxEnabled && audioCtxRef.current && audioDestRef.current && audioCtxRef.current.state === "running") {
           playProceduralSFX(
             audioCtxRef.current,
             [audioCtxRef.current.destination, audioDestRef.current],
             "whoosh"
           );
         }
+      }
 
-        // Play Voiceover AudioBuffer for this scene
-        if (audioEnabled && audioCtxRef.current && audioDestRef.current) {
+      // Trigger Voiceover AudioBuffer as soon as buffer is ready AND AudioContext is running
+      if (
+        audioEnabled &&
+        isPlaying &&
+        sceneIndex !== playedSceneAudioRef.current &&
+        audioCtxRef.current &&
+        audioDestRef.current &&
+        audioCtxRef.current.state === "running"
+      ) {
+        const buf = audioBuffersRef.current[sceneIndex];
+        if (buf) {
           if (activeAudioSourceRef.current) {
             try {
               activeAudioSourceRef.current.stop();
             } catch (_) {}
           }
-
-          const buf = audioBuffersRef.current[sceneIndex];
-          if (buf) {
+          if (timeInScene < buf.duration - 0.15) {
             try {
               const src = audioCtxRef.current.createBufferSource();
               src.buffer = buf;
@@ -435,12 +448,13 @@ export default function KineticMotionPage() {
               }
               src.connect(audioCtxRef.current.destination);
               src.connect(audioDestRef.current);
-              src.start();
+              src.start(0, Math.max(0, timeInScene));
               activeAudioSourceRef.current = src;
             } catch (err) {
               console.warn("Buffer playback notice:", err);
             }
           }
+          playedSceneAudioRef.current = sceneIndex;
         }
       }
 
@@ -1086,6 +1100,14 @@ export default function KineticMotionPage() {
         await ctx.resume();
       }
 
+      // Ensure Scene 0 voiceover buffer is ready before starting recording
+      if (audioEnabled && !audioBuffersRef.current[0]) {
+        const waitStart = Date.now();
+        while (!audioBuffersRef.current[0] && Date.now() - waitStart < 4500) {
+          await new Promise((r) => setTimeout(r, 150));
+        }
+      }
+
       // Start BGM during recording if enabled
       if (bgmEnabled && loFiBgmRef.current) {
         loFiBgmRef.current.start();
@@ -1094,6 +1116,7 @@ export default function KineticMotionPage() {
       // Reset loop timing to 0
       startTimeRef.current = Date.now();
       lastSceneIndexRef.current = -1;
+      playedSceneAudioRef.current = -1;
 
       // Capture canvas visual stream at 30fps
       const canvasStream = (canvas as any).captureStream(30);
@@ -1958,16 +1981,51 @@ export default function KineticMotionPage() {
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-3 font-mono text-xs text-zinc-400">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5 font-mono text-xs text-zinc-400">
             <button
-              onClick={() => {
-                getOrCreateAudioEngine();
-                setIsPlaying(!isPlaying);
+              onClick={async () => {
+                const { ctx } = getOrCreateAudioEngine();
+                if (ctx.state === "suspended") {
+                  await ctx.resume();
+                }
+                if (isPlaying) {
+                  if (activeAudioSourceRef.current) {
+                    try {
+                      activeAudioSourceRef.current.stop();
+                    } catch (_) {}
+                  }
+                  playedSceneAudioRef.current = -1;
+                  setIsPlaying(false);
+                } else {
+                  playedSceneAudioRef.current = -1;
+                  setIsPlaying(true);
+                }
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:text-white transition-colors cursor-pointer"
             >
               {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 fill-current" />}
               <span>{isPlaying ? "Pause Preview" : "Play Preview"}</span>
+            </button>
+            <button
+              onClick={async () => {
+                const { ctx } = getOrCreateAudioEngine();
+                if (ctx.state === "suspended") {
+                  await ctx.resume();
+                }
+                if (activeAudioSourceRef.current) {
+                  try {
+                    activeAudioSourceRef.current.stop();
+                  } catch (_) {}
+                }
+                startTimeRef.current = Date.now();
+                lastSceneIndexRef.current = -1;
+                playedSceneAudioRef.current = -1;
+                setIsPlaying(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 transition-colors cursor-pointer"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span>Putar dari 0:00</span>
             </button>
             <span className="text-zinc-600">|</span>
             <span className="text-[11px] text-zinc-400">
