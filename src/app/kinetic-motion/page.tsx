@@ -161,6 +161,9 @@ export default function KineticMotionPage() {
   const [isPlaying, setIsPlaying] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [recordProgress, setRecordProgress] = useState(0);
+  const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
+  const [recordedFileName, setRecordedFileName] = useState<string>("buatprompt-kinetic-video.webm");
+  const [recordError, setRecordError] = useState<string | null>(null);
   const [isGeneratingStory, setIsGeneratingStory] = useState(false);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -168,6 +171,8 @@ export default function KineticMotionPage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Web Audio Graph References
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -940,97 +945,160 @@ export default function KineticMotionPage() {
   ]);
 
   // In-Browser Native Video Recorder WITH EMBEDDED AUDIO
+  const stopRecordingEarly = () => {
+    if (recordTimerRef.current) {
+      clearInterval(recordTimerRef.current);
+      recordTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      try {
+        mediaRecorderRef.current.requestData();
+      } catch (_) {}
+      mediaRecorderRef.current.stop();
+    }
+  };
+
   const recordAndDownloadVideo = async () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    setIsRecording(true);
-    setRecordProgress(0);
-
-    // Initialize & resume audio engine
-    const { ctx, dest } = getOrCreateAudioEngine();
-    if (ctx.state === "suspended") {
-      await ctx.resume();
+    if (!canvas) {
+      setRecordError("Canvas belum siap. Refresh halaman dan coba lagi.");
+      return;
     }
 
-    // Start BGM during recording if enabled
-    if (bgmEnabled && loFiBgmRef.current) {
-      loFiBgmRef.current.start();
-    }
-
-    // Reset loop timing to 0
-    startTimeRef.current = Date.now();
-    lastSceneIndexRef.current = -1;
-
-    // Capture canvas visual stream at 30fps
-    const canvasStream = (canvas as any).captureStream(30);
-
-    // Grab audio tracks from Web Audio destination node
-    const audioTracks = dest.stream.getAudioTracks();
-
-    // Mux video and audio into a single stream
-    const combinedStream = new MediaStream([
-      ...canvasStream.getVideoTracks(),
-      ...audioTracks,
-    ]);
-
-    let mimeType = "video/webm;codecs=vp9,opus";
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      mimeType = "video/webm;codecs=vp8,opus";
-    }
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      mimeType = "video/webm";
-    }
-
-    const recorder = new MediaRecorder(combinedStream, {
-      mimeType,
-      videoBitsPerSecond: 8000000, // 8 Mbps high quality HD
-    });
-
-    const chunks: Blob[] = [];
-    recorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) {
-        chunks.push(e.data);
+    try {
+      setRecordError(null);
+      if (recordedVideoUrl) {
+        URL.revokeObjectURL(recordedVideoUrl);
+        setRecordedVideoUrl(null);
       }
-    };
 
-    recorder.onstop = () => {
-      if (chunks.length === 0) {
-        console.warn("Recording yielded empty buffer");
+      setIsPlaying(true);
+      setIsRecording(true);
+      setRecordProgress(0);
+
+      // Initialize & resume audio engine
+      const { ctx, dest } = getOrCreateAudioEngine();
+      if (ctx.state === "suspended") {
+        await ctx.resume();
+      }
+
+      // Start BGM during recording if enabled
+      if (bgmEnabled && loFiBgmRef.current) {
+        loFiBgmRef.current.start();
+      }
+
+      // Reset loop timing to 0
+      startTimeRef.current = Date.now();
+      lastSceneIndexRef.current = -1;
+
+      // Capture canvas visual stream at 30fps
+      const canvasStream = (canvas as any).captureStream(30);
+
+      // Grab audio tracks from Web Audio destination node
+      const audioTracks = dest.stream.getAudioTracks();
+
+      // Mux video and audio into a single stream
+      const combinedStream = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...audioTracks,
+      ]);
+
+      let mimeType = "video/webm;codecs=vp9,opus";
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = "video/webm;codecs=vp8,opus";
+      }
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = "video/webm";
+      }
+
+      const recorderOptions: MediaRecorderOptions = MediaRecorder.isTypeSupported(mimeType)
+        ? { mimeType, videoBitsPerSecond: 8000000 }
+        : { videoBitsPerSecond: 8000000 };
+
+      const recorder = new MediaRecorder(combinedStream, recorderOptions);
+      mediaRecorderRef.current = recorder;
+
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+
+      recorder.onerror = (ev: any) => {
+        console.error("MediaRecorder error:", ev);
+        setRecordError("Gagal merekam stream video/audio di browser.");
         setIsRecording(false);
-        return;
-      }
-      const blob = new Blob(chunks, { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `buatprompt-kinetic-${mode}-${totalDurationSec}s-audio.webm`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+        if (recordTimerRef.current) {
+          clearInterval(recordTimerRef.current);
+          recordTimerRef.current = null;
+        }
+      };
+
+      recorder.onstop = () => {
+        if (recordTimerRef.current) {
+          clearInterval(recordTimerRef.current);
+          recordTimerRef.current = null;
+        }
+
+        if (chunks.length === 0) {
+          setRecordError("Rekaman menghasilkan buffer kosong. Pastikan preview berjalan.");
+          setIsRecording(false);
+          return;
+        }
+
+        const actualType = recorder.mimeType || mimeType || "video/webm";
+        const blob = new Blob(chunks, { type: actualType });
+        const url = URL.createObjectURL(blob);
+        const filename = `buatprompt-kinetic-${mode}-${totalDurationSec}s-audio.webm`;
+
+        setRecordedVideoUrl(url);
+        setRecordedFileName(filename);
+        setIsRecording(false);
+        setRecordProgress(100);
+
+        // Trigger download without revoking immediately (fixes Chrome/Edge canceled download bug)
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          if (a.parentNode) document.body.removeChild(a);
+        }, 1000);
+      };
+
+      // Emit timeslice chunks every 250ms for reliable, non-truncated webm output
+      recorder.start(250);
+
+      // Track recording progress using wall-clock time so tab throttling doesn't stall
+      const totalMs = totalDurationSec * 1000;
+      const recStartMs = Date.now();
+
+      recordTimerRef.current = setInterval(() => {
+        const elapsedMs = Date.now() - recStartMs;
+        const pct = Math.min(Math.round((elapsedMs / totalMs) * 100), 100);
+        setRecordProgress(pct);
+
+        if (elapsedMs >= totalMs) {
+          if (recordTimerRef.current) {
+            clearInterval(recordTimerRef.current);
+            recordTimerRef.current = null;
+          }
+          if (recorder.state !== "inactive") {
+            try {
+              recorder.requestData();
+            } catch (_) {}
+            recorder.stop();
+          }
+        }
+      }, 150);
+    } catch (err: any) {
+      console.error("recordAndDownloadVideo exception:", err);
+      setRecordError(err?.message || "Browser tidak mendukung perekaman canvas.");
       setIsRecording(false);
-      setRecordProgress(100);
-    };
-
-    // Emit timeslice chunks every 250ms for reliable, non-truncated webm output
-    recorder.start(250);
-
-    // Track recording progress
-    const totalMs = totalDurationSec * 1000;
-    const intervalMs = 150;
-    let elapsedMs = 0;
-
-    const timer = setInterval(() => {
-      elapsedMs += intervalMs;
-      const pct = Math.min(Math.round((elapsedMs / totalMs) * 100), 100);
-      setRecordProgress(pct);
-
-      if (elapsedMs >= totalMs) {
-        clearInterval(timer);
-        recorder.stop();
-      }
-    }, intervalMs);
+    }
   };
 
   const updateSceneField = (index: number, field: keyof StoryScene, val: any) => {
@@ -1703,30 +1771,60 @@ export default function KineticMotionPage() {
             </div>
 
             {/* In-Browser Native Video Download Action */}
-            <div className="pt-3">
-              <button
-                type="button"
-                disabled={isRecording}
-                onClick={recordAndDownloadVideo}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-6 py-4 font-mono text-sm font-bold text-white shadow-xl shadow-emerald-500/25 hover:opacity-95 transition-all disabled:opacity-50 cursor-pointer"
-              >
-                {isRecording ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                    <span>MEREKAM CANVAS + FULL AUDIO ({recordProgress}%)...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4" />
-                    <span>
-                      {mode === "multi"
-                        ? `REKAM & DOWNLOAD FULL ${totalDurationSec}s VIDEO + AUDIO (9:16 HD)`
-                        : `REKAM & DOWNLOAD CLIP ${totalDurationSec}s (9:16 HD)`}
-                    </span>
-                  </>
+            <div className="pt-3 space-y-2.5">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={isRecording}
+                  onClick={recordAndDownloadVideo}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-6 py-4 font-mono text-sm font-bold text-white shadow-xl shadow-emerald-500/25 hover:opacity-95 transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {isRecording ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      <span>MEREKAM CANVAS + FULL AUDIO ({recordProgress}%)...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      <span>
+                        {mode === "multi"
+                          ? `REKAM & DOWNLOAD FULL ${totalDurationSec}s VIDEO + AUDIO (9:16 HD)`
+                          : `REKAM & DOWNLOAD CLIP ${totalDurationSec}s (9:16 HD)`}
+                      </span>
+                    </>
+                  )}
+                </button>
+
+                {isRecording && (
+                  <button
+                    type="button"
+                    onClick={stopRecordingEarly}
+                    className="px-4 py-4 rounded-xl bg-rose-600 hover:bg-rose-500 font-mono text-xs font-bold text-white shadow-lg transition-colors cursor-pointer shrink-0"
+                  >
+                    ⏹️ STOP & SIMPAN
+                  </button>
                 )}
-              </button>
-              <p className="text-[11px] font-mono text-zinc-400 text-center mt-2">
+              </div>
+
+              {recordError && (
+                <div className="p-3 rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-300 font-mono text-xs">
+                  ⚠️ {recordError}
+                </div>
+              )}
+
+              {recordedVideoUrl && !isRecording && (
+                <a
+                  href={recordedVideoUrl}
+                  download={recordedFileName}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-500/15 hover:bg-emerald-500/25 px-4 py-3 font-mono text-xs font-bold text-emerald-300 transition-colors"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>✅ VIDEO SIAP! KLIK DI SINI JIKA FILE BELUM TERUNDUH OTOMATIS ({recordedFileName})</span>
+                </a>
+              )}
+
+              <p className="text-[11px] font-mono text-zinc-400 text-center">
                 ⚡ 100% In-Browser. Voiceover + Foley SFX + Lo-Fi BGM otomatis termuxing ke file video. Siap posting tanpa CapCut.
               </p>
             </div>
