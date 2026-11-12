@@ -1192,7 +1192,8 @@ export function buildMultiSceneStoryPrompt(params: MultiSceneStoryParams): Multi
 
   // --- IDEA-TO-SCRIPT GENERATION ENGINE (50-55s Sweet Spot or 26s Express) ---
   // Uses Local Air-Gap Knowledge Vault & Combinatorial Permutation
-  const vault = matchDomainVault(params.vaultDomain || targetNiche || topicIdea);
+  const explicitVault = params.vaultDomain && params.vaultDomain !== "auto" ? params.vaultDomain : "";
+  const vault = matchDomainVault(explicitVault || topicIdea, topicIdea);
   const seed = getCombinatorialSeed(topicIdea, params.variantSeed || 0);
 
   const selectedQuote = vault.legendaryQuotes[seed % vault.legendaryQuotes.length];

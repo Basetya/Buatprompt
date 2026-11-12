@@ -291,38 +291,85 @@ export const KNOWLEDGE_VAULT: Record<string, DomainVault> = {
 };
 
 /**
- * Mengambil domain vault yang cocok berdasarkan input teks atau ID vault
+ * Membangun vault netral khusus topik pengguna ketika topik berada di luar 6 vault spesifik.
+ * Mencegah pencampuran fakta dari domain lain (misalnya Marcus Aurelius/diminishing return masuk ke topik umum).
  */
-export function matchDomainVault(textOrId: string): DomainVault {
-  const lower = textOrId.toLowerCase().trim();
+export function buildUniversalTopicVault(topic: string): DomainVault {
+  const cleanTopic = topic.trim() || "Topik Ini";
+  const shortTopic = cleanTopic.length > 42 ? cleanTopic.slice(0, 42).trim() + "..." : cleanTopic;
+
+  return {
+    id: "universal_topic",
+    name: `Topik Khusus: ${shortTopic}`,
+    tagline: `Sintesis naskah murni mengikuti konteks "${shortTopic}" tanpa mencampur domain lain.`,
+    badge: "Topic-Pure Synthesis",
+    legendaryQuotes: [
+      {
+        quote: "Hasil besar selalu lahir dari pemahaman dasar yang benar, bukan dari menebak-nebak.",
+        author: "Prinsip Praktisi",
+        concept: "Fundamental Mastery",
+      },
+      {
+        quote: "Konsistensi pada langkah kecil yang tepat jauh lebih berdampak daripada usaha besar yang salah arah.",
+        author: "Kaidah Eksekusi",
+        concept: "Structured Execution",
+      },
+    ],
+    authorityFacts: [
+      `Sebagian besar kegagalan dalam ${shortTopic} terjadi karena melewatkan langkah fundamental di awal.`,
+      `Banyak orang hanya meniru permukaan dari ${shortTopic} tanpa memahami alasan di balik setiap tahapannya.`,
+    ],
+    psychologicalHooks: [
+      `JANGAN ASAL COBA! INI RAHASIA ${shortTopic.toUpperCase()} YANG JARANG DIBAHAS`,
+      `KENAPA BANYAK YANG GAGAL SAAT PRAKTEK ${shortTopic.toUpperCase()}?`,
+      `TERNYATA INI KUNCI UTAMA ${shortTopic.toUpperCase()} AGAR HASILNYA MAKSIMAL`,
+    ],
+    actionSolutions: [
+      `Mulai dari fondasi paling sederhana pada ${shortTopic}, ukur hasilnya secara bertahap, lalu rapikan detailnya.`,
+      `Gunakan pola langkah yang terstruktur pada ${shortTopic} agar hasilnya stabil dan mudah diulang kapan saja.`,
+    ],
+    ctaLoops: [
+      `Simpan video ini sebagai panduan praktis tentang ${shortTopic} supaya kamu tidak salah langkah lagi.`,
+      `Bagikan video ini ke teman yang juga sedang mempelajari ${shortTopic} biar sama-sama paham intinya.`,
+    ],
+  };
+}
+
+/**
+ * Mengambil domain vault yang cocok berdasarkan input teks atau ID vault.
+ * Jika textOrId adalah "auto" atau kosong, selalu memprioritaskan topicHint.
+ */
+export function matchDomainVault(textOrId: string, topicHint?: string): DomainVault {
+  const raw = (textOrId || "").toLowerCase().trim();
+  const target = raw === "auto" || !raw ? (topicHint || "").toLowerCase().trim() : raw;
 
   // Direct ID match
-  if (KNOWLEDGE_VAULT[lower]) {
-    return KNOWLEDGE_VAULT[lower];
+  if (KNOWLEDGE_VAULT[target]) {
+    return KNOWLEDGE_VAULT[target];
   }
 
   // Semantic keyword mapping
-  if (lower.includes("stoic") || lower.includes("motivasi") || lower.includes("filsafat") || lower.includes("bijak") || lower.includes("disiplin") || lower.includes("fokus") || lower.includes("mental")) {
-    return KNOWLEDGE_VAULT.stoic_motivation;
-  }
-  if (lower.includes("gaji") || lower.includes("uang") || lower.includes("investasi") || lower.includes("saham") || lower.includes("finansial") || lower.includes("kaya") || lower.includes("hemat") || lower.includes("rekening")) {
-    return KNOWLEDGE_VAULT.financial_wealth;
-  }
-  if (lower.includes("affiliate") || lower.includes("komisi") || lower.includes("jualan") || lower.includes("closing") || lower.includes("shopee") || lower.includes("tiktok shop") || lower.includes("omset")) {
-    return KNOWLEDGE_VAULT.affiliate_conversion;
-  }
-  if (lower.includes("kopi") || lower.includes("coffee") || lower.includes("barista") || lower.includes("seduh") || lower.includes("kuliner") || lower.includes("masak") || lower.includes("resep")) {
+  if (target.includes("kopi") || target.includes("coffee") || target.includes("barista") || target.includes("seduh") || target.includes("espresso") || target.includes("v60") || target.includes("kuliner") || target.includes("masak") || target.includes("resep")) {
     return KNOWLEDGE_VAULT.culinary_coffee;
   }
-  if (lower.includes("skincare") || lower.includes("kulit") || lower.includes("jerawat") || lower.includes("retinol") || lower.includes("glowing") || lower.includes("wajah") || lower.includes("beauty")) {
+  if (target.includes("gaji") || target.includes("uang") || target.includes("tabung") || target.includes("investasi") || target.includes("saham") || target.includes("finansial") || target.includes("kaya") || target.includes("hemat") || target.includes("rekening")) {
+    return KNOWLEDGE_VAULT.financial_wealth;
+  }
+  if (target.includes("affiliate") || target.includes("komisi") || target.includes("jualan") || target.includes("closing") || target.includes("shopee") || target.includes("tiktok shop") || target.includes("omset")) {
+    return KNOWLEDGE_VAULT.affiliate_conversion;
+  }
+  if (target.includes("skincare") || target.includes("kulit") || target.includes("jerawat") || target.includes("retinol") || target.includes("glowing") || target.includes("wajah") || target.includes("beauty")) {
     return KNOWLEDGE_VAULT.skincare_beauty;
   }
-  if (lower.includes("gadget") || lower.includes("hp") || lower.includes("iphone") || lower.includes("android") || lower.includes("laptop") || lower.includes("tech") || lower.includes("ai") || lower.includes("software")) {
+  if (target.includes("gadget") || target.includes("hp") || target.includes("iphone") || target.includes("android") || target.includes("laptop") || target.includes("tech") || target.includes("ai") || target.includes("software")) {
     return KNOWLEDGE_VAULT.tech_productivity;
   }
+  if (target.includes("stoic") || target.includes("motivasi") || target.includes("filsafat") || target.includes("bijak") || target.includes("disiplin") || target.includes("fokus") || target.includes("mental")) {
+    return KNOWLEDGE_VAULT.stoic_motivation;
+  }
 
-  // Fallback default: Motivasi & Kebijaksanaan Universal
-  return KNOWLEDGE_VAULT.stoic_motivation;
+  // Fallback netral sesuai topik asli (tidak mencampur domain lain!)
+  return buildUniversalTopicVault(topicHint || textOrId);
 }
 
 /**

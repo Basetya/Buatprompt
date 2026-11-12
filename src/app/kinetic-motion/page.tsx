@@ -70,66 +70,58 @@ interface StoryScene {
   foleyCue: string;
 }
 
-const SUGGESTED_TOPICS = [
-  { label: "☕ Kopi Enak Tanpa Mesin", topic: "Rahasia seduh kopi seenak cafe tanpa mesin mahal", niche: "Kuliner & Kopi" },
-  { label: "💰 Affiliate Tembus 10 Juta", topic: "Cara affiliate pemula tembus 10 juta pertama tanpa followers", niche: "Affiliate & Jualan" },
-  { label: "🛑 Gaji Selalu Habis Tgl 10", topic: "Kenapa gaji berapapun selalu habis di tanggal 10 dan solusinya", niche: "Finansial & Investasi" },
-  { label: "✨ Retinol Anti-Purging", topic: "Aturan pakai retinol malam hari agar glowing tanpa breakout", niche: "Skincare & Beauty" },
-  { label: "📱 HP Murah Spek Dewa", topic: "Jangan beli HP flagship mahal kalau cuma buat medsos, ini solusinya", niche: "Gadget & Tech" },
-];
-
-const DEFAULT_SCENES: StoryScene[] = [
+const INITIAL_STUDIO_SCENES: StoryScene[] = [
   {
     sceneNumber: 1,
-    stageName: "THE SHOCK HOOK",
-    timeRange: "0:00 - 0:10",
-    headline: "KENAPA GAJI SELALU HABIS DI TANGGAL 10?",
-    subtext: "Bukan karena penghasilan kamu kekecilan, tapi karena ada kebocoran halus di rekeningmu yang nggak pernah kamu catat.",
-    metric: "STOP BOCOR! 🛑",
-    highlightKeyword: "HABIS",
-    durationSec: 10,
+    stageName: "HOOK",
+    timeRange: "0:00 - 0:08",
+    headline: "TULIS TOPIK VIDEO ANDA DI PANEL KIRI",
+    subtext: "Masukkan ide atau naskah Anda sendiri, lalu klik tombol Susun 4 Scene Otomatis.",
+    metric: "SIAP MULAI",
+    highlightKeyword: "TOPIK",
+    durationSec: 8,
     characterEmotion: "shocked",
-    kineticFx: "Spring Punch Scale 1.2x + Alert Aura Halo",
-    foleyCue: "0:00 Fast Whoosh + Heavy Sub-Bass Thud",
+    kineticFx: "Spring Punch Scale",
+    foleyCue: "0:00 Fast Whoosh",
   },
   {
     sceneNumber: 2,
-    stageName: "THE PAIN AGITATION",
-    timeRange: "0:10 - 0:25",
-    headline: "LIFESTYLE INFLATION MENJEBAK TABUNGAN",
-    subtext: "Gaji naik 1 juta, pengeluaran kopi dan nongkrong ikut naik 1.5 juta. Di akhir bulan saldo kembali nol dan kamu tetap merasa miskin.",
-    metric: "-85% BOCOR",
-    highlightKeyword: "JEBAKAN",
-    durationSec: 15,
+    stageName: "MASALAH",
+    timeRange: "0:08 - 0:16",
+    headline: "OTOMATIS DETEKSI KONTEKS TOPIK",
+    subtext: "Mesin sintesis akan menyesuaikan fakta dan alur cerita murni sesuai topik yang Anda ketik.",
+    metric: "100% RELEVAN",
+    highlightKeyword: "KONTEKS",
+    durationSec: 8,
     characterEmotion: "skeptical",
-    kineticFx: "Wipe Push Left + Floating Red Question Particles",
-    foleyCue: "0:10 Camera Shutter Snap + Low Vinyl Scratch",
+    kineticFx: "Slide-Up Masked Reveal",
+    foleyCue: "0:08 Camera Snap",
   },
   {
     sceneNumber: 3,
-    stageName: "THE BREAKTHROUGH REVEAL",
-    timeRange: "0:25 - 0:40",
-    headline: "TERAPKAN SISTEM 3 REKENING OTOMATIS",
-    subtext: "Begitu gajian masuk: 50% pos hidup, 30% investasi autodebet, 20% uang senang-senang. Rekening tabungan dikunci tanpa kartu debit fisik.",
-    metric: "+300% AMAN",
-    highlightKeyword: "AUTODEBET",
-    durationSec: 15,
+    stageName: "SOLUSI",
+    timeRange: "0:16 - 0:24",
+    headline: "PILIH GAYA VISUAL DAN AVATAR",
+    subtext: "Atur karakter Human 2D, Foto Sendiri, atau 3D Voxel beserta 12 gaya visual yang tersedia.",
+    metric: "12 GAYA",
+    highlightKeyword: "VISUAL",
+    durationSec: 8,
     characterEmotion: "celebrate",
-    kineticFx: "Dynamic Glowing SVG Curve Path + Rocket Sparkles",
-    foleyCue: "0:25 Harmonic Synth Swell + Crisp Cash Chime",
+    kineticFx: "Editorial Sweep Underline",
+    foleyCue: "0:16 Harmonic Swell",
   },
   {
     sceneNumber: 4,
-    stageName: "THE INFINITE LOOP CTA",
-    timeRange: "0:40 - 0:52",
-    headline: "SIMPAN VIDEO INI BIAR GAJI AMAN",
-    subtext: "Biar kamu nggak panik lagi pas mulai awal bulan depan... Karena kalau kamu perhatikan lagi...",
-    metric: "SAVE! ✨",
-    highlightKeyword: "SIMPAN",
-    durationSec: 12,
+    stageName: "AKSI",
+    timeRange: "0:24 - 0:32",
+    headline: "REKAM DAN UNDUH HASIL HD",
+    subtext: "Klik tombol Rekam dan Download untuk menyimpan video vertikal lengkap dengan suara.",
+    metric: "9:16 HD",
+    highlightKeyword: "UNDUH",
+    durationSec: 8,
     characterEmotion: "point-cta",
-    kineticFx: "Pulsating Bookmark Ring + Seamless Loop Match Cut",
-    foleyCue: "0:40 Clean Glass Bell Ding + Ambient Fade Out",
+    kineticFx: "Spotlight Tilt",
+    foleyCue: "0:24 Bell Ding",
   },
 ];
 
@@ -137,8 +129,8 @@ export default function KineticMotionPage() {
   const [mode, setMode] = useState<"multi" | "single">("multi");
   const [creationTab, setCreationTab] = useState<"idea" | "script">("idea");
   const [durationTarget, setDurationTarget] = useState<"55s" | "26s">("55s");
-  const [targetNiche, setTargetNiche] = useState("General Creator");
-  const [vaultDomain, setVaultDomain] = useState("stoic_motivation");
+  const [targetNiche, setTargetNiche] = useState("auto");
+  const [vaultDomain, setVaultDomain] = useState("auto");
   const [variantSeed, setVariantSeed] = useState(0);
   const [activeVaultInfo, setActiveVaultInfo] = useState<{
     id: string;
@@ -147,9 +139,9 @@ export default function KineticMotionPage() {
     quoteSnippet?: string;
     authorSnippet?: string;
   } | null>(null);
-  const [topicIdea, setTopicIdea] = useState("Kenapa 99% orang gagal menabung & cara memperbaikinya");
+  const [topicIdea, setTopicIdea] = useState("");
   const [rawScriptInput, setRawScriptInput] = useState("");
-  const [scenes, setScenes] = useState<StoryScene[]>(DEFAULT_SCENES);
+  const [scenes, setScenes] = useState<StoryScene[]>(INITIAL_STUDIO_SCENES);
   const [activeSceneTab, setActiveSceneTab] = useState(0);
   const [showMascot, setShowMascot] = useState(true);
   const [showUpperCard, setShowUpperCard] = useState(true);
@@ -1783,29 +1775,9 @@ export default function KineticMotionPage() {
                     type="text"
                     value={topicIdea}
                     onChange={(e) => setTopicIdea(e.target.value)}
-                    placeholder="Contoh: Rahasia kopi enak tanpa mesin mahal, Tips affiliate pemula..."
+                    placeholder="Ketik topik atau ide video kamu di sini..."
                     className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:border-emerald-400 focus:outline-none font-mono font-medium"
                   />
-
-                  {/* Quick Suggested Topics */}
-                  <div className="space-y-1.5 pt-1">
-                    <span className="text-[10px] font-mono text-zinc-500">PILIHAN INSPIRASI CEPAT:</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {SUGGESTED_TOPICS.map((sug, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => {
-                            setTopicIdea(sug.topic);
-                            setTargetNiche(sug.niche);
-                          }}
-                          className="text-[10px] font-mono px-2.5 py-1 rounded-lg border border-white/5 bg-white/5 text-zinc-400 hover:text-emerald-300 hover:border-emerald-500/30 transition-colors cursor-pointer"
-                        >
-                          {sug.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
 
                   {/* Target Duration & Knowledge Vault Selector */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
@@ -1851,12 +1823,13 @@ export default function KineticMotionPage() {
                         }}
                         className="w-full rounded-lg border border-white/10 bg-black/40 px-2.5 py-2 text-xs text-white font-mono focus:border-emerald-400 focus:outline-none"
                       >
-                        <option value="stoic_motivation">🏛️ Stoic & Motivasi (Marcus Aurelius)</option>
+                        <option value="auto">🤖 Auto-Deteksi Sesuai Topik (Recommended)</option>
+                        <option value="culinary_coffee">☕ Kuliner & Kopi (Ekstraksi 90°C)</option>
                         <option value="financial_wealth">📈 Finansial & Wealth (Buffett, 50/30/20)</option>
                         <option value="affiliate_conversion">💼 Affiliate (Cialdini, Persuasi)</option>
-                        <option value="culinary_coffee">☕ Kuliner & Kopi (Ekstraksi 90°C)</option>
                         <option value="skincare_beauty">✨ Skincare & Beauty (Dermatologi)</option>
                         <option value="tech_productivity">⚡ Tech & Productivity (Steve Jobs, 80/20)</option>
+                        <option value="stoic_motivation">🏛️ Stoic & Motivasi (Marcus Aurelius)</option>
                       </select>
                     </div>
                   </div>
