@@ -361,6 +361,102 @@ export async function fetchAndDecodeTTS(
   }
 }
 
+export type VoxelPresetId =
+  | "beanie-striped"
+  | "hoodie-glasses"
+  | "hijab-pastel"
+  | "suit-gold"
+  | "cyber-neon"
+  | "barista-apron";
+
+export interface VoxelPreset {
+  id: VoxelPresetId;
+  name: string;
+  niche: string;
+  shirtColor: string;
+  accentColor: string;
+  skinColor: string;
+  skinShadow: string;
+  hairColor: string;
+  headwear: "beanie" | "none" | "hijab" | "cap" | "cyber-hair";
+  glasses: "none" | "square" | "gold" | "visor";
+}
+
+export const VOXEL_3D_PRESETS: Record<VoxelPresetId, VoxelPreset> = {
+  "beanie-striped": {
+    id: "beanie-striped",
+    name: "Leo • Classic Beanie",
+    niche: "Umum & Edukasi",
+    shirtColor: "#1e40af",
+    accentColor: "#ffffff",
+    skinColor: "#f5c59f",
+    skinShadow: "#e2b28c",
+    hairColor: "#451a03",
+    headwear: "beanie",
+    glasses: "none",
+  },
+  "hoodie-glasses": {
+    id: "hoodie-glasses",
+    name: "Max • Tech Hoodie",
+    niche: "Tech & SaaS",
+    shirtColor: "#ea580c",
+    accentColor: "#c2410c",
+    skinColor: "#f5c59f",
+    skinShadow: "#e2b28c",
+    hairColor: "#3e2723",
+    headwear: "none",
+    glasses: "square",
+  },
+  "hijab-pastel": {
+    id: "hijab-pastel",
+    name: "Alya • Voxel Hijab",
+    niche: "Skincare & Affiliate",
+    shirtColor: "#f5f5f4",
+    accentColor: "#10b981",
+    skinColor: "#f6cfb0",
+    skinShadow: "#e4b998",
+    hairColor: "#047857",
+    headwear: "hijab",
+    glasses: "none",
+  },
+  "suit-gold": {
+    id: "suit-gold",
+    name: "Boss • Voxel CEO",
+    niche: "Finansial & Bisnis",
+    shirtColor: "#18181b",
+    accentColor: "#f59e0b",
+    skinColor: "#f1c29b",
+    skinShadow: "#d9a57d",
+    hairColor: "#1c1917",
+    headwear: "none",
+    glasses: "gold",
+  },
+  "cyber-neon": {
+    id: "cyber-neon",
+    name: "Nova • Cyber Neon",
+    niche: "Gaming & AI",
+    shirtColor: "#1e1b4b",
+    accentColor: "#06b6d4",
+    skinColor: "#f5c59f",
+    skinShadow: "#e2b28c",
+    hairColor: "#9333ea",
+    headwear: "cyber-hair",
+    glasses: "visor",
+  },
+  "barista-apron": {
+    id: "barista-apron",
+    name: "Kopi • Voxel Barista",
+    niche: "Kuliner & Kopi",
+    shirtColor: "#78350f",
+    accentColor: "#fef3c7",
+    skinColor: "#e8b48a",
+    skinShadow: "#cf986e",
+    hairColor: "#292524",
+    headwear: "cap",
+    glasses: "none",
+  },
+};
+
 /**
  * Expressive 3D Voxel Character Drawing on Canvas
  * Anchored at bottom, with acoustic-driven real-time mouth flap, expressive eyes, and gestures.
@@ -375,10 +471,11 @@ export function drawVoxelAvatar(
     isTalking: boolean;
     vocalVolume?: number; // 0 to 255 from Web Audio Analyser
     elapsed: number;
-    outfit: "beanie-striped" | "hoodie-glasses";
+    outfit: VoxelPresetId;
   }
 ) {
   const { cx, cy, scale, emotion, isTalking, vocalVolume = 0, elapsed, outfit } = options;
+  const preset = VOXEL_3D_PRESETS[outfit] || VOXEL_3D_PRESETS["beanie-striped"];
 
   ctx.save();
   ctx.translate(cx, cy);
@@ -392,38 +489,49 @@ export function drawVoxelAvatar(
 
   // 2. CHEST / SHOULDERS (Bottom Anchored)
   ctx.save();
-  if (outfit === "beanie-striped") {
-    ctx.fillStyle = "#1e40af";
-    ctx.fillRect(-85, 75, 170, 230);
+  ctx.fillStyle = preset.shirtColor;
+  ctx.fillRect(-85, 75, 170, 230);
 
+  if (outfit === "beanie-striped") {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(-85, 105, 170, 20);
     ctx.fillRect(-85, 145, 170, 20);
     ctx.fillRect(-85, 185, 170, 20);
-
     ctx.fillStyle = "#1d4ed8";
     ctx.fillRect(-40, 65, 80, 22);
+  } else if (outfit === "suit-gold") {
+    // White shirt V + Gold Tie
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(-26, 75, 52, 85);
+    ctx.fillStyle = preset.accentColor;
+    ctx.fillRect(-9, 78, 18, 95);
+  } else if (outfit === "hijab-pastel") {
+    // Hijab chest drape
+    ctx.fillStyle = preset.hairColor;
+    ctx.fillRect(-62, 65, 124, 65);
+    ctx.fillStyle = preset.accentColor;
+    ctx.fillRect(-52, 118, 104, 10);
+  } else if (outfit === "barista-apron") {
+    // White tee underneath + apron straps
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(-85, 75, 170, 35);
+    ctx.fillStyle = preset.shirtColor;
+    ctx.fillRect(-62, 85, 124, 220);
+    ctx.fillStyle = preset.accentColor;
+    ctx.fillRect(-48, 145, 96, 50);
   } else {
-    ctx.fillStyle = "#ea580c";
-    ctx.fillRect(-85, 75, 170, 230);
-
-    ctx.fillStyle = "#c2410c";
+    ctx.fillStyle = preset.accentColor;
     ctx.fillRect(-50, 140, 100, 60);
-
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(-18, 85, 5, 40);
     ctx.fillRect(13, 85, 5, 40);
-
-    ctx.font = "bold 40px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("✻", 0, 136);
   }
   ctx.restore();
 
   // 3. HAND GESTURES BASED ON EMOTION
   ctx.save();
-  ctx.fillStyle = "#f5c59f";
-  ctx.strokeStyle = "#d49b77";
+  ctx.fillStyle = preset.skinColor;
+  ctx.strokeStyle = preset.skinShadow;
   ctx.lineWidth = 2;
 
   if (emotion === "shocked") {
@@ -448,27 +556,33 @@ export function drawVoxelAvatar(
   ctx.restore();
 
   // 4. NECK
-  ctx.fillStyle = "#d49b77";
+  ctx.fillStyle = preset.skinShadow;
   ctx.fillRect(-20, 50, 40, 28);
 
   // 5. HEAD (Voxel Block with 3D Shading)
   ctx.save();
   ctx.rotate(headSway);
 
+  // Hijab back wrap behind face
+  if (preset.headwear === "hijab") {
+    ctx.fillStyle = preset.hairColor;
+    ctx.fillRect(-74, -84, 148, 152);
+  }
+
   // Front face
-  ctx.fillStyle = "#f5c59f";
+  ctx.fillStyle = preset.skinColor;
   ctx.fillRect(-60, -70, 120, 120);
 
   // Side 3D shading
-  ctx.fillStyle = "#e2b28c";
+  ctx.fillStyle = preset.skinShadow;
   ctx.fillRect(55, -70, 14, 120);
 
   // Bottom shadow
-  ctx.fillStyle = "#d49b77";
+  ctx.fillStyle = preset.skinShadow;
   ctx.fillRect(-60, 42, 120, 8);
 
   // Nose
-  ctx.fillStyle = "#e2b28c";
+  ctx.fillStyle = preset.skinShadow;
   ctx.fillRect(-9, -4, 18, 14);
 
   // Cheeks
@@ -476,24 +590,36 @@ export function drawVoxelAvatar(
   ctx.fillRect(-50, 2, 22, 12);
   ctx.fillRect(28, 2, 22, 12);
 
-  // 6. HAIR / BEANIE
-  if (outfit === "beanie-striped") {
+  // 6. HAIR / HEADWEAR
+  if (preset.headwear === "beanie") {
     ctx.fillStyle = "#2563eb";
     ctx.fillRect(-66, -135, 132, 75);
-
     ctx.fillStyle = "#1d4ed8";
     ctx.fillRect(-70, -76, 140, 20);
-
     ctx.fillStyle = "#1e40af";
     ctx.fillRect(-22, -160, 44, 26);
     ctx.fillRect(-16, -168, 32, 10);
-
-    ctx.fillStyle = "#451a03";
+    ctx.fillStyle = preset.hairColor;
     ctx.fillRect(-55, -56, 22, 18);
     ctx.fillRect(33, -56, 22, 18);
     ctx.fillRect(-12, -56, 24, 14);
+  } else if (preset.headwear === "hijab") {
+    ctx.fillStyle = preset.hairColor;
+    ctx.fillRect(-72, -88, 144, 34);
+    ctx.fillRect(-72, -60, 18, 118);
+    ctx.fillRect(54, -60, 18, 118);
+  } else if (preset.headwear === "cap") {
+    ctx.fillStyle = "#292524";
+    ctx.fillRect(-66, -112, 132, 50);
+    ctx.fillStyle = "#44403c";
+    ctx.fillRect(-66, -74, 160, 16); // Cap brim
+  } else if (preset.headwear === "cyber-hair") {
+    ctx.fillStyle = preset.hairColor;
+    ctx.fillRect(-66, -110, 132, 48);
+    ctx.fillRect(-48, -124, 44, 20);
+    ctx.fillRect(6, -118, 38, 16);
   } else {
-    ctx.fillStyle = "#3e2723";
+    ctx.fillStyle = preset.hairColor;
     ctx.fillRect(-66, -102, 132, 42);
     ctx.fillRect(-66, -70, 16, 50);
     ctx.fillRect(50, -70, 16, 50);
@@ -503,8 +629,8 @@ export function drawVoxelAvatar(
   // 7. EYES & EYEBROWS (Expressive & Blinking)
   const isBlinking = Math.sin(elapsed * 2.2) > 0.94;
 
-  if (outfit === "hoodie-glasses") {
-    ctx.strokeStyle = "#18181b";
+  if (preset.glasses === "square" || preset.glasses === "gold") {
+    ctx.strokeStyle = preset.glasses === "gold" ? "#f59e0b" : "#18181b";
     ctx.lineWidth = 5;
     ctx.strokeRect(-46, -30, 36, 30);
     ctx.strokeRect(10, -30, 36, 30);
@@ -512,6 +638,12 @@ export function drawVoxelAvatar(
     ctx.moveTo(-10, -15);
     ctx.lineTo(10, -15);
     ctx.stroke();
+  } else if (preset.glasses === "visor") {
+    ctx.fillStyle = "rgba(6, 182, 212, 0.45)";
+    ctx.strokeStyle = "#22d3ee";
+    ctx.lineWidth = 3;
+    ctx.fillRect(-52, -30, 104, 28);
+    ctx.strokeRect(-52, -30, 104, 28);
   }
 
   // Eyebrows
@@ -840,10 +972,106 @@ export const MOTION_PALETTES: Record<MotionStyleId, ThemePalette> = {
   },
 };
 
+export type Human2DPresetId =
+  | "tech-creator"
+  | "hijab-educator"
+  | "finance-exec"
+  | "coffee-barista"
+  | "genz-casual"
+  | "stoic-mentor";
+
+export interface Human2DPreset {
+  id: Human2DPresetId;
+  name: string;
+  niche: string;
+  skinColor: string;
+  skinShadow: string;
+  hairColor: string;
+  topColor: string;
+  outerColor: string;
+  style: "blazer" | "suit-tie" | "hijab" | "barista" | "hoodie-long" | "turtleneck-beard";
+  glasses: "square" | "round" | "none";
+}
+
+export const HUMAN_2D_PRESETS: Record<Human2DPresetId, Human2DPreset> = {
+  "tech-creator": {
+    id: "tech-creator",
+    name: "Raka • Tech & AI",
+    niche: "Tech, AI & SaaS",
+    skinColor: "#f5c8a4",
+    skinShadow: "#e0a980",
+    hairColor: "#1e1b18",
+    topColor: "#18181b",
+    outerColor: "#334155",
+    style: "blazer",
+    glasses: "square",
+  },
+  "hijab-educator": {
+    id: "hijab-educator",
+    name: "Nadia • Hijab Edukator",
+    niche: "Skincare & Edukasi",
+    skinColor: "#f6cfb0",
+    skinShadow: "#e2b28c",
+    hairColor: "#047857",
+    topColor: "#fef3c7",
+    outerColor: "#065f46",
+    style: "hijab",
+    glasses: "none",
+  },
+  "finance-exec": {
+    id: "finance-exec",
+    name: "Bima • Finance CEO",
+    niche: "Finansial & Bisnis",
+    skinColor: "#f1c29b",
+    skinShadow: "#d99b72",
+    hairColor: "#1c1917",
+    topColor: "#ffffff",
+    outerColor: "#1e293b",
+    style: "suit-tie",
+    glasses: "square",
+  },
+  "coffee-barista": {
+    id: "coffee-barista",
+    name: "Dika • Barista Kopi",
+    niche: "Kuliner & Kopi",
+    skinColor: "#e8b48a",
+    skinShadow: "#cf986e",
+    hairColor: "#292524",
+    topColor: "#fafaf9",
+    outerColor: "#78350f",
+    style: "barista",
+    glasses: "none",
+  },
+  "genz-casual": {
+    id: "genz-casual",
+    name: "Salsa • Gen-Z Affiliate",
+    niche: "Affiliate & Lifestyle",
+    skinColor: "#f7d4b8",
+    skinShadow: "#e3b694",
+    hairColor: "#3f2212",
+    topColor: "#ec4899",
+    outerColor: "#db2777",
+    style: "hoodie-long",
+    glasses: "round",
+  },
+  "stoic-mentor": {
+    id: "stoic-mentor",
+    name: "Arjun • Stoic Mentor",
+    niche: "Motivasi & Stoic",
+    skinColor: "#e6b38c",
+    skinShadow: "#c99269",
+    hairColor: "#27272a",
+    topColor: "#18181b",
+    outerColor: "#27272a",
+    style: "turtleneck-beard",
+    glasses: "none",
+  },
+};
+
 /**
  * 2D Rigged Human Creator Host (Layered Vector/Editorial Character)
- * Features natural head tilt, blinking eyes, emotion-reactive eyebrows,
- * 6 acoustic phoneme mouth shapes driven by vocalVolume, and expressive hand gestures.
+ * Features 6 distinct persona presets, natural head tilt, blinking eyes,
+ * emotion-reactive eyebrows, 6 acoustic phoneme mouth shapes, and gestures.
  */
 export function drawRiggedHumanHost(
   ctx: CanvasRenderingContext2D,
@@ -856,6 +1084,7 @@ export function drawRiggedHumanHost(
     vocalVolume?: number;
     elapsed: number;
     accentColor?: string;
+    presetId?: Human2DPresetId;
   }
 ) {
   const {
@@ -867,8 +1096,10 @@ export function drawRiggedHumanHost(
     vocalVolume = 0,
     elapsed,
     accentColor = "#38bdf8",
+    presetId = "tech-creator",
   } = options;
 
+  const p = HUMAN_2D_PRESETS[presetId] || HUMAN_2D_PRESETS["tech-creator"];
   const hasVoice = vocalVolume > 8;
   const activeSpeak = isTalking && (vocalVolume > 0 ? hasVoice : Math.sin(elapsed * 12) > 0.2);
 
@@ -890,47 +1121,98 @@ export function drawRiggedHumanHost(
   ctx.arc(0, -10, 175, 0, Math.PI * 2);
   ctx.fill();
 
-  // 1. TORSO & MODERN CREATOR BLAZER / T-SHIRT
+  // Back Hair / Hijab Drape behind shoulders
+  if (p.style === "hoodie-long") {
+    ctx.fillStyle = p.hairColor;
+    ctx.beginPath();
+    ctx.roundRect(-72, -60, 144, 165, 36);
+    ctx.fill();
+  } else if (p.style === "hijab") {
+    ctx.fillStyle = p.hairColor;
+    ctx.beginPath();
+    ctx.roundRect(-76, -86, 152, 200, [56, 56, 36, 36]);
+    ctx.fill();
+  }
+
+  // 1. TORSO & OUTFIT
   ctx.save();
-  // Inner crew-neck tee
-  ctx.fillStyle = "#18181b";
+  ctx.fillStyle = p.topColor;
   ctx.beginPath();
   ctx.roundRect(-82, 68, 164, 210, 32);
   ctx.fill();
 
-  // Tailored slate blazer lapels
-  ctx.fillStyle = "#334155";
-  ctx.beginPath();
-  ctx.moveTo(-88, 72);
-  ctx.lineTo(-26, 68);
-  ctx.lineTo(-14, 195);
-  ctx.lineTo(-96, 265);
-  ctx.closePath();
-  ctx.fill();
+  if (p.style === "blazer" || p.style === "suit-tie") {
+    ctx.fillStyle = p.outerColor;
+    ctx.beginPath();
+    ctx.moveTo(-88, 72);
+    ctx.lineTo(-24, 68);
+    ctx.lineTo(-14, 195);
+    ctx.lineTo(-96, 265);
+    ctx.closePath();
+    ctx.fill();
 
-  ctx.beginPath();
-  ctx.moveTo(88, 72);
-  ctx.lineTo(26, 68);
-  ctx.lineTo(14, 195);
-  ctx.lineTo(96, 265);
-  ctx.closePath();
-  ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(88, 72);
+    ctx.lineTo(24, 68);
+    ctx.lineTo(14, 195);
+    ctx.lineTo(96, 265);
+    ctx.closePath();
+    ctx.fill();
 
-  // Subtle lapel accent edge
-  ctx.strokeStyle = "#475569";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(-26, 68);
-  ctx.lineTo(-14, 195);
-  ctx.moveTo(26, 68);
-  ctx.lineTo(14, 195);
-  ctx.stroke();
+    if (p.style === "suit-tie") {
+      // Gold/Accent tie
+      ctx.fillStyle = "#f59e0b";
+      ctx.beginPath();
+      ctx.moveTo(-9, 68);
+      ctx.lineTo(9, 68);
+      ctx.lineTo(12, 165);
+      ctx.lineTo(0, 185);
+      ctx.lineTo(-12, 165);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else if (p.style === "barista") {
+    // Apron over white tee
+    ctx.fillStyle = p.outerColor;
+    ctx.beginPath();
+    ctx.roundRect(-58, 86, 116, 190, 16);
+    ctx.fill();
+    ctx.strokeStyle = "#d97706";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(-42, 68);
+    ctx.lineTo(-42, 92);
+    ctx.moveTo(42, 68);
+    ctx.lineTo(42, 92);
+    ctx.stroke();
+  } else if (p.style === "turtleneck-beard") {
+    ctx.fillStyle = p.outerColor;
+    ctx.beginPath();
+    ctx.roundRect(-28, 52, 56, 30, 10);
+    ctx.fill();
+  } else if (p.style === "hijab") {
+    // Neat hijab chest drape
+    ctx.fillStyle = p.outerColor;
+    ctx.beginPath();
+    ctx.roundRect(-56, 62, 112, 74, [16, 16, 44, 44]);
+    ctx.fill();
+  } else if (p.style === "hoodie-long") {
+    // Hoodie strings
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-16, 76);
+    ctx.lineTo(-18, 125);
+    ctx.moveTo(16, 76);
+    ctx.lineTo(18, 125);
+    ctx.stroke();
+  }
   ctx.restore();
 
   // 2. EXPRESSIVE HUMAN HANDS (Animated per Emotion)
   ctx.save();
-  ctx.fillStyle = "#f1c29b";
-  ctx.strokeStyle = "#d99b72";
+  ctx.fillStyle = p.skinColor;
+  ctx.strokeStyle = p.skinShadow;
   ctx.lineWidth = 2;
 
   if (emotion === "shocked") {
@@ -940,7 +1222,6 @@ export function drawRiggedHumanHost(
     ctx.fill();
     ctx.stroke();
   } else if (emotion === "skeptical") {
-    // Chin-thinking gesture
     ctx.beginPath();
     ctx.roundRect(12, 46, 40, 28, 12);
     ctx.fill();
@@ -961,7 +1242,6 @@ export function drawRiggedHumanHost(
     ctx.roundRect(72, -16 + bob, 28, 56, 12);
     ctx.fill();
     ctx.stroke();
-    // Index finger pointing up
     ctx.beginPath();
     ctx.roundRect(79, -42 + bob, 14, 30, 7);
     ctx.fill();
@@ -970,7 +1250,7 @@ export function drawRiggedHumanHost(
   ctx.restore();
 
   // 3. NECK WITH SHADOW
-  ctx.fillStyle = "#e0a980";
+  ctx.fillStyle = p.skinShadow;
   ctx.beginPath();
   ctx.roundRect(-22, 34, 44, 44, 10);
   ctx.fill();
@@ -979,15 +1259,16 @@ export function drawRiggedHumanHost(
   ctx.save();
   ctx.rotate(headTilt);
 
-  // Ears
-  ctx.fillStyle = "#e5b088";
-  ctx.beginPath();
-  ctx.ellipse(-60, -10, 10, 18, 0, 0, Math.PI * 2);
-  ctx.ellipse(60, -10, 10, 18, 0, 0, Math.PI * 2);
-  ctx.fill();
+  if (p.style !== "hijab") {
+    ctx.fillStyle = p.skinShadow;
+    ctx.beginPath();
+    ctx.ellipse(-60, -10, 10, 18, 0, 0, Math.PI * 2);
+    ctx.ellipse(60, -10, 10, 18, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
-  // Smooth human head contour (rounded jawline)
-  ctx.fillStyle = "#f5c8a4";
+  // Smooth human head contour
+  ctx.fillStyle = p.skinColor;
   ctx.beginPath();
   ctx.roundRect(-58, -76, 116, 124, [48, 48, 40, 40]);
   ctx.fill();
@@ -999,30 +1280,75 @@ export function drawRiggedHumanHost(
   ctx.ellipse(34, 6, 14, 8, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Layered Modern Hair
-  ctx.fillStyle = "#1e1b18";
-  ctx.beginPath();
-  ctx.roundRect(-62, -96, 124, 52, [44, 44, 14, 14]);
-  ctx.fill();
-  // Textured bangs
-  ctx.beginPath();
-  ctx.moveTo(-54, -56);
-  ctx.quadraticCurveTo(-20, -34, 8, -54);
-  ctx.quadraticCurveTo(32, -36, 56, -56);
-  ctx.lineTo(58, -78);
-  ctx.lineTo(-58, -78);
-  ctx.closePath();
-  ctx.fill();
+  // Stoic Mentor Beard
+  if (p.style === "turtleneck-beard") {
+    ctx.fillStyle = "rgba(39, 39, 42, 0.85)";
+    ctx.beginPath();
+    ctx.roundRect(-54, 6, 108, 44, [8, 8, 40, 40]);
+    ctx.fill();
+    // Mouth cutout area on beard
+    ctx.fillStyle = p.skinColor;
+    ctx.beginPath();
+    ctx.ellipse(0, 20, 22, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
-  // Glasses (Modern Creator Look)
-  ctx.strokeStyle = "#18181b";
-  ctx.lineWidth = 3.5;
-  ctx.beginPath();
-  ctx.roundRect(-44, -28, 34, 26, 8);
-  ctx.roundRect(10, -28, 34, 26, 8);
-  ctx.moveTo(-10, -15);
-  ctx.lineTo(10, -15);
-  ctx.stroke();
+  // Hair / Hijab Front Frame / Barista Cap
+  if (p.style === "hijab") {
+    ctx.strokeStyle = p.hairColor;
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.roundRect(-58, -80, 116, 126, [50, 50, 42, 42]);
+    ctx.stroke();
+  } else if (p.style === "barista") {
+    ctx.fillStyle = "#292524";
+    ctx.beginPath();
+    ctx.roundRect(-62, -98, 124, 46, [40, 40, 8, 8]);
+    ctx.fill();
+    // Cap brim
+    ctx.fillStyle = "#44403c";
+    ctx.beginPath();
+    ctx.roundRect(-56, -62, 138, 14, 7);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = p.hairColor;
+    ctx.beginPath();
+    ctx.roundRect(-62, -96, 124, 52, [44, 44, 14, 14]);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-54, -56);
+    ctx.quadraticCurveTo(-20, -34, 8, -54);
+    ctx.quadraticCurveTo(32, -36, 56, -56);
+    ctx.lineTo(58, -78);
+    ctx.lineTo(-58, -78);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Glasses
+  if (p.glasses === "square") {
+    ctx.strokeStyle = "#18181b";
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.roundRect(-44, -28, 34, 26, 8);
+    ctx.roundRect(10, -28, 34, 26, 8);
+    ctx.moveTo(-10, -15);
+    ctx.lineTo(10, -15);
+    ctx.stroke();
+  } else if (p.glasses === "round") {
+    ctx.strokeStyle = "#18181b";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(-27, -15, 16, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(27, -15, 16, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-11, -15);
+    ctx.lineTo(11, -15);
+    ctx.stroke();
+  }
 
   // Eyebrows (Emotion Reactive)
   ctx.strokeStyle = "#1e1b18";

@@ -49,7 +49,11 @@ import {
   drawRiggedHumanHost,
   drawHumanCutoutAvatar,
   MOTION_PALETTES,
+  HUMAN_2D_PRESETS,
+  VOXEL_3D_PRESETS,
   type MotionStyleId,
+  type Human2DPresetId,
+  type VoxelPresetId,
 } from "@/lib/mographEngine";
 
 interface StoryScene {
@@ -172,6 +176,8 @@ export default function KineticMotionPage() {
   ]);
   const [styleFilter, setStyleFilter] = useState<"all" | "favorites">("all");
   const [avatarEngine, setAvatarEngine] = useState<"human-rigged" | "photo-cutout" | "voxel">("human-rigged");
+  const [humanPreset, setHumanPreset] = useState<Human2DPresetId>("tech-creator");
+  const [voxelPreset, setVoxelPreset] = useState<VoxelPresetId>("beanie-striped");
   const [avatarPhotos, setAvatarPhotos] = useState<Record<number, string>>({});
   const avatarImgElementsRef = useRef<Record<number, HTMLImageElement>>({});
   const [localGpuInfo, setLocalGpuInfo] = useState<{
@@ -1243,6 +1249,7 @@ export default function KineticMotionPage() {
             vocalVolume: currentVocalVolume,
             elapsed,
             accentColor,
+            presetId: humanPreset,
           });
         } else if (characterLayout === "single") {
           drawVoxelAvatar(ctx, {
@@ -1253,7 +1260,7 @@ export default function KineticMotionPage() {
             isTalking,
             vocalVolume: currentVocalVolume,
             elapsed,
-            outfit: "beanie-striped",
+            outfit: voxelPreset,
           });
         } else {
           drawVoxelAvatar(ctx, {
@@ -1264,7 +1271,7 @@ export default function KineticMotionPage() {
             isTalking: isTalking && sceneLocalProgress < 0.5,
             vocalVolume: sceneLocalProgress < 0.5 ? currentVocalVolume : 0,
             elapsed,
-            outfit: "beanie-striped",
+            outfit: voxelPreset,
           });
 
           drawVoxelAvatar(ctx, {
@@ -1275,7 +1282,7 @@ export default function KineticMotionPage() {
             isTalking: isTalking && sceneLocalProgress >= 0.5,
             vocalVolume: sceneLocalProgress >= 0.5 ? currentVocalVolume : 0,
             elapsed,
-            outfit: "hoodie-glasses",
+            outfit: voxelPreset === "hoodie-glasses" ? "beanie-striped" : "hoodie-glasses",
           });
         }
         ctx.restore();
@@ -1301,6 +1308,8 @@ export default function KineticMotionPage() {
     singleSubtext,
     motionStyle,
     avatarEngine,
+    humanPreset,
+    voxelPreset,
     avatarPhotos,
     totalDurationSec,
     isPlaying,
@@ -2163,6 +2172,70 @@ export default function KineticMotionPage() {
                 </button>
               ))}
             </div>
+
+            {/* Persona Selector for Human 2D (6 Characters) */}
+            {avatarEngine === "human-rigged" && (
+              <div className="space-y-1.5 pt-1">
+                <div className="text-[11px] font-mono text-zinc-400">
+                  Pilih Karakter Human 2D Sesuai Niche Konten:
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {Object.values(HUMAN_2D_PRESETS).map((char) => (
+                    <button
+                      key={char.id}
+                      type="button"
+                      onClick={() => setHumanPreset(char.id)}
+                      className={`p-2 rounded-xl border text-left font-mono transition-all cursor-pointer ${
+                        humanPreset === char.id
+                          ? "border-emerald-400 bg-emerald-500/15 text-white"
+                          : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: char.outerColor }}
+                        />
+                        <span className="text-[11px] font-bold truncate">{char.name}</span>
+                      </div>
+                      <div className="text-[9px] text-zinc-400 mt-0.5 truncate">{char.niche}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Character Selector for 3D Voxel (6 Characters) */}
+            {avatarEngine === "voxel" && (
+              <div className="space-y-1.5 pt-1">
+                <div className="text-[11px] font-mono text-zinc-400">
+                  Pilih Karakter 3D Voxel Sesuai Niche Konten:
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {Object.values(VOXEL_3D_PRESETS).map((vox) => (
+                    <button
+                      key={vox.id}
+                      type="button"
+                      onClick={() => setVoxelPreset(vox.id)}
+                      className={`p-2 rounded-xl border text-left font-mono transition-all cursor-pointer ${
+                        voxelPreset === vox.id
+                          ? "border-emerald-400 bg-emerald-500/15 text-white"
+                          : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: vox.shirtColor }}
+                        />
+                        <span className="text-[11px] font-bold truncate">{vox.name}</span>
+                      </div>
+                      <div className="text-[9px] text-zinc-400 mt-0.5 truncate">{vox.niche}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Multi-Pose Photo Uploader (Always accessible or auto-switches to Foto Sendiri) */}
             <div className="space-y-2 pt-1">
