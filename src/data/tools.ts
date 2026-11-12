@@ -16,6 +16,27 @@ export interface ToolItem {
 }
 
 export const ALL_TOOLS: ToolItem[] = [
+  // --- FLAGSHIP 0: GOOGLE FLOW UGC PRODUCER (1-2 MENIT PITCHING SPECIAL) ---
+  {
+    id: "ugc-flow-studio",
+    tool_key: "ugc-flow-studio",
+    title: "GOOGLE FLOW UGC & MULTI-SHOT PRODUCER",
+    name: "Google Flow UGC & Multi-Shot Producer (1-2 Menit)",
+    path: "/ugc-flow-studio",
+    icon: "Video",
+    color: "text-amber-400",
+    iconBg: "bg-amber-500/15",
+    badge: "PITCHING READY",
+    badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+    featured: true,
+    category: "google-flow",
+    description: "All-in-one studio perakit UGC 1-2 menit ke Google Flow (Veo 2): naskah emosional, kamera ekstrim (/camera bird-eye crane), konsistensi karakter (@host_anchor), objek hero (@hero_object), audio TTS langsung, dan klarifikasi pra-generate.",
+    samples: [
+      "Seaside Resort 1-2 Menit: Drone 150m melayang turun ke presenter pantai",
+      "Character Board Mas Bimo / Sarah + Konsistensi Objek & Pacing Naskah"
+    ]
+  },
+
   // --- VIRAL MO-GRAPH FLAGSHIP ---
   {
     id: "kinetic-motion",

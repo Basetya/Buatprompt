@@ -40,3 +40,4 @@ export async function GET() {
       : "Berjalan dalam Mode Browser Real-Time (0% GPU/API eksternal): 2D Rigged Human + Multi-Pose Cutout.",
   });
 }
+
