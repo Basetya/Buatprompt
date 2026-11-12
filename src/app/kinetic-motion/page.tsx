@@ -682,216 +682,271 @@ export default function KineticMotionPage() {
       }
       ctx.restore();
 
-      // Helper for clean text truncation on showcase cards
-      const clipLine = (txt: string, maxLen: number) =>
-        txt.length > maxLen ? txt.slice(0, maxLen - 1).trim() + "…" : txt;
+      // Helper: smart wrap into N lines without breaking decimal numbers or word order
+      const wrapTextLines = (txt: string, maxCharsPerLine: number, maxLines: number): string[] => {
+        const clean = txt.replace(/\s+/g, " ").trim();
+        const tokens = clean.split(" ");
+        const lines: string[] = [];
+        let cur = "";
+        for (const t of tokens) {
+          const next = cur ? `${cur} ${t}` : t;
+          if (next.length <= maxCharsPerLine) {
+            cur = next;
+          } else {
+            if (cur) lines.push(cur);
+            cur = t;
+            if (lines.length >= maxLines) break;
+          }
+        }
+        if (cur && lines.length < maxLines) lines.push(cur);
+        if (lines.length === maxLines && tokens.join(" ").length > lines.join(" ").length) {
+          lines[maxLines - 1] = lines[maxLines - 1].replace(/[.,!?]*$/, "") + "…";
+        }
+        return lines;
+      };
 
-      // 3. ZONE 1: UPPER SHOWCASE STAGE (Y: 96 to 346)
+      // Smart sentence splitter that ignores decimal points like "1.5"
+      const splitSentences = (txt: string): string[] =>
+        txt
+          .split(/(?<!\d)[.!?]+(?!\d)/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+      // 3. ZONE 1: MOBILE-FIRST EDITORIAL SHOWCASE STAGE (4 Distinct Choreographies, Large 18-26px Type)
       if (showUpperCard) {
         ctx.save();
         ctx.globalAlpha = transitionAlpha;
-        const cardY = 96;
-        const cardW = W - 120;
-        const cardH = 248;
-        const cardX = 60;
+        const cardY = 92;
+        const cardW = W - 100; // 620px wide
+        const cardH = 310;
+        const cardX = 50;
 
-        ctx.fillStyle = "rgba(15, 23, 42, 0.78)";
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+        ctx.fillStyle = "rgba(15, 23, 42, 0.82)";
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.roundRect(cardX, cardY, cardW, cardH, 20);
+        ctx.roundRect(cardX, cardY, cardW, cardH, 24);
         ctx.fill();
         ctx.stroke();
 
         if (sceneIndex === 0) {
-          // Scene 1: Focused Topic Showcase (Fixed greedy word-wrap, NO system/niche tags)
-          ctx.fillStyle = `${accentColor}22`;
-          ctx.strokeStyle = `${accentColor}66`;
-          ctx.lineWidth = 1;
+          // SCENE 1: Big "01" Number + Large Topic Title + Tilted White Sticker Callout (Classai + Kataaungg style)
+          ctx.font = "900 46px sans-serif";
+          ctx.fillStyle = accentColor;
+          ctx.textAlign = "left";
+          ctx.fillText("01", cardX + 28, cardY + 62);
+
+          // Pill badge next to 01
+          ctx.fillStyle = `${accentColor}28`;
+          ctx.strokeStyle = `${accentColor}88`;
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
-          ctx.roundRect(cardX + 20, cardY + 20, 155, 30, 8);
+          ctx.roundRect(cardX + 98, cardY + 28, 155, 34, 17);
           ctx.fill();
           ctx.stroke();
 
-          ctx.font = "800 12px monospace";
-          ctx.fillStyle = accentColor;
+          ctx.font = "800 15px sans-serif";
+          ctx.fillStyle = "#ffffff";
           ctx.textAlign = "center";
-          ctx.fillText("💡 TOPIK UTAMA", cardX + 97, cardY + 39);
+          ctx.fillText("TOPIK UTAMA", cardX + 175, cardY + 50);
 
-          ctx.textAlign = "right";
-          ctx.font = "700 12px monospace";
-          ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
-          ctx.fillText(clipLine(currentMetric || "FOKUS HARI INI", 18), cardX + cardW - 22, cardY + 39);
-
-          // Proper sequential greedy wrap (never swaps word order!)
+          // Large mobile-readable topic (25px bold)
           ctx.textAlign = "left";
           ctx.fillStyle = "#ffffff";
-          ctx.font = "800 20px sans-serif";
-          const displayTopic = (topicIdea.trim() || currentHeadline).replace(/\s+/g, " ");
-          const words = displayTopic.split(" ");
-          let line1 = "";
-          let line2 = "";
-          let inLine2 = false;
-          for (const w of words) {
-            if (!inLine2 && (line1 ? `${line1} ${w}` : w).length <= 34) {
-              line1 = line1 ? `${line1} ${w}` : w;
-            } else {
-              inLine2 = true;
-              const next2 = line2 ? `${line2} ${w}` : w;
-              if (next2.length <= 36) {
-                line2 = next2;
-              }
-            }
-          }
+          ctx.font = "800 25px sans-serif";
+          const displayTopic = topicIdea.trim() || currentHeadline;
+          const topicLines = wrapTextLines(displayTopic, 29, 3);
+          topicLines.forEach((ln, idx) => {
+            const prefix = idx === 0 ? "“" : "";
+            const suffix = idx === topicLines.length - 1 ? "”" : "";
+            ctx.fillText(`${prefix}${ln}${suffix}`, cardX + 28, cardY + 112 + idx * 34);
+          });
 
-          if (line2) {
-            ctx.fillText(`"${line1}`, cardX + 24, cardY + 95);
-            ctx.fillText(`${line2}"`, cardX + 24, cardY + 128);
-          } else {
-            ctx.fillText(`"${line1}"`, cardX + 24, cardY + 108);
-          }
+          // Tilted White Sticker Callout (like Classai "Lisensi MIT • gratis")
+          ctx.save();
+          const stickerSpring = Math.min(sceneLocalProgress * 4, 1);
+          const stickerScale = 0.85 + Math.sin(stickerSpring * Math.PI * 0.5) * 0.15;
+          ctx.translate(cardX + cardW - 145, cardY + 258);
+          ctx.rotate(-0.045); // -2.6 deg tilt
+          ctx.scale(stickerScale, stickerScale);
 
-          // Sub highlight pill
-          ctx.fillStyle = "rgba(16, 185, 129, 0.12)";
-          ctx.strokeStyle = "rgba(16, 185, 129, 0.35)";
-          ctx.lineWidth = 1;
+          ctx.fillStyle = "#ffffff";
+          ctx.shadowColor = "rgba(0,0,0,0.45)";
+          ctx.shadowBlur = 16;
           ctx.beginPath();
-          ctx.roundRect(cardX + 20, cardY + 170, cardW - 40, 48, 12);
+          ctx.roundRect(-125, -24, 250, 48, 24);
           ctx.fill();
-          ctx.stroke();
+          ctx.shadowBlur = 0;
 
-          ctx.fillStyle = "#10b981";
-          ctx.font = "700 14px monospace";
-          ctx.fillText(`● ${clipLine(currentHeadline, 42)}`, cardX + 36, cardY + 199);
+          ctx.font = "800 17px sans-serif";
+          ctx.fillStyle = "#0f172a";
+          ctx.textAlign = "center";
+          ctx.fillText(currentMetric || "WAJIB TAHU!", 0, 6);
+          ctx.restore();
         } else if (sceneIndex === 1) {
-          // Scene 2: Topic-Specific Problem Card derived from actual scene text
-          ctx.font = "800 15px sans-serif";
+          // SCENE 2: Big "02" + Large Problem Headline + Big High-Contrast Insight Box (Readable on Phone!)
+          ctx.font = "900 44px sans-serif";
           ctx.fillStyle = "#ef4444";
           ctx.textAlign = "left";
-          ctx.fillText(`⚠️ ${clipLine(currentHeadline, 44)}`, cardX + 24, cardY + 40);
+          ctx.fillText("02", cardX + 28, cardY + 58);
 
-          const subSentences = currentSubtext
-            .split(/[.!?]+/)
-            .map((s) => s.trim())
-            .filter(Boolean);
-
-          const painPoints = [
-            { tag: "🛑 FAKTA 1", desc: clipLine(subSentences[0] || currentHeadline, 44) },
-            { tag: "📉 DAMPAK", desc: clipLine(subSentences[1] || "Kebocoran halus yang terus berulang", 44) },
-            { tag: "⚠️ STATUS", desc: clipLine(`${currentMetric} — Perlu segera dihentikan`, 44) },
-          ];
-
-          painPoints.forEach((p, idx) => {
-            const itemY = cardY + 62 + idx * 54;
-            ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.roundRect(cardX + 20, itemY, cardW - 40, 44, 10);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.font = "700 12px monospace";
-            ctx.fillStyle = "#f43f5e";
-            ctx.fillText(p.tag, cardX + 32, itemY + 27);
-
-            ctx.font = "500 13px sans-serif";
-            ctx.fillStyle = "#e2e8f0";
-            ctx.fillText(p.desc, cardX + 132, itemY + 27);
-          });
-        } else if (sceneIndex === 2) {
-          // Scene 3: Topic-Specific Solution Card derived from actual scene text
-          ctx.font = "800 15px sans-serif";
-          ctx.fillStyle = "#10b981";
-          ctx.textAlign = "left";
-          ctx.fillText(`✨ ${clipLine(currentHeadline, 44)}`, cardX + 24, cardY + 40);
-
-          const subSentences = currentSubtext
-            .split(/[.!?]+/)
-            .map((s) => s.trim())
-            .filter(Boolean);
-
-          const solutionSteps = [
-            { tag: "LANGKAH 1", desc: clipLine(subSentences[0] || currentHeadline, 43) },
-            { tag: "LANGKAH 2", desc: clipLine(subSentences[1] || "Kunci eksekusi konsisten setiap hari", 43) },
-            { tag: "TARGET", desc: clipLine(`${currentMetric} — Terukur & aman`, 43) },
-          ];
-
-          solutionSteps.forEach((s, idx) => {
-            const itemY = cardY + 62 + idx * 54;
-            const isHighlight = idx === 1;
-
-            ctx.fillStyle = isHighlight ? "rgba(16, 185, 129, 0.15)" : "rgba(255, 255, 255, 0.04)";
-            ctx.strokeStyle = isHighlight ? "rgba(16, 185, 129, 0.5)" : "rgba(255, 255, 255, 0.08)";
-            ctx.lineWidth = isHighlight ? 1.5 : 1;
-            ctx.beginPath();
-            ctx.roundRect(cardX + 20, itemY, cardW - 40, 44, 10);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.font = "700 12px monospace";
-            ctx.fillStyle = isHighlight ? "#10b981" : "#94a3b8";
-            ctx.fillText(`● ${s.tag}`, cardX + 32, itemY + 27);
-
-            ctx.font = "500 13px sans-serif";
-            ctx.fillStyle = isHighlight ? "#ffffff" : "#cbd5e1";
-            ctx.fillText(s.desc, cardX + 135, itemY + 27);
-          });
-        } else {
-          // Scene 4: Topic-Specific Conclusion & Action Call
-          ctx.font = "800 15px sans-serif";
-          ctx.fillStyle = accentColor;
-          ctx.textAlign = "left";
-          ctx.fillText(`📌 ${clipLine(currentHeadline, 44)}`, cardX + 24, cardY + 40);
-
-          const subSentences = currentSubtext
-            .split(/[.!?]+/)
-            .map((s) => s.trim())
-            .filter(Boolean);
-
-          const actions = [
-            { tag: "POIN", label: clipLine(subSentences[0] || "Simpan video ini untuk panduan praktis", 46) },
-            { tag: "AKSI", label: clipLine(subSentences[1] || "Bagikan ke rekan yang membutuhkan", 46) },
-          ];
-
-          actions.forEach((a, idx) => {
-            const itemY = cardY + 65 + idx * 50;
-            ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
-            ctx.beginPath();
-            ctx.roundRect(cardX + 20, itemY, cardW - 40, 42, 8);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.font = "700 12px monospace";
-            ctx.fillStyle = accentColor;
-            ctx.fillText(`◆ ${a.tag}`, cardX + 32, itemY + 26);
-
-            ctx.fillStyle = "#e2e8f0";
-            ctx.font = "600 13px sans-serif";
-            ctx.fillText(a.label, cardX + 100, itemY + 26);
-          });
-
-          // Action Pulse Button
-          const btnY = cardY + 175;
-          ctx.fillStyle = "rgba(16, 185, 129, 0.22)";
-          ctx.strokeStyle = "#10b981";
-          ctx.lineWidth = 2;
+          ctx.fillStyle = "rgba(239, 68, 68, 0.2)";
+          ctx.strokeStyle = "rgba(239, 68, 68, 0.6)";
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
-          ctx.roundRect(cardX + 20, btnY, cardW - 40, 48, 12);
+          ctx.roundRect(cardX + 98, cardY + 26, 175, 34, 17);
           ctx.fill();
           ctx.stroke();
 
-          ctx.font = "800 15px monospace";
+          ctx.font = "800 15px sans-serif";
+          ctx.fillStyle = "#fca5a5";
+          ctx.textAlign = "center";
+          ctx.fillText("MASALAH UTAMA", cardX + 185, cardY + 48);
+
+          // Headline (22px bold, 2 lines)
+          ctx.textAlign = "left";
+          ctx.font = "800 22px sans-serif";
+          ctx.fillStyle = "#ffffff";
+          const hLines = wrapTextLines(currentHeadline, 31, 2);
+          hLines.forEach((ln, idx) => {
+            ctx.fillText(ln, cardX + 28, cardY + 104 + idx * 30);
+          });
+
+          // Large readable fact box (19px!)
+          const subSentences = splitSentences(currentSubtext);
+          const factText = subSentences[0] || currentSubtext;
+          const factLines = wrapTextLines(factText, 34, 3);
+
+          ctx.fillStyle = "rgba(239, 68, 68, 0.12)";
+          ctx.strokeStyle = "rgba(239, 68, 68, 0.38)";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(cardX + 24, cardY + 168, cardW - 48, 118, 16);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.font = "600 19px sans-serif";
+          ctx.fillStyle = "#f1f5f9";
+          factLines.forEach((ln, idx) => {
+            ctx.fillText(ln, cardX + 42, cardY + 204 + idx * 28);
+          });
+        } else if (sceneIndex === 2) {
+          // SCENE 3: Big "03" + Animated Metric Progress Bar + Large Solution Card
+          ctx.font = "900 44px sans-serif";
+          ctx.fillStyle = "#10b981";
+          ctx.textAlign = "left";
+          ctx.fillText("03", cardX + 28, cardY + 58);
+
+          ctx.fillStyle = "rgba(16, 185, 129, 0.2)";
+          ctx.strokeStyle = "rgba(16, 185, 129, 0.6)";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(cardX + 98, cardY + 26, 165, 34, 17);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.font = "800 15px sans-serif";
+          ctx.fillStyle = "#6ee7b7";
+          ctx.textAlign = "center";
+          ctx.fillText("SOLUSI TERUJI", cardX + 180, cardY + 48);
+
+          // Big Metric Pill on Top Right
+          ctx.textAlign = "right";
+          ctx.font = "900 22px monospace";
+          ctx.fillStyle = "#10b981";
+          ctx.fillText(currentMetric || "+300%", cardX + cardW - 28, cardY + 50);
+
+          // Headline (22px bold)
+          ctx.textAlign = "left";
+          ctx.font = "800 22px sans-serif";
+          ctx.fillStyle = "#ffffff";
+          const hLines = wrapTextLines(currentHeadline, 31, 2);
+          hLines.forEach((ln, idx) => {
+            ctx.fillText(ln, cardX + 28, cardY + 104 + idx * 30);
+          });
+
+          // Animated Progress Bar inside Card
+          const barW = cardW - 56;
+          const fillPct = Math.min(sceneLocalProgress * 1.4, 1);
+          ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+          ctx.beginPath();
+          ctx.roundRect(cardX + 28, cardY + 162, barW, 12, 6);
+          ctx.fill();
+
+          ctx.fillStyle = "#10b981";
+          ctx.beginPath();
+          ctx.roundRect(cardX + 28, cardY + 162, barW * fillPct, 12, 6);
+          ctx.fill();
+
+          // Large readable solution detail (19px!)
+          const subSentences = splitSentences(currentSubtext);
+          const solText = subSentences[0] || currentSubtext;
+          const solLines = wrapTextLines(solText, 34, 3);
+          ctx.font = "600 19px sans-serif";
+          ctx.fillStyle = "#d1fae5";
+          solLines.forEach((ln, idx) => {
+            ctx.fillText(ln, cardX + 28, cardY + 206 + idx * 28);
+          });
+        } else {
+          // SCENE 4: Big "04" + Clear Mobile-Readable CTA + Pulsing Action Button
+          ctx.font = "900 44px sans-serif";
+          ctx.fillStyle = accentColor;
+          ctx.textAlign = "left";
+          ctx.fillText("04", cardX + 28, cardY + 58);
+
+          ctx.fillStyle = `${accentColor}28`;
+          ctx.strokeStyle = `${accentColor}88`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(cardX + 98, cardY + 26, 170, 34, 17);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.font = "800 15px sans-serif";
           ctx.fillStyle = "#ffffff";
           ctx.textAlign = "center";
-          ctx.fillText(`✓ ${clipLine(currentMetric || "SIMPAN & PRAKTIKKAN", 30)}`, cardX + cardW / 2, btnY + 29);
+          ctx.fillText("LANGKAH AKSI", cardX + 183, cardY + 48);
+
+          // Big Headline
+          ctx.textAlign = "left";
+          ctx.font = "800 23px sans-serif";
+          ctx.fillStyle = "#ffffff";
+          const hLines = wrapTextLines(currentHeadline, 30, 2);
+          hLines.forEach((ln, idx) => {
+            ctx.fillText(ln, cardX + 28, cardY + 106 + idx * 32);
+          });
+
+          // Subtext (19px readable)
+          const subSentences = splitSentences(currentSubtext);
+          const ctaLines = wrapTextLines(subSentences[0] || currentSubtext, 34, 2);
+          ctx.font = "500 18px sans-serif";
+          ctx.fillStyle = "#cbd5e1";
+          ctaLines.forEach((ln, idx) => {
+            ctx.fillText(ln, cardX + 28, cardY + 178 + idx * 26);
+          });
+
+          // Big Pulsing Action Button
+          const btnY = cardY + 236;
+          const btnPulse = 1 + Math.sin(elapsed * 5) * 0.025;
+          ctx.save();
+          ctx.translate(cardX + cardW / 2, btnY + 26);
+          ctx.scale(btnPulse, btnPulse);
+          ctx.fillStyle = "#10b981";
+          ctx.beginPath();
+          ctx.roundRect(-(cardW - 56) / 2, -26, cardW - 56, 52, 14);
+          ctx.fill();
+
+          ctx.font = "900 18px sans-serif";
+          ctx.fillStyle = "#06281e";
+          ctx.textAlign = "center";
+          ctx.fillText(`✓ ${currentMetric || "SIMPAN & PRAKTIKKAN"}`, 0, 6);
+          ctx.restore();
           ctx.textAlign = "left";
         }
         ctx.restore();
       }
 
-      // 4. ZONE 2: DYNAMIC MULTI-WORD KARAOKE REVEAL (Synced to AudioBuffer Duration)
+      // 4. ZONE 2: MULTI-STYLE DYNAMIC KARAOKE TYPOGRAPHY (4 Visual Choreographies)
       ctx.save();
       ctx.globalAlpha = transitionAlpha;
       const timedPhrases = extractTimedPhrases(
@@ -910,14 +965,14 @@ export default function KineticMotionPage() {
       const phraseProgress = Math.min(Math.max((speechProgress - activePhrase.startPct) / phraseDuration, 0), 1);
 
       // Positioned closer above the avatar head for tight speaker-caption cohesion
-      const phraseCenterY = showUpperCard ? 745 : 640;
+      const phraseCenterY = showUpperCard ? 760 : 640;
 
       // Render Metric Badge above the beat if present
       if (activePhrase.badge) {
-        ctx.font = "800 17px monospace";
+        ctx.font = "800 18px monospace";
         ctx.fillStyle = accentColor;
         ctx.textAlign = "center";
-        ctx.fillText(`[ ${activePhrase.badge} ]`, W / 2, phraseCenterY - 82);
+        ctx.fillText(`[ ${activePhrase.badge} ]`, W / 2, phraseCenterY - 88);
       }
 
       const fontFamily =
@@ -931,11 +986,11 @@ export default function KineticMotionPage() {
         ? activePhrase.words
         : activePhrase.phraseText.split(" ");
 
-      // Auto-scale font size & wrap into up to 2 crisp editorial lines
-      const maxLineWidth = W - 130; // 590px max
-      let fontSize = 46;
+      // Larger mobile-friendly font size (52px base, min 32px)
+      const maxLineWidth = W - 120; // 600px max
+      let fontSize = 52;
       const buildLines = (fSize: number) => {
-        ctx.font = `800 ${fSize}px ${fontFamily}`;
+        ctx.font = `900 ${fSize}px ${fontFamily}`;
         const spaceW = ctx.measureText(" ").width * 1.15;
         const lines: Array<Array<{ word: string; w: number; idx: number }>> = [[]];
         let curW = 0;
@@ -954,12 +1009,11 @@ export default function KineticMotionPage() {
       };
 
       let layout = buildLines(fontSize);
-      while (layout.lines.length > 2 && fontSize > 28) {
+      while (layout.lines.length > 2 && fontSize > 32) {
         fontSize -= 2;
         layout = buildLines(fontSize);
       }
 
-      // Compute which word inside this beat is currently active based on speechProgress
       const activeWordFloat = phraseProgress * words.length;
       const activeWordIdx = Math.min(Math.floor(activeWordFloat), words.length - 1);
       const lineHeight = fontSize * 1.32;
@@ -982,42 +1036,64 @@ export default function KineticMotionPage() {
             activePhrase.highlightWord &&
             item.word.includes(activePhrase.highlightWord);
 
-          // Pop scale on the currently spoken word (Reference 1 & 2 energy)
           const wordProgress = isCurrentWord ? activeWordFloat - activeWordIdx : 1;
-          const wordScale = isCurrentWord
-            ? 1 + Math.sin(Math.min(wordProgress * 2.5, 1) * Math.PI) * 0.12
-            : 1;
+
+          // Distinct per-scene choreography!
+          let wordScale = 1;
+          let wordOffsetY = 0;
+          let wordRot = 0;
+
+          if (sceneIndex === 0) {
+            // Scene 1: High-Energy Spring Pop
+            wordScale = isCurrentWord ? 1 + Math.sin(Math.min(wordProgress * 2.5, 1) * Math.PI) * 0.14 : 1;
+          } else if (sceneIndex === 1) {
+            // Scene 2: Slide-Up Masked Reveal
+            wordOffsetY = isCurrentWord ? (1 - Math.min(wordProgress * 3, 1)) * 16 : 0;
+            wordScale = isCurrentWord ? 1.06 : 1;
+          } else if (sceneIndex === 2) {
+            // Scene 3: Editorial Emphasis + Sweep Underline
+            wordScale = isCurrentWord ? 1.08 : 1;
+          } else {
+            // Scene 4: Spotlight Tilt Pop
+            wordScale = isCurrentWord ? 1.1 : 1;
+            wordRot = isKeyword && isSpoken ? -0.03 : 0;
+          }
 
           ctx.save();
-          ctx.translate(cursorX + item.w / 2, lineY);
+          ctx.translate(cursorX + item.w / 2, lineY + wordOffsetY);
+          ctx.rotate(wordRot);
           ctx.scale(wordScale, wordScale);
-          ctx.font = `800 ${fontSize}px ${fontFamily}`;
+          ctx.font = `900 ${fontSize}px ${fontFamily}`;
 
           if (isKeyword && isSpoken) {
-            // Glowing accent pill behind keyword
-            const padX = 12;
+            const padX = 14;
             const padY = 8;
-            ctx.fillStyle = `${accentColor}2A`;
+            ctx.fillStyle = `${accentColor}30`;
             ctx.strokeStyle = accentColor;
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 2.5;
             ctx.beginPath();
-            ctx.roundRect(-item.w / 2 - padX, -fontSize / 2 - padY / 2, item.w + padX * 2, fontSize + padY, 12);
+            ctx.roundRect(-item.w / 2 - padX, -fontSize / 2 - padY / 2, item.w + padX * 2, fontSize + padY, 14);
             ctx.fill();
             ctx.stroke();
 
             ctx.fillStyle = accentColor;
             ctx.shadowColor = accentColor;
-            ctx.shadowBlur = 14;
+            ctx.shadowBlur = 16;
           } else if (isCurrentWord) {
-            ctx.fillStyle = accentColor;
-            ctx.shadowColor = accentColor;
-            ctx.shadowBlur = 10;
+            ctx.fillStyle = sceneIndex === 1 ? "#f87171" : accentColor;
+            ctx.shadowColor = sceneIndex === 1 ? "#ef4444" : accentColor;
+            ctx.shadowBlur = 12;
+
+            // Scene 3: Animated sweep underline under current word
+            if (sceneIndex === 2) {
+              const ulW = item.w * Math.min(wordProgress * 2.2, 1);
+              ctx.fillRect(-item.w / 2, fontSize / 2 + 4, ulW, 5);
+            }
           } else if (isSpoken) {
             ctx.fillStyle = "#ffffff";
             ctx.shadowBlur = 0;
           } else {
-            // Upcoming words in this beat appear subtly muted until spoken!
-            ctx.fillStyle = "rgba(255, 255, 255, 0.36)";
+            ctx.fillStyle = "rgba(255, 255, 255, 0.34)";
             ctx.shadowBlur = 0;
           }
 
