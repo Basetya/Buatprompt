@@ -38,6 +38,7 @@ import {
   Image as ImageIcon,
   Cpu,
   Trash2,
+  Star,
 } from "lucide-react";
 import {
   extractTimedPhrases,
@@ -164,6 +165,12 @@ export default function KineticMotionPage() {
   const [singleDuration, setSingleDuration] = useState(6);
 
   const [motionStyle, setMotionStyle] = useState<MotionStyleId>("apple-keynote");
+  const [favoriteStyles, setFavoriteStyles] = useState<MotionStyleId[]>([
+    "editorial-light",
+    "kataaungg-slate",
+    "apple-keynote",
+  ]);
+  const [styleFilter, setStyleFilter] = useState<"all" | "favorites">("all");
   const [avatarEngine, setAvatarEngine] = useState<"human-rigged" | "photo-cutout" | "voxel">("human-rigged");
   const [avatarPhotos, setAvatarPhotos] = useState<Record<number, string>>({});
   const avatarImgElementsRef = useRef<Record<number, HTMLImageElement>>({});
@@ -314,13 +321,34 @@ export default function KineticMotionPage() {
     prefetchTTSForScenes(scenes, voiceActor);
   }, [scenes, voiceActor, prefetchTTSForScenes]);
 
-  // Check local GPU / Python AI Lip-Sync capability
+  // Check local GPU / Python AI Lip-Sync capability & load favorite archetypes
   useEffect(() => {
     fetch("/api/local-lipsync")
       .then((r) => r.json())
       .then((d) => setLocalGpuInfo(d))
       .catch(() => {});
+
+    try {
+      const savedFavs = localStorage.getItem("buatprompt_favorite_archetypes");
+      if (savedFavs) {
+        const parsed = JSON.parse(savedFavs);
+        if (Array.isArray(parsed)) {
+          setFavoriteStyles(parsed);
+        }
+      }
+    } catch (_) {}
   }, []);
+
+  const toggleFavoriteStyle = (id: MotionStyleId) => {
+    setFavoriteStyles((prev) => {
+      const exists = prev.includes(id);
+      const next = exists ? prev.filter((item) => item !== id) : [...prev, id];
+      try {
+        localStorage.setItem("buatprompt_favorite_archetypes", JSON.stringify(next));
+      } catch (_) {}
+      return next;
+    });
+  };
 
   // Handle Custom Human Photo Upload for Multi-Pose Cutout Avatar
   const handleAvatarUpload = (sceneIdx: number, file: File | null) => {
@@ -2200,39 +2228,108 @@ export default function KineticMotionPage() {
             </div>
           </div>
 
-          {/* 12 Hype Visual Archetypes Selector */}
+          {/* 12 Hype Visual Archetypes Selector with Favorite Cluster */}
           <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-6 space-y-3 shadow-xl">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="block text-xs font-mono font-semibold text-zinc-300">
-                GAYA VISUAL ARSITEKTUR (12 HYPE ARCHETYPES)
+                GAYA VISUAL ARSITEKTUR ({Object.keys(MOTION_PALETTES).length} ARCHETYPES)
               </label>
-              <span className="text-[10px] font-mono text-emerald-400">Light & Dark Ready</span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {Object.values(MOTION_PALETTES).map((st) => (
+
+              {/* Cluster Filter Tabs */}
+              <div className="flex items-center gap-1 p-1 rounded-lg bg-black/40 border border-white/10 font-mono text-[10px]">
                 <button
-                  key={st.id}
                   type="button"
-                  onClick={() => setMotionStyle(st.id)}
-                  className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all cursor-pointer ${
-                    motionStyle === st.id
-                      ? "border-emerald-400 bg-emerald-500/10 text-white font-bold shadow-md shadow-emerald-500/10"
-                      : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                  onClick={() => setStyleFilter("all")}
+                  className={`px-2.5 py-1 rounded-md font-bold transition-colors cursor-pointer ${
+                    styleFilter === "all"
+                      ? "bg-white/15 text-white"
+                      : "text-zinc-400 hover:text-white"
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-1.5 mb-1">
-                    <span
-                      className="w-3 h-3 rounded-full border border-white/20 shrink-0"
-                      style={{ backgroundColor: st.bgColor, boxShadow: `inset 0 0 0 2px ${st.accentColor}` }}
-                    />
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-zinc-400">
-                      {st.tag}
-                    </span>
-                  </div>
-                  <div className="truncate">{st.name}</div>
+                  Semua ({Object.keys(MOTION_PALETTES).length})
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setStyleFilter("favorites")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-bold transition-colors cursor-pointer ${
+                    styleFilter === "favorites"
+                      ? "bg-amber-500/25 text-amber-300 border border-amber-500/40"
+                      : "text-zinc-400 hover:text-amber-300"
+                  }`}
+                >
+                  <Star className="h-3 w-3 fill-current" />
+                  <span>Favorit ({favoriteStyles.length})</span>
+                </button>
+              </div>
             </div>
+
+            {styleFilter === "favorites" && favoriteStyles.length === 0 ? (
+              <div className="p-4 rounded-xl border border-dashed border-white/10 bg-black/25 text-center font-mono text-xs text-zinc-400">
+                Belum ada archetype favorit. Klik ikon ⭐ di tab &quot;Semua&quot; untuk memasukkan style andalanmu ke Cluster Favorit!
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {Object.values(MOTION_PALETTES)
+                  .filter((st) => styleFilter === "all" || favoriteStyles.includes(st.id))
+                  .sort((a, b) => {
+                    const aFav = favoriteStyles.includes(a.id) ? 0 : 1;
+                    const bFav = favoriteStyles.includes(b.id) ? 0 : 1;
+                    return aFav - bFav;
+                  })
+                  .map((st) => {
+                    const isFav = favoriteStyles.includes(st.id);
+                    return (
+                      <div
+                        key={st.id}
+                        onClick={() => setMotionStyle(st.id)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setMotionStyle(st.id);
+                          }
+                        }}
+                        className={`relative p-2.5 rounded-xl border text-left font-mono text-xs transition-all cursor-pointer select-none ${
+                          motionStyle === st.id
+                            ? "border-emerald-400 bg-emerald-500/10 text-white font-bold shadow-md shadow-emerald-500/10"
+                            : isFav
+                            ? "border-amber-500/30 bg-amber-500/5 text-zinc-200 hover:border-amber-400/50"
+                            : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1.5 mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className="w-3 h-3 rounded-full border border-white/20 shrink-0"
+                              style={{ backgroundColor: st.bgColor, boxShadow: `inset 0 0 0 2px ${st.accentColor}` }}
+                            />
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-zinc-400">
+                              {st.tag}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleFavoriteStyle(st.id);
+                            }}
+                            title={isFav ? "Hapus dari Cluster Favorit" : "Simpan ke Cluster Favorit"}
+                            className={`p-1 rounded-md transition-colors cursor-pointer ${
+                              isFav
+                                ? "text-amber-400 hover:text-amber-300"
+                                : "text-zinc-600 hover:text-amber-300"
+                            }`}
+                          >
+                            <Star className={`h-3.5 w-3.5 ${isFav ? "fill-current" : ""}`} />
+                          </button>
+                        </div>
+                        <div className="truncate">{st.name}</div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
 
             {/* In-Browser Native Video Download Action */}
             <div className="pt-3 space-y-2.5">
