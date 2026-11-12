@@ -613,3 +613,577 @@ export function drawVoxelAvatar(
   ctx.restore();
   ctx.restore();
 }
+
+export type MotionStyleId =
+  | "apple-keynote"
+  | "editorial-light"
+  | "kataaungg-slate"
+  | "hormozi-punch"
+  | "neo-brutalism"
+  | "glass-aurora"
+  | "notion-clean"
+  | "fintech-alpha"
+  | "cyber-hud"
+  | "stoic-gold"
+  | "swiss-minimalist"
+  | "retro-arcade";
+
+export interface ThemePalette {
+  id: MotionStyleId;
+  name: string;
+  tag: string;
+  isLight: boolean;
+  bgColor: string;
+  textColor: string;
+  mutedTextColor: string;
+  accentColor: string;
+  secondaryAccent: string;
+  cardBg: string;
+  cardBorder: string;
+  cardText: string;
+  cardSubText: string;
+  fontFamily: "sans-serif" | "serif" | "monospace";
+}
+
+export const MOTION_PALETTES: Record<MotionStyleId, ThemePalette> = {
+  "editorial-light": {
+    id: "editorial-light",
+    name: "ClassAI Light Editorial",
+    tag: "HYPE • LIGHT",
+    isLight: true,
+    bgColor: "#f8fafc",
+    textColor: "#0f172a",
+    mutedTextColor: "rgba(15, 23, 42, 0.35)",
+    accentColor: "#2563eb",
+    secondaryAccent: "#0284c7",
+    cardBg: "#ffffff",
+    cardBorder: "rgba(15, 23, 42, 0.12)",
+    cardText: "#0f172a",
+    cardSubText: "#475569",
+    fontFamily: "sans-serif",
+  },
+  "kataaungg-slate": {
+    id: "kataaungg-slate",
+    name: "Kataaungg Dark Slate",
+    tag: "HYPE • TECH",
+    isLight: false,
+    bgColor: "#0b1120",
+    textColor: "#f8fafc",
+    mutedTextColor: "rgba(248, 250, 252, 0.36)",
+    accentColor: "#3b82f6",
+    secondaryAccent: "#60a5fa",
+    cardBg: "rgba(30, 41, 59, 0.85)",
+    cardBorder: "rgba(59, 130, 246, 0.3)",
+    cardText: "#ffffff",
+    cardSubText: "#cbd5e1",
+    fontFamily: "sans-serif",
+  },
+  "hormozi-punch": {
+    id: "hormozi-punch",
+    name: "Hormozi Viral Yellow",
+    tag: "HYPE • REELS",
+    isLight: false,
+    bgColor: "#050505",
+    textColor: "#ffffff",
+    mutedTextColor: "rgba(255, 255, 255, 0.32)",
+    accentColor: "#facc15",
+    secondaryAccent: "#22c55e",
+    cardBg: "rgba(24, 24, 27, 0.92)",
+    cardBorder: "rgba(250, 204, 21, 0.45)",
+    cardText: "#ffffff",
+    cardSubText: "#e4e4e7",
+    fontFamily: "sans-serif",
+  },
+  "neo-brutalism": {
+    id: "neo-brutalism",
+    name: "Neo-Brutalism Pop",
+    tag: "TRENDING",
+    isLight: true,
+    bgColor: "#fefce8",
+    textColor: "#09090b",
+    mutedTextColor: "rgba(9, 9, 11, 0.35)",
+    accentColor: "#ea580c",
+    secondaryAccent: "#db2777",
+    cardBg: "#ffffff",
+    cardBorder: "#09090b",
+    cardText: "#09090b",
+    cardSubText: "#27272a",
+    fontFamily: "sans-serif",
+  },
+  "glass-aurora": {
+    id: "glass-aurora",
+    name: "Apple Glass Aurora",
+    tag: "HYPE • GLASS",
+    isLight: false,
+    bgColor: "#09051a",
+    textColor: "#ffffff",
+    mutedTextColor: "rgba(255, 255, 255, 0.35)",
+    accentColor: "#a78bfa",
+    secondaryAccent: "#22d3ee",
+    cardBg: "rgba(255, 255, 255, 0.08)",
+    cardBorder: "rgba(167, 139, 250, 0.35)",
+    cardText: "#ffffff",
+    cardSubText: "#ddd6fe",
+    fontFamily: "sans-serif",
+  },
+  "notion-clean": {
+    id: "notion-clean",
+    name: "Notion Paper Clean",
+    tag: "EDITORIAL",
+    isLight: true,
+    bgColor: "#fbfaf8",
+    textColor: "#1c1917",
+    mutedTextColor: "rgba(28, 25, 23, 0.35)",
+    accentColor: "#e11d48",
+    secondaryAccent: "#0f766e",
+    cardBg: "#ffffff",
+    cardBorder: "rgba(28, 25, 23, 0.14)",
+    cardText: "#1c1917",
+    cardSubText: "#57534e",
+    fontFamily: "serif",
+  },
+  "apple-keynote": {
+    id: "apple-keynote",
+    name: "Apple Keynote Luxury",
+    tag: "PRO",
+    isLight: false,
+    bgColor: "#08090d",
+    textColor: "#ffffff",
+    mutedTextColor: "rgba(255, 255, 255, 0.35)",
+    accentColor: "#38bdf8",
+    secondaryAccent: "#10b981",
+    cardBg: "rgba(15, 23, 42, 0.82)",
+    cardBorder: "rgba(255, 255, 255, 0.14)",
+    cardText: "#ffffff",
+    cardSubText: "#cbd5e1",
+    fontFamily: "sans-serif",
+  },
+  "fintech-alpha": {
+    id: "fintech-alpha",
+    name: "Wall St / FinTech Alpha",
+    tag: "FINANCE",
+    isLight: false,
+    bgColor: "#070c14",
+    textColor: "#ffffff",
+    mutedTextColor: "rgba(255, 255, 255, 0.35)",
+    accentColor: "#10b981",
+    secondaryAccent: "#34d399",
+    cardBg: "rgba(6, 24, 20, 0.85)",
+    cardBorder: "rgba(16, 185, 129, 0.35)",
+    cardText: "#ffffff",
+    cardSubText: "#a7f3d0",
+    fontFamily: "sans-serif",
+  },
+  "cyber-hud": {
+    id: "cyber-hud",
+    name: "Cyberpunk Tech HUD",
+    tag: "TECH",
+    isLight: false,
+    bgColor: "#080911",
+    textColor: "#ffffff",
+    mutedTextColor: "rgba(255, 255, 255, 0.35)",
+    accentColor: "#06b6d4",
+    secondaryAccent: "#a855f7",
+    cardBg: "rgba(15, 23, 42, 0.85)",
+    cardBorder: "rgba(6, 182, 212, 0.4)",
+    cardText: "#ffffff",
+    cardSubText: "#a5f3fc",
+    fontFamily: "monospace",
+  },
+  "stoic-gold": {
+    id: "stoic-gold",
+    name: "Dark Stoic & Gold",
+    tag: "WISDOM",
+    isLight: false,
+    bgColor: "#0c0d11",
+    textColor: "#ffffff",
+    mutedTextColor: "rgba(255, 255, 255, 0.35)",
+    accentColor: "#f59e0b",
+    secondaryAccent: "#fbbf24",
+    cardBg: "rgba(24, 20, 14, 0.85)",
+    cardBorder: "rgba(245, 158, 11, 0.4)",
+    cardText: "#fef3c7",
+    cardSubText: "#fde68a",
+    fontFamily: "serif",
+  },
+  "swiss-minimalist": {
+    id: "swiss-minimalist",
+    name: "Swiss Bauhaus",
+    tag: "DESIGN",
+    isLight: false,
+    bgColor: "#09090b",
+    textColor: "#ffffff",
+    mutedTextColor: "rgba(255, 255, 255, 0.35)",
+    accentColor: "#ef4444",
+    secondaryAccent: "#f87171",
+    cardBg: "rgba(24, 24, 27, 0.9)",
+    cardBorder: "rgba(239, 68, 68, 0.4)",
+    cardText: "#ffffff",
+    cardSubText: "#fca5a5",
+    fontFamily: "sans-serif",
+  },
+  "retro-arcade": {
+    id: "retro-arcade",
+    name: "Retro Synth Arcade",
+    tag: "RETRO",
+    isLight: false,
+    bgColor: "#0a0718",
+    textColor: "#ffffff",
+    mutedTextColor: "rgba(255, 255, 255, 0.35)",
+    accentColor: "#ec4899",
+    secondaryAccent: "#8b5cf6",
+    cardBg: "rgba(24, 14, 42, 0.88)",
+    cardBorder: "rgba(236, 72, 153, 0.45)",
+    cardText: "#ffffff",
+    cardSubText: "#f9a8d4",
+    fontFamily: "monospace",
+  },
+};
+
+/**
+ * 2D Rigged Human Creator Host (Layered Vector/Editorial Character)
+ * Features natural head tilt, blinking eyes, emotion-reactive eyebrows,
+ * 6 acoustic phoneme mouth shapes driven by vocalVolume, and expressive hand gestures.
+ */
+export function drawRiggedHumanHost(
+  ctx: CanvasRenderingContext2D,
+  options: {
+    cx: number;
+    cy: number;
+    scale: number;
+    emotion: "shocked" | "skeptical" | "celebrate" | "point-cta";
+    isTalking: boolean;
+    vocalVolume?: number;
+    elapsed: number;
+    accentColor?: string;
+  }
+) {
+  const {
+    cx,
+    cy,
+    scale,
+    emotion,
+    isTalking,
+    vocalVolume = 0,
+    elapsed,
+    accentColor = "#38bdf8",
+  } = options;
+
+  const hasVoice = vocalVolume > 8;
+  const activeSpeak = isTalking && (vocalVolume > 0 ? hasVoice : Math.sin(elapsed * 12) > 0.2);
+
+  // Subtle breathing + vocal head nod
+  const breatheY = Math.sin(elapsed * 2.4) * 3.5;
+  const vocalBounce = activeSpeak ? Math.min(vocalVolume / 55, 1) * 4 : 0;
+  const headTilt = Math.sin(elapsed * 1.7) * 0.035 + (activeSpeak ? Math.sin(elapsed * 9) * 0.018 : 0);
+
+  ctx.save();
+  ctx.translate(cx, cy + breatheY - vocalBounce);
+  ctx.scale(scale, scale);
+
+  // Subtle Studio Rim-Light Glow behind host
+  const rimGrad = ctx.createRadialGradient(0, -10, 20, 0, -10, 175);
+  rimGrad.addColorStop(0, `${accentColor}33`);
+  rimGrad.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = rimGrad;
+  ctx.beginPath();
+  ctx.arc(0, -10, 175, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 1. TORSO & MODERN CREATOR BLAZER / T-SHIRT
+  ctx.save();
+  // Inner crew-neck tee
+  ctx.fillStyle = "#18181b";
+  ctx.beginPath();
+  ctx.roundRect(-82, 68, 164, 210, 32);
+  ctx.fill();
+
+  // Tailored slate blazer lapels
+  ctx.fillStyle = "#334155";
+  ctx.beginPath();
+  ctx.moveTo(-88, 72);
+  ctx.lineTo(-26, 68);
+  ctx.lineTo(-14, 195);
+  ctx.lineTo(-96, 265);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(88, 72);
+  ctx.lineTo(26, 68);
+  ctx.lineTo(14, 195);
+  ctx.lineTo(96, 265);
+  ctx.closePath();
+  ctx.fill();
+
+  // Subtle lapel accent edge
+  ctx.strokeStyle = "#475569";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-26, 68);
+  ctx.lineTo(-14, 195);
+  ctx.moveTo(26, 68);
+  ctx.lineTo(14, 195);
+  ctx.stroke();
+  ctx.restore();
+
+  // 2. EXPRESSIVE HUMAN HANDS (Animated per Emotion)
+  ctx.save();
+  ctx.fillStyle = "#f1c29b";
+  ctx.strokeStyle = "#d99b72";
+  ctx.lineWidth = 2;
+
+  if (emotion === "shocked") {
+    const wave = Math.sin(elapsed * 5) * 6;
+    ctx.beginPath();
+    ctx.roundRect(-108, 18 + wave, 34, 46, 14);
+    ctx.fill();
+    ctx.stroke();
+  } else if (emotion === "skeptical") {
+    // Chin-thinking gesture
+    ctx.beginPath();
+    ctx.roundRect(12, 46, 40, 28, 12);
+    ctx.fill();
+    ctx.stroke();
+  } else if (emotion === "celebrate") {
+    const cheer = Math.sin(elapsed * 6) * 8;
+    ctx.beginPath();
+    ctx.roundRect(-112, 4 + cheer, 34, 42, 14);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.roundRect(78, 4 - cheer, 34, 42, 14);
+    ctx.fill();
+    ctx.stroke();
+  } else if (emotion === "point-cta") {
+    const bob = Math.sin(elapsed * 4) * 6;
+    ctx.beginPath();
+    ctx.roundRect(72, -16 + bob, 28, 56, 12);
+    ctx.fill();
+    ctx.stroke();
+    // Index finger pointing up
+    ctx.beginPath();
+    ctx.roundRect(79, -42 + bob, 14, 30, 7);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 3. NECK WITH SHADOW
+  ctx.fillStyle = "#e0a980";
+  ctx.beginPath();
+  ctx.roundRect(-22, 34, 44, 44, 10);
+  ctx.fill();
+
+  // 4. RIGGED HEAD GROUP
+  ctx.save();
+  ctx.rotate(headTilt);
+
+  // Ears
+  ctx.fillStyle = "#e5b088";
+  ctx.beginPath();
+  ctx.ellipse(-60, -10, 10, 18, 0, 0, Math.PI * 2);
+  ctx.ellipse(60, -10, 10, 18, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Smooth human head contour (rounded jawline)
+  ctx.fillStyle = "#f5c8a4";
+  ctx.beginPath();
+  ctx.roundRect(-58, -76, 116, 124, [48, 48, 40, 40]);
+  ctx.fill();
+
+  // Subtle cheek warmth
+  ctx.fillStyle = "rgba(244, 63, 94, 0.14)";
+  ctx.beginPath();
+  ctx.ellipse(-34, 6, 14, 8, 0, 0, Math.PI * 2);
+  ctx.ellipse(34, 6, 14, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Layered Modern Hair
+  ctx.fillStyle = "#1e1b18";
+  ctx.beginPath();
+  ctx.roundRect(-62, -96, 124, 52, [44, 44, 14, 14]);
+  ctx.fill();
+  // Textured bangs
+  ctx.beginPath();
+  ctx.moveTo(-54, -56);
+  ctx.quadraticCurveTo(-20, -34, 8, -54);
+  ctx.quadraticCurveTo(32, -36, 56, -56);
+  ctx.lineTo(58, -78);
+  ctx.lineTo(-58, -78);
+  ctx.closePath();
+  ctx.fill();
+
+  // Glasses (Modern Creator Look)
+  ctx.strokeStyle = "#18181b";
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.roundRect(-44, -28, 34, 26, 8);
+  ctx.roundRect(10, -28, 34, 26, 8);
+  ctx.moveTo(-10, -15);
+  ctx.lineTo(10, -15);
+  ctx.stroke();
+
+  // Eyebrows (Emotion Reactive)
+  ctx.strokeStyle = "#1e1b18";
+  ctx.lineWidth = 4.5;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  if (emotion === "shocked") {
+    ctx.moveTo(-40, -38);
+    ctx.quadraticCurveTo(-27, -46, -14, -38);
+    ctx.moveTo(14, -38);
+    ctx.quadraticCurveTo(27, -46, 40, -38);
+  } else if (emotion === "skeptical") {
+    ctx.moveTo(-40, -40);
+    ctx.lineTo(-14, -37);
+    ctx.moveTo(14, -33);
+    ctx.lineTo(40, -36);
+  } else {
+    ctx.moveTo(-40, -36);
+    ctx.lineTo(-14, -36);
+    ctx.moveTo(14, -36);
+    ctx.lineTo(40, -36);
+  }
+  ctx.stroke();
+
+  // Eyes (Natural Blinking + Catchlight)
+  const isBlinking = Math.sin(elapsed * 2.1) > 0.94;
+  if (isBlinking) {
+    ctx.strokeStyle = "#1e1b18";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-36, -15);
+    ctx.lineTo(-18, -15);
+    ctx.moveTo(18, -15);
+    ctx.lineTo(36, -15);
+    ctx.stroke();
+  } else if (emotion === "celebrate") {
+    ctx.strokeStyle = "#1e1b18";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(-27, -12, 8, Math.PI, 0);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(27, -12, 8, Math.PI, 0);
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = "#0f172a";
+    ctx.beginPath();
+    ctx.arc(-27, -15, 6.5, 0, Math.PI * 2);
+    ctx.arc(27, -15, 6.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(-29, -17, 2.5, 0, Math.PI * 2);
+    ctx.arc(25, -17, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Nose
+  ctx.strokeStyle = "#d99b72";
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(0, -10);
+  ctx.quadraticCurveTo(5, 2, -2, 4);
+  ctx.stroke();
+
+  // 5. 6-PHONEME ACOUSTIC MOUTH LIP-SYNC (A / I / U / E / O / Closed)
+  if (activeSpeak) {
+    const energy = vocalVolume > 0 ? Math.min(vocalVolume / 45, 1) : 0.65;
+    const phonemeCycle = Math.floor((elapsed * 11) % 5); // Cycles natural phoneme shapes while voice energy is active
+    const mouthW = phonemeCycle === 2 ? 18 : phonemeCycle === 1 ? 30 : 24 + energy * 6;
+    const mouthH = Math.max(6, (phonemeCycle === 2 ? 14 : 9 + energy * 10));
+
+    ctx.fillStyle = "#3f0d12";
+    ctx.beginPath();
+    ctx.ellipse(0, 21, mouthW / 2, mouthH / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Upper teeth
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.roundRect(-mouthW * 0.36, 21 - mouthH / 2 + 1, mouthW * 0.72, 3.5, 1.5);
+    ctx.fill();
+
+    // Tongue when open wide ("A" / "O")
+    if (mouthH > 10) {
+      ctx.fillStyle = "#fb7185";
+      ctx.beginPath();
+      ctx.ellipse(0, 21 + mouthH * 0.25, mouthW * 0.28, 3.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    // Relaxed natural smile when silent
+    ctx.strokeStyle = "#7c2d12";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-12, 20);
+    ctx.quadraticCurveTo(0, 25, 12, 20);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+  ctx.restore();
+}
+
+/**
+ * Multi-Pose Human Cutout Renderer (Kataaungg / Creator Photo Style)
+ * Renders user-uploaded human photo/PNG cutout anchored at bottom with
+ * breathing motion, studio rim-light, and acoustic vocal micro-bounce.
+ */
+export function drawHumanCutoutAvatar(
+  ctx: CanvasRenderingContext2D,
+  options: {
+    img: HTMLImageElement;
+    cx: number;
+    bottomY: number;
+    maxHeight: number;
+    maxWidth: number;
+    vocalVolume?: number;
+    elapsed: number;
+    accentColor?: string;
+    sceneProgress?: number;
+  }
+) {
+  const {
+    img,
+    cx,
+    bottomY,
+    maxHeight,
+    maxWidth,
+    vocalVolume = 0,
+    elapsed,
+    accentColor = "#38bdf8",
+    sceneProgress = 0.5,
+  } = options;
+
+  if (!img.complete || img.naturalWidth === 0) return;
+
+  const ratio = Math.min(maxWidth / img.naturalWidth, maxHeight / img.naturalHeight);
+  const drawW = img.naturalWidth * ratio;
+  const drawH = img.naturalHeight * ratio;
+
+  // Natural human micro-motion: breathing + gentle sway + vocal energy micro-nod
+  const breatheScale = 1 + Math.sin(elapsed * 2.2) * 0.012;
+  const vocalBounce = vocalVolume > 10 ? Math.min(vocalVolume / 60, 1) * 4.5 : 0;
+  const swayX = Math.sin(elapsed * 1.4) * 3;
+  const enterZoom = 0.94 + Math.min(sceneProgress * 4, 1) * 0.06;
+
+  ctx.save();
+  ctx.translate(cx + swayX, bottomY - vocalBounce);
+  ctx.scale(breatheScale * enterZoom, breatheScale * enterZoom);
+
+  // Subtle studio rim-light glow behind person
+  const glow = ctx.createRadialGradient(0, -drawH * 0.55, 20, 0, -drawH * 0.55, drawH * 0.65);
+  glow.addColorStop(0, `${accentColor}2E`);
+  glow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(0, -drawH * 0.55, drawH * 0.65, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.drawImage(img, -drawW / 2, -drawH, drawW, drawH);
+  ctx.restore();
+}

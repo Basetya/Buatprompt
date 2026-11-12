@@ -34,6 +34,10 @@ import {
   Database,
   Users,
   User,
+  Upload,
+  Image as ImageIcon,
+  Cpu,
+  Trash2,
 } from "lucide-react";
 import {
   extractTimedPhrases,
@@ -41,6 +45,10 @@ import {
   ProceduralLoFiBGM,
   fetchAndDecodeTTS,
   drawVoxelAvatar,
+  drawRiggedHumanHost,
+  drawHumanCutoutAvatar,
+  MOTION_PALETTES,
+  type MotionStyleId,
 } from "@/lib/mographEngine";
 
 interface StoryScene {
@@ -155,9 +163,16 @@ export default function KineticMotionPage() {
   const [singleSubtext, setSingleSubtext] = useState("Bukan karena kurang modal, tapi karena salah eksekusi di detik awal.");
   const [singleDuration, setSingleDuration] = useState(6);
 
-  const [motionStyle, setMotionStyle] = useState<
-    "apple-keynote" | "fintech-alpha" | "cyber-hud" | "stoic-gold" | "swiss-minimalist" | "retro-arcade"
-  >("apple-keynote");
+  const [motionStyle, setMotionStyle] = useState<MotionStyleId>("apple-keynote");
+  const [avatarEngine, setAvatarEngine] = useState<"human-rigged" | "photo-cutout" | "voxel">("human-rigged");
+  const [avatarPhotos, setAvatarPhotos] = useState<Record<number, string>>({});
+  const avatarImgElementsRef = useRef<Record<number, HTMLImageElement>>({});
+  const [localGpuInfo, setLocalGpuInfo] = useState<{
+    gpuAvailable: boolean;
+    gpuName: string | null;
+    note: string;
+  } | null>(null);
+
   const [isPlaying, setIsPlaying] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [recordProgress, setRecordProgress] = useState(0);
@@ -298,6 +313,40 @@ export default function KineticMotionPage() {
     audioBuffersRef.current = {};
     prefetchTTSForScenes(scenes, voiceActor);
   }, [scenes, voiceActor, prefetchTTSForScenes]);
+
+  // Check local GPU / Python AI Lip-Sync capability
+  useEffect(() => {
+    fetch("/api/local-lipsync")
+      .then((r) => r.json())
+      .then((d) => setLocalGpuInfo(d))
+      .catch(() => {});
+  }, []);
+
+  // Handle Custom Human Photo Upload for Multi-Pose Cutout Avatar
+  const handleAvatarUpload = (sceneIdx: number, file: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const img = new window.Image();
+      img.onload = () => {
+        avatarImgElementsRef.current[sceneIdx] = img;
+        setAvatarPhotos((prev) => ({ ...prev, [sceneIdx]: dataUrl }));
+        setAvatarEngine("photo-cutout");
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeAvatarPhoto = (sceneIdx: number) => {
+    delete avatarImgElementsRef.current[sceneIdx];
+    setAvatarPhotos((prev) => {
+      const next = { ...prev };
+      delete next[sceneIdx];
+      return next;
+    });
+  };
 
   // Handle BGM playback based on state
   useEffect(() => {
@@ -524,19 +573,63 @@ export default function KineticMotionPage() {
       const transitionScale = 0.95 + springBounce * 0.05 * exitEase;
       const transitionAlpha = Math.min(enterEase * exitEase * 1.5, 1);
 
-      // 1. BACKGROUND RENDERING BASED ON ARCHETYPE
-      if (motionStyle === "apple-keynote") {
-        ctx.fillStyle = "#08090d";
-        ctx.fillRect(0, 0, W, H);
+      const theme = MOTION_PALETTES[motionStyle] || MOTION_PALETTES["apple-keynote"];
+      const accentColor = theme.accentColor;
+
+      // 1. BACKGROUND RENDERING BASED ON ARCHETYPE (12 Hype & Editorial Styles)
+      ctx.fillStyle = theme.bgColor;
+      ctx.fillRect(0, 0, W, H);
+
+      if (motionStyle === "apple-keynote" || motionStyle === "hormozi-punch") {
         const radial = ctx.createRadialGradient(W / 2, H * 0.28, 20, W / 2, H * 0.28, W * 0.75);
-        radial.addColorStop(0, "rgba(255, 255, 255, 0.07)");
+        radial.addColorStop(0, `${accentColor}1A`);
         radial.addColorStop(1, "rgba(0, 0, 0, 0)");
         ctx.fillStyle = radial;
         ctx.fillRect(0, 0, W, H);
-      } else if (motionStyle === "fintech-alpha") {
-        ctx.fillStyle = "#070c14";
+      } else if (motionStyle === "glass-aurora") {
+        const ox1 = W * 0.3 + Math.sin(elapsed * 0.7) * 90;
+        const oy1 = H * 0.25 + Math.cos(elapsed * 0.5) * 60;
+        const g1 = ctx.createRadialGradient(ox1, oy1, 20, ox1, oy1, 320);
+        g1.addColorStop(0, "rgba(139, 92, 246, 0.35)");
+        g1.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g1;
         ctx.fillRect(0, 0, W, H);
-        ctx.strokeStyle = "rgba(16, 185, 129, 0.07)";
+
+        const ox2 = W * 0.75 + Math.cos(elapsed * 0.6) * 80;
+        const oy2 = H * 0.7 + Math.sin(elapsed * 0.8) * 60;
+        const g2 = ctx.createRadialGradient(ox2, oy2, 20, ox2, oy2, 300);
+        g2.addColorStop(0, "rgba(34, 211, 238, 0.28)");
+        g2.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g2;
+        ctx.fillRect(0, 0, W, H);
+      } else if (motionStyle === "editorial-light" || motionStyle === "notion-clean") {
+        // Subtle editorial paper grid (ClassAI / Kataaungg Light style)
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.045)";
+        ctx.lineWidth = 1;
+        for (let x = 0; x < W; x += 48) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, H);
+          ctx.stroke();
+        }
+        for (let y = 0; y < H; y += 48) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(W, y);
+          ctx.stroke();
+        }
+      } else if (motionStyle === "neo-brutalism") {
+        // Bold polka/grid dots
+        ctx.fillStyle = "rgba(9, 9, 11, 0.08)";
+        for (let x = 24; x < W; x += 36) {
+          for (let y = 24; y < H; y += 36) {
+            ctx.beginPath();
+            ctx.arc(x, y, 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      } else if (motionStyle === "fintech-alpha" || motionStyle === "kataaungg-slate") {
+        ctx.strokeStyle = `${accentColor}14`;
         ctx.lineWidth = 1;
         for (let x = 0; x < W; x += 40) {
           ctx.beginPath();
@@ -551,15 +644,11 @@ export default function KineticMotionPage() {
           ctx.stroke();
         }
       } else if (motionStyle === "cyber-hud") {
-        ctx.fillStyle = "#080911";
-        ctx.fillRect(0, 0, W, H);
         ctx.fillStyle = "rgba(6, 182, 212, 0.03)";
         for (let y = 0; y < H; y += 4) {
           ctx.fillRect(0, y, W, 2);
         }
       } else if (motionStyle === "stoic-gold") {
-        ctx.fillStyle = "#0c0d11";
-        ctx.fillRect(0, 0, W, H);
         particles.forEach((p) => {
           p.y -= p.speed;
           if (p.y < 0) p.y = H;
@@ -569,8 +658,6 @@ export default function KineticMotionPage() {
           ctx.fill();
         });
       } else if (motionStyle === "swiss-minimalist") {
-        ctx.fillStyle = "#09090b";
-        ctx.fillRect(0, 0, W, H);
         ctx.strokeStyle = "rgba(255, 255, 255, 0.035)";
         ctx.lineWidth = 1;
         for (let x = 60; x < W; x += 60) {
@@ -600,8 +687,6 @@ export default function KineticMotionPage() {
         cross(50, H - 70);
         cross(W - 50, H - 70);
       } else if (motionStyle === "retro-arcade") {
-        ctx.fillStyle = "#0a0718";
-        ctx.fillRect(0, 0, W, H);
         const horizonY = H * 0.72;
         ctx.strokeStyle = "rgba(236, 72, 153, 0.18)";
         ctx.lineWidth = 1.5;
@@ -621,40 +706,27 @@ export default function KineticMotionPage() {
             ctx.stroke();
           }
         }
-        ctx.fillStyle = "rgba(139, 92, 246, 0.03)";
-        for (let y = 0; y < H; y += 3) {
-          ctx.fillRect(0, y, W, 1);
-        }
       }
 
       // 1B. ANIMATED PIXEL BLOCK GRID OVERLAY (Editorial Motion Texture)
-      const accentColor =
-        motionStyle === "fintech-alpha"
-          ? "#10b981"
-          : motionStyle === "stoic-gold"
-          ? "#f59e0b"
-          : motionStyle === "swiss-minimalist"
-          ? "#ef4444"
-          : motionStyle === "retro-arcade"
-          ? "#ec4899"
-          : "#38bdf8";
-
       ctx.save();
       pixelBlocks.forEach((b) => {
         const pulseAlpha = (Math.sin(elapsed * b.speed + b.phase) * 0.5 + 0.5) * 0.055;
-        ctx.fillStyle = `rgba(255, 255, 255, ${pulseAlpha.toFixed(3)})`;
+        ctx.fillStyle = theme.isLight
+          ? `rgba(15, 23, 42, ${pulseAlpha.toFixed(3)})`
+          : `rgba(255, 255, 255, ${pulseAlpha.toFixed(3)})`;
         ctx.fillRect(b.col * blockSize, b.row * blockSize, blockSize - 2, blockSize - 2);
       });
       ctx.restore();
 
       // 2. TOP HEADER BAR & 4-SEGMENT PILL PROGRESS INDICATOR
       ctx.save();
-      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.fillStyle = theme.textColor;
       ctx.font = "800 16px sans-serif";
       ctx.textAlign = "left";
       ctx.fillText("BUATPROMPT", 60, 62);
 
-      // 4-Segment Horizontal Progress Pills (Top Right - clean editorial style)
+      // 4-Segment Horizontal Progress Pills (Top Right)
       const segCount = mode === "multi" ? scenes.length : 1;
       const segW = 32;
       const segGap = 8;
@@ -664,7 +736,7 @@ export default function KineticMotionPage() {
       for (let i = 0; i < segCount; i++) {
         const sx = segStartX + i * (segW + segGap);
         const sy = 53;
-        ctx.fillStyle = "rgba(255, 255, 255, 0.16)";
+        ctx.fillStyle = theme.isLight ? "rgba(15, 23, 42, 0.14)" : "rgba(255, 255, 255, 0.16)";
         ctx.beginPath();
         ctx.roundRect(sx, sy, segW, 6, 3);
         ctx.fill();
@@ -721,9 +793,16 @@ export default function KineticMotionPage() {
         const cardH = 310;
         const cardX = 50;
 
-        ctx.fillStyle = "rgba(15, 23, 42, 0.82)";
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
-        ctx.lineWidth = 1.5;
+        if (motionStyle === "neo-brutalism") {
+          ctx.fillStyle = "#09090b";
+          ctx.beginPath();
+          ctx.roundRect(cardX + 8, cardY + 8, cardW, cardH, 24);
+          ctx.fill();
+        }
+
+        ctx.fillStyle = theme.cardBg;
+        ctx.strokeStyle = theme.cardBorder;
+        ctx.lineWidth = motionStyle === "neo-brutalism" ? 3 : 1.5;
         ctx.beginPath();
         ctx.roundRect(cardX, cardY, cardW, cardH, 24);
         ctx.fill();
@@ -737,7 +816,7 @@ export default function KineticMotionPage() {
           ctx.fillText("01", cardX + 28, cardY + 62);
 
           // Pill badge next to 01
-          ctx.fillStyle = `${accentColor}28`;
+          ctx.fillStyle = `${accentColor}22`;
           ctx.strokeStyle = `${accentColor}88`;
           ctx.lineWidth = 1.5;
           ctx.beginPath();
@@ -746,13 +825,13 @@ export default function KineticMotionPage() {
           ctx.stroke();
 
           ctx.font = "800 15px sans-serif";
-          ctx.fillStyle = "#ffffff";
+          ctx.fillStyle = theme.cardText;
           ctx.textAlign = "center";
           ctx.fillText("TOPIK UTAMA", cardX + 175, cardY + 50);
 
           // Large mobile-readable topic (25px bold)
           ctx.textAlign = "left";
-          ctx.fillStyle = "#ffffff";
+          ctx.fillStyle = theme.cardText;
           ctx.font = "800 25px sans-serif";
           const displayTopic = topicIdea.trim() || currentHeadline;
           const topicLines = wrapTextLines(displayTopic, 29, 3);
@@ -799,14 +878,14 @@ export default function KineticMotionPage() {
           ctx.stroke();
 
           ctx.font = "800 15px sans-serif";
-          ctx.fillStyle = "#fca5a5";
+          ctx.fillStyle = theme.isLight ? "#dc2626" : "#fca5a5";
           ctx.textAlign = "center";
           ctx.fillText("MASALAH UTAMA", cardX + 185, cardY + 48);
 
           // Headline (22px bold, 2 lines)
           ctx.textAlign = "left";
           ctx.font = "800 22px sans-serif";
-          ctx.fillStyle = "#ffffff";
+          ctx.fillStyle = theme.cardText;
           const hLines = wrapTextLines(currentHeadline, 31, 2);
           hLines.forEach((ln, idx) => {
             ctx.fillText(ln, cardX + 28, cardY + 104 + idx * 30);
@@ -826,7 +905,7 @@ export default function KineticMotionPage() {
           ctx.stroke();
 
           ctx.font = "600 19px sans-serif";
-          ctx.fillStyle = "#f1f5f9";
+          ctx.fillStyle = theme.cardText;
           factLines.forEach((ln, idx) => {
             ctx.fillText(ln, cardX + 42, cardY + 204 + idx * 28);
           });
@@ -846,7 +925,7 @@ export default function KineticMotionPage() {
           ctx.stroke();
 
           ctx.font = "800 15px sans-serif";
-          ctx.fillStyle = "#6ee7b7";
+          ctx.fillStyle = theme.isLight ? "#047857" : "#6ee7b7";
           ctx.textAlign = "center";
           ctx.fillText("SOLUSI TERUJI", cardX + 180, cardY + 48);
 
@@ -859,7 +938,7 @@ export default function KineticMotionPage() {
           // Headline (22px bold)
           ctx.textAlign = "left";
           ctx.font = "800 22px sans-serif";
-          ctx.fillStyle = "#ffffff";
+          ctx.fillStyle = theme.cardText;
           const hLines = wrapTextLines(currentHeadline, 31, 2);
           hLines.forEach((ln, idx) => {
             ctx.fillText(ln, cardX + 28, cardY + 104 + idx * 30);
@@ -868,7 +947,7 @@ export default function KineticMotionPage() {
           // Animated Progress Bar inside Card
           const barW = cardW - 56;
           const fillPct = Math.min(sceneLocalProgress * 1.4, 1);
-          ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+          ctx.fillStyle = theme.isLight ? "rgba(15, 23, 42, 0.1)" : "rgba(255, 255, 255, 0.1)";
           ctx.beginPath();
           ctx.roundRect(cardX + 28, cardY + 162, barW, 12, 6);
           ctx.fill();
@@ -883,7 +962,7 @@ export default function KineticMotionPage() {
           const solText = subSentences[0] || currentSubtext;
           const solLines = wrapTextLines(solText, 34, 3);
           ctx.font = "600 19px sans-serif";
-          ctx.fillStyle = "#d1fae5";
+          ctx.fillStyle = theme.cardSubText;
           solLines.forEach((ln, idx) => {
             ctx.fillText(ln, cardX + 28, cardY + 206 + idx * 28);
           });
@@ -894,7 +973,7 @@ export default function KineticMotionPage() {
           ctx.textAlign = "left";
           ctx.fillText("04", cardX + 28, cardY + 58);
 
-          ctx.fillStyle = `${accentColor}28`;
+          ctx.fillStyle = `${accentColor}22`;
           ctx.strokeStyle = `${accentColor}88`;
           ctx.lineWidth = 1.5;
           ctx.beginPath();
@@ -903,14 +982,14 @@ export default function KineticMotionPage() {
           ctx.stroke();
 
           ctx.font = "800 15px sans-serif";
-          ctx.fillStyle = "#ffffff";
+          ctx.fillStyle = theme.cardText;
           ctx.textAlign = "center";
           ctx.fillText("LANGKAH AKSI", cardX + 183, cardY + 48);
 
           // Big Headline
           ctx.textAlign = "left";
           ctx.font = "800 23px sans-serif";
-          ctx.fillStyle = "#ffffff";
+          ctx.fillStyle = theme.cardText;
           const hLines = wrapTextLines(currentHeadline, 30, 2);
           hLines.forEach((ln, idx) => {
             ctx.fillText(ln, cardX + 28, cardY + 106 + idx * 32);
@@ -920,7 +999,7 @@ export default function KineticMotionPage() {
           const subSentences = splitSentences(currentSubtext);
           const ctaLines = wrapTextLines(subSentences[0] || currentSubtext, 34, 2);
           ctx.font = "500 18px sans-serif";
-          ctx.fillStyle = "#cbd5e1";
+          ctx.fillStyle = theme.cardSubText;
           ctaLines.forEach((ln, idx) => {
             ctx.fillText(ln, cardX + 28, cardY + 178 + idx * 26);
           });
@@ -975,12 +1054,7 @@ export default function KineticMotionPage() {
         ctx.fillText(`[ ${activePhrase.badge} ]`, W / 2, phraseCenterY - 88);
       }
 
-      const fontFamily =
-        motionStyle === "stoic-gold"
-          ? "serif"
-          : motionStyle === "cyber-hud" || motionStyle === "retro-arcade"
-          ? "monospace"
-          : "sans-serif";
+      const fontFamily = theme.fontFamily;
 
       const words = activePhrase.words && activePhrase.words.length > 0
         ? activePhrase.words
@@ -1090,10 +1164,10 @@ export default function KineticMotionPage() {
               ctx.fillRect(-item.w / 2, fontSize / 2 + 4, ulW, 5);
             }
           } else if (isSpoken) {
-            ctx.fillStyle = "#ffffff";
+            ctx.fillStyle = theme.textColor;
             ctx.shadowBlur = 0;
           } else {
-            ctx.fillStyle = "rgba(255, 255, 255, 0.34)";
+            ctx.fillStyle = theme.mutedTextColor;
             ctx.shadowBlur = 0;
           }
 
@@ -1106,7 +1180,7 @@ export default function KineticMotionPage() {
 
       ctx.restore();
 
-      // 5. ZONE 3: BOTTOM LIVING 3D VOXEL AVATAR (Anchored at Y: 1140, Scale: 0.74)
+      // 5. ZONE 3: LIVING AVATAR ENGINE (Custom Human Photo Cutout / 2D Rigged Human / 3D Voxel)
       if (showMascot) {
         ctx.save();
         ctx.globalAlpha = transitionAlpha;
@@ -1114,8 +1188,35 @@ export default function KineticMotionPage() {
         const isTalking =
           isPlaying && speechProgress < 0.99 && sceneLocalProgress > 0.01;
 
-        if (characterLayout === "single") {
-          // Single character anchored at center bottom with acoustic lip-sync
+        const customPhotoImg =
+          avatarImgElementsRef.current[sceneIndex] || avatarImgElementsRef.current[0];
+
+        if (avatarEngine === "photo-cutout" && customPhotoImg) {
+          // Multi-Pose Human Photo Cutout (Kataaungg style)
+          drawHumanCutoutAvatar(ctx, {
+            img: customPhotoImg,
+            cx: W / 2,
+            bottomY: H,
+            maxHeight: 430,
+            maxWidth: 460,
+            vocalVolume: isTalking ? currentVocalVolume : 0,
+            elapsed,
+            accentColor,
+            sceneProgress: sceneLocalProgress,
+          });
+        } else if (avatarEngine === "human-rigged" || (avatarEngine === "photo-cutout" && !customPhotoImg)) {
+          // 2D Rigged Human Creator Host (6-Phoneme Lip-Sync + Expressive Hands)
+          drawRiggedHumanHost(ctx, {
+            cx: W / 2,
+            cy: 1125,
+            scale: 0.86,
+            emotion: currentEmotion,
+            isTalking,
+            vocalVolume: currentVocalVolume,
+            elapsed,
+            accentColor,
+          });
+        } else if (characterLayout === "single") {
           drawVoxelAvatar(ctx, {
             cx: W / 2,
             cy: 1140,
@@ -1127,7 +1228,6 @@ export default function KineticMotionPage() {
             outfit: "beanie-striped",
           });
         } else {
-          // Duo character layout (Host on Left, Friend on Right)
           drawVoxelAvatar(ctx, {
             cx: W * 0.30,
             cy: 1140,
@@ -1172,6 +1272,8 @@ export default function KineticMotionPage() {
     singleMetric,
     singleSubtext,
     motionStyle,
+    avatarEngine,
+    avatarPhotos,
     totalDurationSec,
     isPlaying,
     showMascot,
@@ -1989,31 +2091,145 @@ export default function KineticMotionPage() {
             </div>
           )}
 
-          {/* Style Selector */}
-          <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-6 space-y-3 shadow-xl">
-            <label className="block text-xs font-mono font-semibold text-zinc-300">
-              GAYA VISUAL ARSITEKTUR
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {/* Avatar Engine & Custom Human Photo Upload */}
+          <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs font-mono font-semibold text-zinc-300 flex items-center gap-2">
+                <User className="h-4 w-4 text-emerald-400" />
+                <span>AVATAR & HUMAN PRESENTER ENGINE</span>
+              </label>
+              {localGpuInfo && (
+                <span
+                  title={localGpuInfo.note}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-[10px] border ${
+                    localGpuInfo.gpuAvailable
+                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                      : "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
+                  }`}
+                >
+                  <Cpu className="h-3 w-3" />
+                  <span>{localGpuInfo.gpuAvailable ? `GPU: ${localGpuInfo.gpuName}` : "Browser Real-Time"}</span>
+                </span>
+              )}
+            </div>
+
+            {/* 3 Avatar Engines */}
+            <div className="grid grid-cols-3 gap-2">
               {[
-                { id: "apple-keynote", name: "Apple Keynote Luxury" },
-                { id: "fintech-alpha", name: "Wall St / FinTech Alpha" },
-                { id: "cyber-hud", name: "Cyberpunk Tech HUD" },
-                { id: "stoic-gold", name: "Dark Stoic & Warm Ember" },
-                { id: "swiss-minimalist", name: "Swiss Bauhaus Minimalist" },
-                { id: "retro-arcade", name: "Retro Arcade & Neon Synth" },
-              ].map((st) => (
+                { id: "human-rigged", label: "🧑 Human 2D", desc: "6-Fonem & Gestur" },
+                { id: "photo-cutout", label: "📸 Foto Sendiri", desc: "Multi-Pose Cutout" },
+                { id: "voxel", label: "🧱 3D Voxel", desc: "Mascot Klasik" },
+              ].map((eng) => (
+                <button
+                  key={eng.id}
+                  type="button"
+                  onClick={() => setAvatarEngine(eng.id as any)}
+                  className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${
+                    avatarEngine === eng.id
+                      ? "border-emerald-400 bg-emerald-500/15 text-white shadow-md shadow-emerald-500/10"
+                      : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  <div className="text-xs font-bold">{eng.label}</div>
+                  <div className="text-[10px] text-zinc-400 mt-0.5">{eng.desc}</div>
+                </button>
+              ))}
+            </div>
+
+            {/* Multi-Pose Photo Uploader (Always accessible or auto-switches to Foto Sendiri) */}
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
+                <span>Upload Foto Manusia (PNG Transparan / Foto Pose, 1–4 Pose):</span>
+                <span className="text-emerald-400">Auto-Float & Vocal Bounce</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { idx: 0, label: "Pose 1 (Utama)" },
+                  { idx: 1, label: "Pose 2 (Masalah)" },
+                  { idx: 2, label: "Pose 3 (Solusi)" },
+                  { idx: 3, label: "Pose 4 (CTA)" },
+                ].map((slot) => {
+                  const imgUrl = avatarPhotos[slot.idx];
+                  return (
+                    <div
+                      key={slot.idx}
+                      className="relative rounded-xl border border-dashed border-white/15 bg-black/40 p-2 flex flex-col items-center justify-center min-h-[88px] hover:border-emerald-400/50 transition-colors"
+                    >
+                      {imgUrl ? (
+                        <>
+                          <img
+                            src={imgUrl}
+                            alt={slot.label}
+                            className="h-14 w-14 object-contain rounded"
+                          />
+                          <span className="text-[10px] font-mono text-emerald-300 mt-1 truncate max-w-full">
+                            {slot.label}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeAvatarPhoto(slot.idx)}
+                            className="absolute top-1 right-1 p-1 rounded-md bg-rose-500/80 text-white hover:bg-rose-500 cursor-pointer"
+                            title="Hapus foto"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </>
+                      ) : (
+                        <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer text-center">
+                          <Upload className="h-4 w-4 text-zinc-400 mb-1" />
+                          <span className="text-[10px] font-mono text-zinc-400 leading-tight">
+                            {slot.label}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/png,image/webp,image/jpeg"
+                            className="hidden"
+                            onChange={(e) => handleAvatarUpload(slot.idx, e.target.files?.[0] || null)}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {localGpuInfo && (
+                <p className="text-[10px] font-mono text-zinc-500">
+                  💡 {localGpuInfo.note}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* 12 Hype Visual Archetypes Selector */}
+          <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-6 space-y-3 shadow-xl">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-mono font-semibold text-zinc-300">
+                GAYA VISUAL ARSITEKTUR (12 HYPE ARCHETYPES)
+              </label>
+              <span className="text-[10px] font-mono text-emerald-400">Light & Dark Ready</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {Object.values(MOTION_PALETTES).map((st) => (
                 <button
                   key={st.id}
                   type="button"
-                  onClick={() => setMotionStyle(st.id as any)}
+                  onClick={() => setMotionStyle(st.id)}
                   className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all cursor-pointer ${
                     motionStyle === st.id
                       ? "border-emerald-400 bg-emerald-500/10 text-white font-bold shadow-md shadow-emerald-500/10"
                       : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
                   }`}
                 >
-                  {st.name}
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <span
+                      className="w-3 h-3 rounded-full border border-white/20 shrink-0"
+                      style={{ backgroundColor: st.bgColor, boxShadow: `inset 0 0 0 2px ${st.accentColor}` }}
+                    />
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-zinc-400">
+                      {st.tag}
+                    </span>
+                  </div>
+                  <div className="truncate">{st.name}</div>
                 </button>
               ))}
             </div>
