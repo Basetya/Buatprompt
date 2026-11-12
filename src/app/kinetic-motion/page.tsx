@@ -183,6 +183,8 @@ export default function KineticMotionPage() {
   const activeAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const lastSceneIndexRef = useRef<number>(-1);
   const playedSceneAudioRef = useRef<number>(-1);
+  const scene0PromiseRef = useRef<Promise<void> | null>(null);
+  const pausedElapsedRef = useRef<number>(0);
 
   // Word count & pacing calculation
   const currentAnalyzedText = creationTab === "script" ? rawScriptInput : topicIdea;
@@ -218,27 +220,70 @@ export default function KineticMotionPage() {
     return { ctx: audioCtxRef.current, dest: audioDestRef.current! };
   }, []);
 
-  // Pre-fetch Microsoft Azure / Edge Neural TTS audio for all scenes in parallel
+  // Play voiceover AudioBuffer immediately for a given scene & offset
+  const playSceneVoiceNow = useCallback(
+    (sceneIdx: number, offsetSec: number = 0) => {
+      if (!audioEnabled || !audioCtxRef.current || !audioDestRef.current) return false;
+      if (audioCtxRef.current.state !== "running") return false;
+      const buf = audioBuffersRef.current[sceneIdx];
+      if (!buf) return false;
+
+      if (activeAudioSourceRef.current) {
+        try {
+          activeAudioSourceRef.current.stop();
+        } catch (_) {}
+      }
+
+      if (offsetSec < buf.duration - 0.15) {
+        try {
+          const src = audioCtxRef.current.createBufferSource();
+          src.buffer = buf;
+          if (analyserRef.current) {
+            src.connect(analyserRef.current);
+          }
+          src.connect(audioCtxRef.current.destination);
+          src.connect(audioDestRef.current);
+          src.start(0, Math.max(0, offsetSec));
+          activeAudioSourceRef.current = src;
+        } catch (err) {
+          console.warn("Buffer playback notice:", err);
+        }
+      }
+      playedSceneAudioRef.current = sceneIdx;
+      return true;
+    },
+    [audioEnabled]
+  );
+
+  // Pre-fetch Scene 0 FIRST for instant playback, then remaining scenes in parallel
   const prefetchTTSForScenes = useCallback(
     async (sceneList: StoryScene[], voice: string = voiceActor) => {
       try {
         setIsAudioLoading(true);
         const { ctx } = getOrCreateAudioEngine();
-        await Promise.all(
-          sceneList.map(async (s, i) => {
-            const spokenText = `${s.headline}. ${s.subtext}`;
-            const buf = await fetchAndDecodeTTS(ctx, spokenText, {
-              voice,
-              emotion: s.characterEmotion || "normal",
-            });
-            if (buf) {
-              audioBuffersRef.current[i] = buf;
-              if (i === 0 && playedSceneAudioRef.current === 0) {
-                playedSceneAudioRef.current = -1;
-              }
+
+        const fetchOne = async (s: StoryScene, i: number) => {
+          const spokenText = `${s.headline}. ${s.subtext}`;
+          const buf = await fetchAndDecodeTTS(ctx, spokenText, {
+            voice,
+            emotion: s.characterEmotion || "normal",
+          });
+          if (buf) {
+            audioBuffersRef.current[i] = buf;
+            if (i === 0 && playedSceneAudioRef.current === 0) {
+              playedSceneAudioRef.current = -1;
             }
-          })
-        );
+          }
+        };
+
+        if (sceneList.length > 0) {
+          const p0 = fetchOne(sceneList[0], 0);
+          scene0PromiseRef.current = p0;
+          await p0;
+        }
+        if (sceneList.length > 1) {
+          await Promise.all(sceneList.slice(1).map((s, idx) => fetchOne(s, idx + 1)));
+        }
       } catch (err) {
         console.warn("Audio prefetch notice:", err);
       } finally {
@@ -1981,56 +2026,75 @@ export default function KineticMotionPage() {
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5 font-mono text-xs text-zinc-400">
-            <button
-              onClick={async () => {
-                const { ctx } = getOrCreateAudioEngine();
-                if (ctx.state === "suspended") {
-                  await ctx.resume();
-                }
-                if (isPlaying) {
+          <div className="mt-4 w-full max-w-[340px] space-y-2 font-mono text-xs">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  const { ctx } = getOrCreateAudioEngine();
+                  if (ctx.state === "suspended") {
+                    await ctx.resume();
+                  }
+                  if (!audioBuffersRef.current[0] && scene0PromiseRef.current) {
+                    await scene0PromiseRef.current;
+                  }
                   if (activeAudioSourceRef.current) {
                     try {
                       activeAudioSourceRef.current.stop();
                     } catch (_) {}
                   }
+                  startTimeRef.current = Date.now();
+                  pausedElapsedRef.current = 0;
+                  lastSceneIndexRef.current = 0;
                   playedSceneAudioRef.current = -1;
-                  setIsPlaying(false);
-                } else {
-                  playedSceneAudioRef.current = -1;
+                  if (bgmEnabled && loFiBgmRef.current) {
+                    loFiBgmRef.current.start();
+                  }
+                  if (sfxEnabled && audioDestRef.current) {
+                    playProceduralSFX(ctx, [ctx.destination, audioDestRef.current], "whoosh");
+                  }
+                  playSceneVoiceNow(0, 0);
                   setIsPlaying(true);
-                }
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:text-white transition-colors cursor-pointer"
-            >
-              {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 fill-current" />}
-              <span>{isPlaying ? "Pause Preview" : "Play Preview"}</span>
-            </button>
-            <button
-              onClick={async () => {
-                const { ctx } = getOrCreateAudioEngine();
-                if (ctx.state === "suspended") {
-                  await ctx.resume();
-                }
-                if (activeAudioSourceRef.current) {
-                  try {
-                    activeAudioSourceRef.current.stop();
-                  } catch (_) {}
-                }
-                startTimeRef.current = Date.now();
-                lastSceneIndexRef.current = -1;
-                playedSceneAudioRef.current = -1;
-                setIsPlaying(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 transition-colors cursor-pointer"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              <span>Putar dari 0:00</span>
-            </button>
-            <span className="text-zinc-600">|</span>
-            <span className="text-[11px] text-zinc-400">
-              Durasi: {totalDurationSec}s • 720 × 1280 (9:16 HD)
-            </span>
+                }}
+                className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold hover:bg-emerald-500/30 transition-colors cursor-pointer"
+              >
+                <Play className="h-3.5 w-3.5 fill-current" />
+                <span>Play dari Awal</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  const { ctx } = getOrCreateAudioEngine();
+                  if (ctx.state === "suspended") {
+                    await ctx.resume();
+                  }
+                  if (isPlaying) {
+                    pausedElapsedRef.current = Date.now() - startTimeRef.current;
+                    if (activeAudioSourceRef.current) {
+                      try {
+                        activeAudioSourceRef.current.stop();
+                      } catch (_) {}
+                    }
+                    playedSceneAudioRef.current = -1;
+                    setIsPlaying(false);
+                  } else {
+                    startTimeRef.current = Date.now() - pausedElapsedRef.current;
+                    playedSceneAudioRef.current = -1;
+                    setIsPlaying(true);
+                  }
+                }}
+                className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 fill-current" />}
+                <span>{isPlaying ? "Pause" : "Lanjut"}</span>
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between px-1 text-[11px] text-zinc-400">
+              <span>{isAudioLoading ? "⏳ Menyiapkan suara..." : "🎙️ Suara siap instan"}</span>
+              <span>{totalDurationSec}s • 720 × 1280 (9:16)</span>
+            </div>
           </div>
         </div>
       </div>

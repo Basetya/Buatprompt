@@ -8,6 +8,10 @@ import util from "util";
 
 const execPromise = util.promisify(exec);
 
+// In-memory cache so repeated previews & default scenes respond in <5ms
+const ttsMemoryCache = new Map<string, Buffer>();
+const MAX_TTS_CACHE = 60;
+
 // Fallback to Google Translate TTS if offline or edge-tts fails
 function fetchGoogleTTSFallback(text: string, lang: string = "id"): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -137,6 +141,11 @@ async function generateMicrosoftNeuralTTS(
     .trim();
 
   const clean = normalizeIndonesianEnglishTTS(stripped);
+  const cacheKey = `${voice}|${rate}|${pitch}|${clean}`;
+  const cached = ttsMemoryCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
 
   const cmd = `edge-tts --voice ${voice} --rate="${rate}" --pitch="${pitch}" --text "${clean}" --write-media "${tempFile}"`;
 
@@ -146,6 +155,11 @@ async function generateMicrosoftNeuralTTS(
       const buffer = fs.readFileSync(tempFile);
       fs.unlinkSync(tempFile);
       if (buffer.length > 500) {
+        if (ttsMemoryCache.size >= MAX_TTS_CACHE) {
+          const firstKey = ttsMemoryCache.keys().next().value;
+          if (firstKey) ttsMemoryCache.delete(firstKey);
+        }
+        ttsMemoryCache.set(cacheKey, buffer);
         return buffer;
       }
     }
