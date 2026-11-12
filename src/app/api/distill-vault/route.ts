@@ -79,13 +79,13 @@ Kembalikan HANYA JSON VALID (tanpa markdown code fences, tanpa kata pengantar) d
       }
     }
 
-    // 2. Air-Gap Local Vault Fallback (Offline Mode)
+    // 2. Studio Local Knowledge Bank Fallback
     const localVault = matchDomainVault(domain || customNicheTitle);
     return NextResponse.json({
       status: "success",
-      source: "local-airgap-vault",
+      source: "local-studio-vault",
       vault: localVault,
-      message: "Beroperasi dalam mode Air-Gap Mandiri menggunakan Bank Pengetahuan Lokal BuatPrompt."
+      message: "Beroperasi menggunakan Bank Pengetahuan Lokal BuatPrompt."
     });
   } catch (err: any) {
     console.error("Distill Vault API Error:", err);

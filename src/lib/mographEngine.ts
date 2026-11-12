@@ -806,8 +806,8 @@ export function drawVoxelAvatar(
 export type MotionStyleId =
   | "apple-keynote"
   | "editorial-light"
-  | "kataaungg-slate"
-  | "hormozi-punch"
+  | "midnight-slate"
+  | "viral-yellow"
   | "neo-brutalism"
   | "glass-aurora"
   | "notion-clean"
@@ -837,7 +837,7 @@ export interface ThemePalette {
 export const MOTION_PALETTES: Record<MotionStyleId, ThemePalette> = {
   "editorial-light": {
     id: "editorial-light",
-    name: "ClassAI Light Editorial",
+    name: "Studio Light Editorial",
     tag: "HYPE • LIGHT",
     isLight: true,
     bgColor: "#f8fafc",
@@ -851,9 +851,9 @@ export const MOTION_PALETTES: Record<MotionStyleId, ThemePalette> = {
     cardSubText: "#475569",
     fontFamily: "sans-serif",
   },
-  "kataaungg-slate": {
-    id: "kataaungg-slate",
-    name: "Kataaungg Dark Slate",
+  "midnight-slate": {
+    id: "midnight-slate",
+    name: "Midnight Slate Editorial",
     tag: "HYPE • TECH",
     isLight: false,
     bgColor: "#0b1120",
@@ -867,9 +867,9 @@ export const MOTION_PALETTES: Record<MotionStyleId, ThemePalette> = {
     cardSubText: "#cbd5e1",
     fontFamily: "sans-serif",
   },
-  "hormozi-punch": {
-    id: "hormozi-punch",
-    name: "Hormozi Viral Yellow",
+  "viral-yellow": {
+    id: "viral-yellow",
+    name: "High-Contrast Viral Yellow",
     tag: "HYPE • REELS",
     isLight: false,
     bgColor: "#050505",
@@ -1519,7 +1519,7 @@ export function drawRiggedHumanHost(
 }
 
 /**
- * Multi-Pose Human Cutout Renderer (Kataaungg / Creator Photo Style)
+ * Multi-Pose Human Cutout Renderer (Studio Photo Presenter Style)
  * Renders user-uploaded human photo/PNG cutout anchored at bottom with
  * breathing motion, studio rim-light, and acoustic vocal micro-bounce.
  */

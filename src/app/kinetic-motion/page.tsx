@@ -55,6 +55,7 @@ import {
   type Human2DPresetId,
   type VoxelPresetId,
 } from "@/lib/mographEngine";
+import { KNOWLEDGE_VAULT } from "@/lib/knowledgeVault";
 
 interface StoryScene {
   sceneNumber: number;
@@ -163,7 +164,7 @@ export default function KineticMotionPage() {
   const [motionStyle, setMotionStyle] = useState<MotionStyleId>("apple-keynote");
   const [favoriteStyles, setFavoriteStyles] = useState<MotionStyleId[]>([
     "editorial-light",
-    "kataaungg-slate",
+    "midnight-slate",
     "apple-keynote",
   ]);
   const [styleFilter, setStyleFilter] = useState<"all" | "favorites">("all");
@@ -606,7 +607,7 @@ export default function KineticMotionPage() {
       ctx.fillStyle = theme.bgColor;
       ctx.fillRect(0, 0, W, H);
 
-      if (motionStyle === "apple-keynote" || motionStyle === "hormozi-punch") {
+      if (motionStyle === "apple-keynote" || motionStyle === "viral-yellow") {
         const radial = ctx.createRadialGradient(W / 2, H * 0.28, 20, W / 2, H * 0.28, W * 0.75);
         radial.addColorStop(0, `${accentColor}1A`);
         radial.addColorStop(1, "rgba(0, 0, 0, 0)");
@@ -629,7 +630,7 @@ export default function KineticMotionPage() {
         ctx.fillStyle = g2;
         ctx.fillRect(0, 0, W, H);
       } else if (motionStyle === "editorial-light" || motionStyle === "notion-clean") {
-        // Subtle editorial paper grid (ClassAI / Kataaungg Light style)
+        // Subtle editorial paper grid
         ctx.strokeStyle = "rgba(15, 23, 42, 0.045)";
         ctx.lineWidth = 1;
         for (let x = 0; x < W; x += 48) {
@@ -654,7 +655,7 @@ export default function KineticMotionPage() {
             ctx.fill();
           }
         }
-      } else if (motionStyle === "fintech-alpha" || motionStyle === "kataaungg-slate") {
+      } else if (motionStyle === "fintech-alpha" || motionStyle === "midnight-slate") {
         ctx.strokeStyle = `${accentColor}14`;
         ctx.lineWidth = 1;
         for (let x = 0; x < W; x += 40) {
@@ -835,7 +836,7 @@ export default function KineticMotionPage() {
         ctx.stroke();
 
         if (sceneIndex === 0) {
-          // SCENE 1: Big "01" Number + Large Topic Title + Tilted White Sticker Callout (Classai + Kataaungg style)
+          // SCENE 1: Big "01" Number + Large Topic Title + Tilted White Sticker Callout
           ctx.font = "900 46px sans-serif";
           ctx.fillStyle = accentColor;
           ctx.textAlign = "left";
@@ -867,7 +868,7 @@ export default function KineticMotionPage() {
             ctx.fillText(`${prefix}${ln}${suffix}`, cardX + 28, cardY + 112 + idx * 34);
           });
 
-          // Tilted White Sticker Callout (like Classai "Lisensi MIT • gratis")
+          // Tilted White Sticker Callout
           ctx.save();
           const stickerSpring = Math.min(sceneLocalProgress * 4, 1);
           const stickerScale = 0.85 + Math.sin(stickerSpring * Math.PI * 0.5) * 0.15;
@@ -1218,7 +1219,7 @@ export default function KineticMotionPage() {
           avatarImgElementsRef.current[sceneIndex] || avatarImgElementsRef.current[0];
 
         if (avatarEngine === "photo-cutout" && customPhotoImg) {
-          // Multi-Pose Human Photo Cutout (Kataaungg style)
+          // Multi-Pose Human Photo Cutout
           drawHumanCutoutAvatar(ctx, {
             img: customPhotoImg,
             cx: W / 2,
@@ -1499,7 +1500,7 @@ export default function KineticMotionPage() {
       <div className="mb-8">
         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-mono font-medium text-emerald-300 mb-2">
           <Film className="h-3.5 w-3.5" />
-          <span>MULTI-SCENE KINETIC DIRECTOR & OPUSCAR AFTER EFFECTS ENGINE</span>
+          <span>MULTI-SCENE KINETIC MOTION STUDIO ENGINE</span>
         </div>
         <h1 className="font-mono text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
           Multi-Scene Kinetic Video Studio
@@ -1813,7 +1814,7 @@ export default function KineticMotionPage() {
 
                     <div>
                       <label className="block text-[10px] font-mono text-zinc-400 mb-1">
-                        AIR-GAP KNOWLEDGE VAULT
+                        PRESET TOPIK KONTEN ({Object.keys(KNOWLEDGE_VAULT).length} NICHE)
                       </label>
                       <select
                         value={vaultDomain}
@@ -1824,12 +1825,11 @@ export default function KineticMotionPage() {
                         className="w-full rounded-lg border border-white/10 bg-black/40 px-2.5 py-2 text-xs text-white font-mono focus:border-emerald-400 focus:outline-none"
                       >
                         <option value="auto">🤖 Auto-Deteksi Sesuai Topik (Recommended)</option>
-                        <option value="culinary_coffee">☕ Kuliner & Kopi (Ekstraksi 90°C)</option>
-                        <option value="financial_wealth">📈 Finansial & Wealth (Buffett, 50/30/20)</option>
-                        <option value="affiliate_conversion">💼 Affiliate (Cialdini, Persuasi)</option>
-                        <option value="skincare_beauty">✨ Skincare & Beauty (Dermatologi)</option>
-                        <option value="tech_productivity">⚡ Tech & Productivity (Steve Jobs, 80/20)</option>
-                        <option value="stoic_motivation">🏛️ Stoic & Motivasi (Marcus Aurelius)</option>
+                        {Object.values(KNOWLEDGE_VAULT).map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -1839,10 +1839,10 @@ export default function KineticMotionPage() {
                       <div className="flex items-center justify-between text-emerald-300 font-bold">
                         <div className="flex items-center gap-1.5">
                           <Database className="h-3.5 w-3.5" />
-                          <span>VAULT LOKAL: {activeVaultInfo.name.toUpperCase()}</span>
+                          <span>PRESET AKTIF: {activeVaultInfo.name.toUpperCase()}</span>
                         </div>
                         <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                          AIR-GAP DETERMINISTIC
+                          STUDIO SMART PRESET
                         </span>
                       </div>
                       {activeVaultInfo.quoteSnippet && (

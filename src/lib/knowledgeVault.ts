@@ -1,9 +1,8 @@
 // ============================================================================
-// BUATPROMPT AIR-GAP KNOWLEDGE VAULT (LOCAL INTELLIGENCE BANK)
+// BUATPROMPT STUDIO KNOWLEDGE BANK
 // ============================================================================
-// Knowledge base lokal terdistilasi untuk sintesis konten deterministik berbobot tinggi.
-// Bekerja 100% offline tanpa perlu koneksi API, menyediakan fakta riil, kutipan
-// legendaris barat & timur, prinsip psikologi, dan data industri.
+// Bank pengetahuan terkurasi untuk sintesis naskah konten berretensi tinggi
+// across 16 niche populer media sosial.
 // ============================================================================
 
 export interface VaultQuote {
@@ -287,12 +286,289 @@ export const KNOWLEDGE_VAULT: Record<string, DomainVault> = {
     ctaLoops: [
       "Simpan trik ini sebelum kamu tergiur promo gadget baru... Karena pilihan cerdas adalah..."
     ]
+  },
+
+  // 7. KESEHATAN, DIET & FITNESS
+  health_fitness: {
+    id: "health_fitness",
+    name: "Kesehatan, Diet & Fitness",
+    badge: "💪 WELLNESS & BODY GOALS",
+    tagline: "Sains metabolisme, defisit kalori berkelanjutan, tidur berkualitas, dan latihan otot.",
+    authorityFacts: [
+      "Kurang tidur di bawah 6 jam menaikkan hormon ghrelin (lapar) hingga 24% dan memperlambat pembakaran lemak.",
+      "70% energi harian dibakar oleh metabolisme basal dan gerak ringan NEAT (jalan kaki), bukan cuma 1 jam di gym.",
+      "Minum air 500ml sebelum makan terbukti membantu kontrol porsi secara alami tanpa rasa tersiksa."
+    ],
+    legendaryQuotes: [
+      { quote: "Tubuhmu adalah satu-satunya tempat tinggal yang harus kamu rawat seumur hidup.", author: "Jim Rohn", concept: "Body Stewardship" },
+      { quote: "Jangan mencari diet 2 minggu, bangunlah pola makan yang sanggup kamu jalani 2 tahun.", author: "Prinsip Nutrisi Modern", concept: "Sustainable Habits" }
+    ],
+    psychologicalHooks: [
+      "SUDAH MAKAN DIKIT TAPI BERAT BADAN NGGAK TURUN? INI PENYEBABNYA",
+      "STOP CARA DIET MENYIKSA! INI POLA BAKAR LEMAK YANG TERBUKTI",
+      "3 KEBIASAAN PAGI YANG DIAM-DIAM MENGHANCURKAN METABOLISME"
+    ],
+    actionSolutions: [
+      "Terapkan defisit kalori ringan 300-400 kkal per hari dengan protein cukup agar otot tetap terjaga.",
+      "Targetkan 8.000 langkah kaki per hari ditambah latihan beban 3x seminggu selama 35 menit.",
+      "Jaga jendela tidur konsisten 7-8 jam agar hormon pemulihan dan pembakaran lemak bekerja optimal."
+    ],
+    ctaLoops: [
+      "Simpan panduan sehat ini untuk mulai besok pagi... Karena kesehatan adalah investasi terbaik..."
+    ]
+  },
+
+  // 8. PARENTING & TUMBUH KEMBANG ANAK
+  parenting_family: {
+    id: "parenting_family",
+    name: "Parenting & Tumbuh Kembang",
+    badge: "👨‍👩‍👧 SMART PARENTING",
+    tagline: "Pola asuh empatik, regulasi emosi anak, aturan gadget sehat, dan komunikasi keluarga.",
+    authorityFacts: [
+      "Anak usia 2-6 tahun meniru 80% respons emosional orang tuanya daripada sekadar mendengar nasihat lisan.",
+      "Paparan layar berlebih sebelum tidur menekan melatonin dan menurunkan kualitas fokus belajar keesokan hari."
+    ],
+    legendaryQuotes: [
+      { quote: "Anak-anak tidak pernah pandai mendengarkan orang tua, tapi mereka tidak pernah gagal meniru.", author: "James Baldwin", concept: "Modeling Behavior" },
+      { quote: "Koneksi emosional harus selalu mendahului koreksi perilaku.", author: "Dr. Daniel Siegel", concept: "Connect Before Correct" }
+    ],
+    psychologicalHooks: [
+      "ANAK SERING TANTRUM? COBA UBAH KALIMAT INI SAAT MENEGUR",
+      "JANGAN ASAL KASIH HP! INI DAMPAKNYA PADA FOKUS ANAK USIA DINI",
+      "3 CARA MEMBANGUN KEPERCAYAAN DIRI ANAK TANPA HARUS MEMANJAKAN"
+    ],
+    actionSolutions: [
+      "Validasi perasaan anak terlebih dahulu ('Ibu tahu kamu kecewa'), baru ajak berdiskusi mencari solusi.",
+      "Buat jadwal bebas layar 1 jam sebelum tidur dan ganti dengan sesi membaca buku cerita bersama."
+    ],
+    ctaLoops: [
+      "Simpan video ini untuk dibagikan ke pasanganmu malam ini... Karena mendidik anak adalah perjalanan bersama..."
+    ]
+  },
+
+  // 9. KARIER, CV & INTERVIEW KERJA
+  career_interview: {
+    id: "career_interview",
+    name: "Karier, CV & Interview Kerja",
+    badge: "💼 CAREER ACCELERATOR",
+    tagline: "Lolos sistem ATS, teknik wawancara STAR, negosiasi gaji, dan personal branding profesional.",
+    authorityFacts: [
+      "Recruiter rata-rata hanya memindai CV selama 6-7 detik pertama sebelum memutuskan lanjut atau gugur.",
+      "Lebih dari 75% perusahaan besar menyaring lamaran dengan sistem ATS berbasis kata kunci pencapaian."
+    ],
+    legendaryQuotes: [
+      { quote: "Jangan hanya menceritakan tugas harianmu; tunjukkan dampak terukur yang kamu bawa.", author: "Prinsip HR Global", concept: "Impact-Driven Resume" },
+      { quote: "Peluang besar datang saat persiapan bertemu dengan keberanian berbicara.", author: "Seneca", concept: "Preparedness" }
+    ],
+    psychologicalHooks: [
+      "SUDAH KIRIM RATUSAN LAMARAN TAPI NGGAK DIPANGGIL? CEK CV KAMU",
+      "JAWABAN CERDAS SAAT HRD TANYA 'BERAPA GAJI YANG KAMU HARAPKAN?'",
+      "3 KESALAHAN FATAL SAAT INTERVIEW YANG BIKIN KANDIDAT PINTAR GUGUR"
+    ],
+    actionSolutions: [
+      "Gunakan rumus angka dampak di CV: 'Meningkatkan efisiensi X sebesar 30%' alih-alih sekadar daftar tugas.",
+      "Jawab pertanyaan perilaku dengan metode STAR (Situation, Task, Action, Result) dalam 90 detik."
+    ],
+    ctaLoops: [
+      "Simpan tips karier ini sebelum jadwal interview berikutnya... Karena persiapan matang menentukan hasil..."
+    ]
+  },
+
+  // 10. BISNIS, UMKM & JUALAN LARIS
+  business_umkm: {
+    id: "business_umkm",
+    name: "Bisnis, UMKM & Jualan Laris",
+    badge: "🏪 UMKM & GROWTH",
+    tagline: "Manajemen margin profit, strategi repeat order, branding kemasan, dan kas bisnis sehat.",
+    authorityFacts: [
+      "Banyak UMKM bangkrut bukan karena sepi pembeli, melainkan karena omset besar tapi kas operasional tercampur uang pribadi.",
+      "Mendapatkan pelanggan baru biayanya 5x lebih mahal dibandingkan menjaga pelanggan lama agar repeat order."
+    ],
+    legendaryQuotes: [
+      { quote: "Omset adalah kebanggaan, profit adalah kewarasan, dan arus kas adalah nyawa bisnis.", author: "Prinsip Keuangan Bisnis", concept: "Cash is King" },
+      { quote: "Orang tidak membeli produkmu; mereka membeli versi diri mereka yang lebih baik setelah memakainya.", author: "Seth Godin", concept: "Value Transformation" }
+    ],
+    psychologicalHooks: [
+      "JUALAN RAMAI TAPI UANGNYA NGGAK PERNAH KUMPUL? INI BOCORNYA",
+      "STOP BANTING HARGA! INI CARA NAIKKAN NILAI PRODUK BIAR LARIS",
+      "3 STRATEGI BIKIN PEMBELI BALIK LAGI TANPA KELUAR BIAYA IKLAN"
+    ],
+    actionSolutions: [
+      "Pisahkan rekening usaha dan pribadi sejak hari pertama, lalu hitung HPP lengkap termasuk biaya kemas dan iklan.",
+      "Tambahkan kartu ucapan personal atau bonus kecil untuk mendorong testimoni dan pembelian ulang."
+    ],
+    ctaLoops: [
+      "Simpan strategi bisnis ini untuk evaluasi usahamu minggu ini... Karena bisnis kuat dibangun dari sistem..."
+    ]
+  },
+
+  // 11. EDUKASI, BELAJAR CEPAT & BAHASA
+  education_study: {
+    id: "education_study",
+    name: "Edukasi, Belajar & Bahasa",
+    badge: "📚 SMART LEARNING",
+    tagline: "Active recall, spaced repetition, teknik Feynman, dan cara belajar cepat anti-lupa.",
+    authorityFacts: [
+      "Membaca ulang catatan berkali-kali hanya memberi ilusi paham; teknik Active Recall meningkatkan daya ingat hingga 2x lipat.",
+      "Teknik Pomodoro (25 menit fokus penuh, 5 menit jeda) menjaga performa kognitif otak tanpa kelelahan mental."
+    ],
+    legendaryQuotes: [
+      { quote: "Jika kamu belum bisa menjelaskannya dengan bahasa sederhana, berarti kamu belum benar-benar memahaminya.", author: "Richard Feynman", concept: "Feynman Technique" },
+      { quote: "Belajar bukan soal berapa jam duduk, tapi seberapa aktif otak menguji dirinya sendiri.", author: "Sains Kognitif", concept: "Active Recall" }
+    ],
+    psychologicalHooks: [
+      "BELAJAR BERJAM-JAM TAPI BESOKNYA LANGSUNG LUPA? GANTI CARANYA",
+      "RAHASIA PAHAM MATERI SULIT DALAM 15 MENIT DENGAN TEKNIK FEYNMAN",
+      "CARA KUASAI KOSAKATA BARU TANPA HAFALAN MEMBOSANKAN"
+    ],
+    actionSolutions: [
+      "Tutup buku setelah membaca 1 bab, lalu tulis ulang poin utamanya dengan bahasamu sendiri dari ingatan.",
+      "Ulangi materi pada hari ke-1, ke-3, ke-7, dan ke-21 (Spaced Repetition) agar terkunci di memori jangka panjang."
+    ],
+    ctaLoops: [
+      "Simpan metode belajar ini untuk ujian atau skill barumu... Karena cara belajar yang tepat menghemat separuh waktu..."
+    ]
+  },
+
+  // 12. OTOMOTIF, MOTOR & PERAWATAN HARIAN
+  automotive_modif: {
+    id: "automotive_modif",
+    name: "Otomotif, Motor & Perawatan",
+    badge: "🏍️ GARAGE & CARE",
+    tagline: "Perawatan mesin awet, efisiensi BBM, cek komponen krusial, dan tips berkendara aman.",
+    authorityFacts: [
+      "Tekanan angin ban yang kurang 20% dapat membuat konsumsi BBM lebih boros hingga 10% dan ban cepat aus tidak merata.",
+      "Menunda ganti oli melewati batas kilometer merusak lapisan pelindung silinder dan menurunkan kompresi mesin."
+    ],
+    legendaryQuotes: [
+      { quote: "Merawat secara rutin jauh lebih murah daripada turun mesin di tengah jalan.", author: "Kaidah Mekanik", concept: "Preventive Maintenance" }
+    ],
+    psychologicalHooks: [
+      "KENDARAAN TERASA BERAT DAN BOROS BBM? CEK 3 BAGIAN SEPELE INI",
+      "JANGAN TUNGGU RUSAK! INI JADWAL PERAWATAN WAJIB BIAR MESIN AWET",
+      "KESALAHAN HARIAN PENGENDARA YANG BIKIN KOMPONEN CEPAT AUS"
+    ],
+    actionSolutions: [
+      "Cek tekanan angin ban minimal 2 minggu sekali dan ganti oli mesin tepat waktu sesuai spesifikasi pabrikan.",
+      "Bersihkan filter udara secara berkala agar pembakaran mesin tetap bersih dan tarikan terasa ringan."
+    ],
+    ctaLoops: [
+      "Simpan checklist otomotif ini sebelum servis berikutnya... Karena kendaraan terawat bikin perjalanan tenang..."
+    ]
+  },
+
+  // 13. PROPERTI, RUMAH & DEKORASI INTERIOR
+  property_interior: {
+    id: "property_interior",
+    name: "Properti, Rumah & Dekorasi",
+    badge: "🏠 HOME & LIVING",
+    tagline: "Tata ruang minimalis, pencahayaan estetik, tips KPR cerdas, dan renovasi hemat.",
+    authorityFacts: [
+      "Mengganti lampu putih dingin menjadi pencahayaan warm white berlapis (ambient + task light) langsung membuat ruangan terasa 2x lebih lega dan mewah.",
+      "Memilih warna dinding netral terang memantulkan cahaya alami sehingga ruangan sempit terasa lebih lapang."
+    ],
+    legendaryQuotes: [
+      { quote: "Rumah yang nyaman bukan soal luas meter perseginya, melainkan bagaimana cahaya dan fungsi ruang ditata.", author: "Prinsip Arsitektur Ruang", concept: "Spatial Harmony" }
+    ],
+    psychologicalHooks: [
+      "RUMAH MUNGIL TERASA SEMPIT DAN SUMPEK? UBAH 3 HAL INI TANPA RENOVASI",
+      "TRIK PENCAHAYAAN MURAH YANG BIKIN KAMAR TERASA SEPERTI HOTEL",
+      "JANGAN ASAL AMBIL CICILAN RUMAH! HITUNG DULU RASIO AMAN INI"
+    ],
+    actionSolutions: [
+      "Manfaatkan cermin besar di sisi berlawanan jendela dan pilih furnitur berkaki ramping agar lantai tetap terlihat.",
+      "Pastikan cicilan properti maksimal 30% dari penghasilan bulanan dan siapkan dana darurat terpisah."
+    ],
+    ctaLoops: [
+      "Simpan inspirasi ruang ini untuk proyek rumah impianmu... Karena detail kecil mengubah suasana..."
+    ]
+  },
+
+  // 14. TRAVEL, LIBURAN & HIDDEN GEM
+  travel_lifestyle: {
+    id: "travel_lifestyle",
+    name: "Travel, Liburan & Destinasi",
+    badge: "✈️ SMART TRAVELER",
+    tagline: "Itinerary hemat anti-boncos, trik packing efisien, dan persiapan perjalanan nyaman.",
+    authorityFacts: [
+      "Memesan tiket perjalanan dan penginapan di luar akhir pekan atau jauh hari dapat menghemat anggaran hingga 35%.",
+      "Teknik menggulung pakaian dan memisahkan barang esensial di tas kabin mengurangi risiko barang tertinggal."
+    ],
+    legendaryQuotes: [
+      { quote: "Perjalanan terbaik bukan yang paling mahal, melainkan yang paling siap dan penuh cerita.", author: "Etika Traveler", concept: "Mindful Travel" }
+    ],
+    psychologicalHooks: [
+      "LIBURAN SERING OVERBUDGET? INI CARA SUSUN ITINERARY HEMAT TAPI PUAS",
+      "3 BARANG WAJIB BAWA SAAT TRAVELING BIAR NGGAK PANIK DI JALAN",
+      "TRIK PACKING RINGKAS 1 TAS UNTUK LIBURAN 5 HARI"
+    ],
+    actionSolutions: [
+      "Kelompokkan destinasi dalam satu zona rute per hari agar tidak habis waktu dan ongkos di perjalanan.",
+      "Gunakan teknik gulung pakaian dan simpan salinan dokumen penting secara offline di ponsel."
+    ],
+    ctaLoops: [
+      "Simpan panduan liburan ini untuk rencana trip berikutnya... Karena liburan tenang dimulai dari persiapan..."
+    ]
+  },
+
+  // 15. HUBUNGAN, KOMUNIKASI & PSIKOLOGI DIRI
+  relationship_self: {
+    id: "relationship_self",
+    name: "Hubungan, Komunikasi & Psikologi",
+    badge: "❤️ EMPATHY & BOUNDARIES",
+    tagline: "Komunikasi sehat, batasan diri (boundaries), active listening, dan kecerdasan emosional.",
+    authorityFacts: [
+      "Dalam konflik hubungan, penggunaan kalimat 'Aku merasa...' jauh lebih efektif meredakan defensif dibanding menyalahkan dengan 'Kamu selalu...'.",
+      "Menetapkan batasan sehat bukan bentuk keegoisan, melainkan cara menjaga energi agar hubungan bertahan jangka panjang."
+    ],
+    legendaryQuotes: [
+      { quote: "Antara stimulus dan respons ada ruang jeda. Di ruang itulah kebebasan kita memilih sikap berada.", author: "Viktor Frankl", concept: "Emotional Space" }
+    ],
+    psychologicalHooks: [
+      "SERING SALAH PAHAM SAAT DISKUSI? COBA UBAH POLA KOMUNIKASI INI",
+      "TANDA HUBUNGAN SEHAT YANG JARANG DISADARI BANYAK ORANG",
+      "CARA MENOLAK DENGAN SOPAN TANPA RASA BERSALAH"
+    ],
+    actionSolutions: [
+      "Latih mendengarkan aktif tanpa langsung memotong pembicaraan, lalu ulangi inti pesan lawan bicara untuk memastikan sepaham.",
+      "Katakan tidak dengan tegas namun hangat saat kapasitas waktumu memang sudah penuh."
+    ],
+    ctaLoops: [
+      "Simpan pengingat hubungan sehat ini untuk dirimu hari ini... Karena komunikasi yang baik membangun ketenangan..."
+    ]
+  },
+
+  // 16. PERTUMBUHAN KONTEN & SOSIAL MEDIA
+  content_creator_growth: {
+    id: "content_creator_growth",
+    name: "Pertumbuhan Konten & Sosmed",
+    badge: "🎬 CREATOR GROWTH",
+    tagline: "Hook 3 detik pertama, retensi audiens, storytelling vertikal, dan konsistensi upload.",
+    authorityFacts: [
+      "65% penonton memutuskan lanjut menonton atau menggulir layar dalam 2,5 detik pertama video.",
+      "Video dengan pergantian visual atau penekanan kata tiap 1,5 detik menjaga tingkat retensi hingga 2x lebih tinggi."
+    ],
+    legendaryQuotes: [
+      { quote: "Jangan buat konten untuk semua orang; buatlah pesan tajam yang terasa sangat relevan bagi satu tipe penonton.", author: "Prinsip Kreator Digital", concept: "Audience Resonance" }
+    ],
+    psychologicalHooks: [
+      "VIEWS MENTOK DI RATUSAN PADAHAL EDITING SUDAH LAMA? CEK 3 DETIK AWAL",
+      "FORMULA HOOK YANG BIKIN PENONTON BERHENTI SCROLLING SEKETIKA",
+      "CARA BIKIN VIDEO PENDEK YANG RAPI DAN NGGAK MEMBOSANKAN"
+    ],
+    actionSolutions: [
+      "Mulai langsung dengan masalah atau pertanyaan spesifik di kalimat pertama tanpa basa-basi salam pembuka panjang.",
+      "Pastikan teks di layar besar, kontras tinggi, dan bergerak selaras dengan suara narator."
+    ],
+    ctaLoops: [
+      "Simpan formula kreator ini untuk video upload berikutnya... Karena konsistensi dan evaluasi mengalahkan keberuntungan..."
+    ]
   }
 };
 
 /**
- * Membangun vault netral khusus topik pengguna ketika topik berada di luar 6 vault spesifik.
- * Mencegah pencampuran fakta dari domain lain (misalnya Marcus Aurelius/diminishing return masuk ke topik umum).
+ * Membangun vault netral khusus topik pengguna ketika topik berada di luar 16 preset spesifik.
+ * Mencegah pencampuran fakta dari domain lain masuk ke topik yang tidak berhubungan.
  */
 export function buildUniversalTopicVault(topic: string): DomainVault {
   const cleanTopic = topic.trim() || "Topik Ini";
@@ -348,9 +624,39 @@ export function matchDomainVault(textOrId: string, topicHint?: string): DomainVa
     return KNOWLEDGE_VAULT[target];
   }
 
-  // Semantic keyword mapping
-  if (target.includes("kopi") || target.includes("coffee") || target.includes("barista") || target.includes("seduh") || target.includes("espresso") || target.includes("v60") || target.includes("kuliner") || target.includes("masak") || target.includes("resep")) {
+  // Semantic keyword mapping across all 16 social media niches
+  if (target.includes("kopi") || target.includes("coffee") || target.includes("barista") || target.includes("seduh") || target.includes("espresso") || target.includes("v60") || target.includes("kuliner") || target.includes("masak") || target.includes("resep") || target.includes("makanan")) {
     return KNOWLEDGE_VAULT.culinary_coffee;
+  }
+  if (target.includes("diet") || target.includes("olahraga") || target.includes("gym") || target.includes("fitness") || target.includes("sehat") || target.includes("kalori") || target.includes("tidur") || target.includes("lemak") || target.includes("kurus") || target.includes("otot")) {
+    return KNOWLEDGE_VAULT.health_fitness;
+  }
+  if (target.includes("anak") || target.includes("parenting") || target.includes("bayi") || target.includes("balita") || target.includes("tantrum") || target.includes("keluarga") || target.includes("ibu") || target.includes("ayah")) {
+    return KNOWLEDGE_VAULT.parenting_family;
+  }
+  if (target.includes("kerja") || target.includes("cv") || target.includes("interview") || target.includes("wawancara") || target.includes("karier") || target.includes("karir") || target.includes("lamaran") || target.includes("hrd") || target.includes("loker")) {
+    return KNOWLEDGE_VAULT.career_interview;
+  }
+  if (target.includes("umkm") || target.includes("bisnis") || target.includes("usaha") || target.includes("dagang") || target.includes("toko") || target.includes("warung") || target.includes("pelanggan") || target.includes("brand")) {
+    return KNOWLEDGE_VAULT.business_umkm;
+  }
+  if (target.includes("belajar") || target.includes("ujian") || target.includes("sekolah") || target.includes("kuliah") || target.includes("bahasa") || target.includes("inggris") || target.includes("hafal") || target.includes("edukasi")) {
+    return KNOWLEDGE_VAULT.education_study;
+  }
+  if (target.includes("motor") || target.includes("mobil") || target.includes("oli") || target.includes("ban") || target.includes("mesin") || target.includes("otomotif") || target.includes("servis") || target.includes("bensin") || target.includes("bbm")) {
+    return KNOWLEDGE_VAULT.automotive_modif;
+  }
+  if (target.includes("rumah") || target.includes("kamar") || target.includes("properti") || target.includes("kpr") || target.includes("dekor") || target.includes("interior") || target.includes("renovasi") || target.includes("minimalis")) {
+    return KNOWLEDGE_VAULT.property_interior;
+  }
+  if (target.includes("travel") || target.includes("liburan") || target.includes("wisata") || target.includes("hotel") || target.includes("tiket") || target.includes("packing") || target.includes("trip") || target.includes("healing")) {
+    return KNOWLEDGE_VAULT.travel_lifestyle;
+  }
+  if (target.includes("hubungan") || target.includes("pasangan") || target.includes("pacar") || target.includes("nikah") || target.includes("komunikasi") || target.includes("psikologi") || target.includes("toxic") || target.includes("cinta")) {
+    return KNOWLEDGE_VAULT.relationship_self;
+  }
+  if (target.includes("konten") || target.includes("reels") || target.includes("tiktok") || target.includes("shorts") || target.includes("youtube") || target.includes("views") || target.includes("fyp") || target.includes("kreator") || target.includes("sosmed")) {
+    return KNOWLEDGE_VAULT.content_creator_growth;
   }
   if (target.includes("gaji") || target.includes("uang") || target.includes("tabung") || target.includes("investasi") || target.includes("saham") || target.includes("finansial") || target.includes("kaya") || target.includes("hemat") || target.includes("rekening")) {
     return KNOWLEDGE_VAULT.financial_wealth;
