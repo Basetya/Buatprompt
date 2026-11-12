@@ -2155,12 +2155,21 @@ export default function KineticMotionPage() {
               {[
                 { id: "human-rigged", label: "🧑 Human 2D", desc: "6-Fonem & Gestur" },
                 { id: "photo-cutout", label: "📸 Foto Sendiri", desc: "Multi-Pose Cutout" },
-                { id: "voxel", label: "🧱 3D Voxel", desc: "Mascot Klasik" },
+                { id: "voxel", label: "🧱 3D Voxel", desc: "Padat & Sculpted" },
               ].map((eng) => (
                 <button
                   key={eng.id}
                   type="button"
-                  onClick={() => setAvatarEngine(eng.id as any)}
+                  onClick={() => {
+                    setAvatarEngine(eng.id as any);
+                    if (eng.id === "human-rigged") {
+                      const g = HUMAN_2D_PRESETS[humanPreset]?.gender;
+                      if (g) setVoiceActor(g === "female" ? "id-ID-GadisNeural" : "id-ID-ArdiNeural");
+                    } else if (eng.id === "voxel") {
+                      const g = VOXEL_3D_PRESETS[voxelPreset]?.gender;
+                      if (g) setVoiceActor(g === "female" ? "id-ID-GadisNeural" : "id-ID-ArdiNeural");
+                    }
+                  }}
                   className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${
                     avatarEngine === eng.id
                       ? "border-emerald-400 bg-emerald-500/15 text-white shadow-md shadow-emerald-500/10"
@@ -2177,26 +2186,34 @@ export default function KineticMotionPage() {
             {avatarEngine === "human-rigged" && (
               <div className="space-y-1.5 pt-1">
                 <div className="text-[11px] font-mono text-zinc-400">
-                  Pilih Karakter Human 2D Sesuai Niche Konten:
+                  Pilih Karakter Human 2D (Suara otomatis mengikuti gender):
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {Object.values(HUMAN_2D_PRESETS).map((char) => (
                     <button
                       key={char.id}
                       type="button"
-                      onClick={() => setHumanPreset(char.id)}
+                      onClick={() => {
+                        setHumanPreset(char.id);
+                        setVoiceActor(char.gender === "female" ? "id-ID-GadisNeural" : "id-ID-ArdiNeural");
+                      }}
                       className={`p-2 rounded-xl border text-left font-mono transition-all cursor-pointer ${
                         humanPreset === char.id
                           ? "border-emerald-400 bg-emerald-500/15 text-white"
                           : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
                       }`}
                     >
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: char.outerColor }}
-                        />
-                        <span className="text-[11px] font-bold truncate">{char.name}</span>
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: char.outerColor }}
+                          />
+                          <span className="text-[11px] font-bold truncate">{char.name}</span>
+                        </div>
+                        <span className="text-[9px] shrink-0">
+                          {char.gender === "female" ? "👩" : "👨"}
+                        </span>
                       </div>
                       <div className="text-[9px] text-zinc-400 mt-0.5 truncate">{char.niche}</div>
                     </button>
@@ -2209,26 +2226,34 @@ export default function KineticMotionPage() {
             {avatarEngine === "voxel" && (
               <div className="space-y-1.5 pt-1">
                 <div className="text-[11px] font-mono text-zinc-400">
-                  Pilih Karakter 3D Voxel Sesuai Niche Konten:
+                  Pilih Karakter 3D Voxel (Suara otomatis mengikuti gender):
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {Object.values(VOXEL_3D_PRESETS).map((vox) => (
                     <button
                       key={vox.id}
                       type="button"
-                      onClick={() => setVoxelPreset(vox.id)}
+                      onClick={() => {
+                        setVoxelPreset(vox.id);
+                        setVoiceActor(vox.gender === "female" ? "id-ID-GadisNeural" : "id-ID-ArdiNeural");
+                      }}
                       className={`p-2 rounded-xl border text-left font-mono transition-all cursor-pointer ${
                         voxelPreset === vox.id
                           ? "border-emerald-400 bg-emerald-500/15 text-white"
                           : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
                       }`}
                     >
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: vox.shirtColor }}
-                        />
-                        <span className="text-[11px] font-bold truncate">{vox.name}</span>
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: vox.shirtColor }}
+                          />
+                          <span className="text-[11px] font-bold truncate">{vox.name}</span>
+                        </div>
+                        <span className="text-[9px] shrink-0">
+                          {vox.gender === "female" ? "👩" : "👨"}
+                        </span>
                       </div>
                       <div className="text-[9px] text-zinc-400 mt-0.5 truncate">{vox.niche}</div>
                     </button>

@@ -373,6 +373,7 @@ export interface VoxelPreset {
   id: VoxelPresetId;
   name: string;
   niche: string;
+  gender: "male" | "female";
   shirtColor: string;
   accentColor: string;
   skinColor: string;
@@ -387,6 +388,7 @@ export const VOXEL_3D_PRESETS: Record<VoxelPresetId, VoxelPreset> = {
     id: "beanie-striped",
     name: "Leo • Classic Beanie",
     niche: "Umum & Edukasi",
+    gender: "male",
     shirtColor: "#1e40af",
     accentColor: "#ffffff",
     skinColor: "#f5c59f",
@@ -399,6 +401,7 @@ export const VOXEL_3D_PRESETS: Record<VoxelPresetId, VoxelPreset> = {
     id: "hoodie-glasses",
     name: "Max • Tech Hoodie",
     niche: "Tech & SaaS",
+    gender: "male",
     shirtColor: "#ea580c",
     accentColor: "#c2410c",
     skinColor: "#f5c59f",
@@ -411,6 +414,7 @@ export const VOXEL_3D_PRESETS: Record<VoxelPresetId, VoxelPreset> = {
     id: "hijab-pastel",
     name: "Alya • Voxel Hijab",
     niche: "Skincare & Affiliate",
+    gender: "female",
     shirtColor: "#f5f5f4",
     accentColor: "#10b981",
     skinColor: "#f6cfb0",
@@ -423,6 +427,7 @@ export const VOXEL_3D_PRESETS: Record<VoxelPresetId, VoxelPreset> = {
     id: "suit-gold",
     name: "Boss • Voxel CEO",
     niche: "Finansial & Bisnis",
+    gender: "male",
     shirtColor: "#18181b",
     accentColor: "#f59e0b",
     skinColor: "#f1c29b",
@@ -435,6 +440,7 @@ export const VOXEL_3D_PRESETS: Record<VoxelPresetId, VoxelPreset> = {
     id: "cyber-neon",
     name: "Nova • Cyber Neon",
     niche: "Gaming & AI",
+    gender: "female",
     shirtColor: "#1e1b4b",
     accentColor: "#06b6d4",
     skinColor: "#f5c59f",
@@ -447,6 +453,7 @@ export const VOXEL_3D_PRESETS: Record<VoxelPresetId, VoxelPreset> = {
     id: "barista-apron",
     name: "Kopi • Voxel Barista",
     niche: "Kuliner & Kopi",
+    gender: "male",
     shirtColor: "#78350f",
     accentColor: "#fef3c7",
     skinColor: "#e8b48a",
@@ -456,6 +463,36 @@ export const VOXEL_3D_PRESETS: Record<VoxelPresetId, VoxelPreset> = {
     glasses: "none",
   },
 };
+
+/**
+ * Overlays dense micro-voxel 3D brick bevels (highlight + shadow seams)
+ * to give flat regions a high-density sculpted MagicaVoxel look.
+ */
+function drawVoxelMicroGrid(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  step: number = 8,
+  intensity: number = 0.14
+) {
+  ctx.save();
+  for (let vx = x; vx < x + w - 2; vx += step) {
+    for (let vy = y; vy < y + h - 2; vy += step) {
+      const cw = Math.min(step - 1, x + w - vx);
+      const ch = Math.min(step - 1, y + h - vy);
+      // Subtle top-left bevel highlight
+      ctx.fillStyle = `rgba(255, 255, 255, ${(intensity * 0.7).toFixed(3)})`;
+      ctx.fillRect(vx, vy, cw, 1.5);
+      // Subtle bottom-right shadow seam
+      ctx.fillStyle = `rgba(0, 0, 0, ${intensity.toFixed(3)})`;
+      ctx.fillRect(vx, vy + ch - 1.5, cw, 1.5);
+      ctx.fillRect(vx + cw - 1.5, vy, 1.5, ch);
+    }
+  }
+  ctx.restore();
+}
 
 /**
  * Expressive 3D Voxel Character Drawing on Canvas
@@ -526,6 +563,8 @@ export function drawVoxelAvatar(
     ctx.fillRect(-18, 85, 5, 40);
     ctx.fillRect(13, 85, 5, 40);
   }
+  // Dense micro-voxel brick texture across torso/outfit
+  drawVoxelMicroGrid(ctx, -85, 75, 170, 210, 9, 0.14);
   ctx.restore();
 
   // 3. HAND GESTURES BASED ON EMOTION
@@ -559,7 +598,7 @@ export function drawVoxelAvatar(
   ctx.fillStyle = preset.skinShadow;
   ctx.fillRect(-20, 50, 40, 28);
 
-  // 5. HEAD (Voxel Block with 3D Shading)
+  // 5. HEAD (Dense Sculpted Voxel Block with 3D Shading)
   ctx.save();
   ctx.rotate(headSway);
 
@@ -567,38 +606,49 @@ export function drawVoxelAvatar(
   if (preset.headwear === "hijab") {
     ctx.fillStyle = preset.hairColor;
     ctx.fillRect(-74, -84, 148, 152);
+    drawVoxelMicroGrid(ctx, -74, -84, 148, 152, 8, 0.16);
   }
 
   // Front face
   ctx.fillStyle = preset.skinColor;
   ctx.fillRect(-60, -70, 120, 120);
+  drawVoxelMicroGrid(ctx, -60, -70, 120, 120, 10, 0.045);
 
-  // Side 3D shading
+  // Side 3D shading (sculpted depth)
   ctx.fillStyle = preset.skinShadow;
   ctx.fillRect(55, -70, 14, 120);
+  drawVoxelMicroGrid(ctx, 55, -70, 14, 120, 7, 0.12);
 
   // Bottom shadow
   ctx.fillStyle = preset.skinShadow;
   ctx.fillRect(-60, 42, 120, 8);
 
-  // Nose
+  // Nose (3D voxel protrusion)
   ctx.fillStyle = preset.skinShadow;
   ctx.fillRect(-9, -4, 18, 14);
+  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  ctx.fillRect(-9, -4, 18, 3);
 
   // Cheeks
   ctx.fillStyle = "rgba(239, 68, 68, 0.2)";
   ctx.fillRect(-50, 2, 22, 12);
   ctx.fillRect(28, 2, 22, 12);
 
-  // 6. HAIR / HEADWEAR
+  // 6. HAIR / HEADWEAR (High-Density Micro-Voxel Grid)
   if (preset.headwear === "beanie") {
     ctx.fillStyle = "#2563eb";
     ctx.fillRect(-66, -135, 132, 75);
+    drawVoxelMicroGrid(ctx, -66, -135, 132, 75, 7, 0.22);
+
     ctx.fillStyle = "#1d4ed8";
     ctx.fillRect(-70, -76, 140, 20);
+    drawVoxelMicroGrid(ctx, -70, -76, 140, 20, 7, 0.25);
+
     ctx.fillStyle = "#1e40af";
     ctx.fillRect(-22, -160, 44, 26);
     ctx.fillRect(-16, -168, 32, 10);
+    drawVoxelMicroGrid(ctx, -22, -160, 44, 26, 7, 0.24);
+
     ctx.fillStyle = preset.hairColor;
     ctx.fillRect(-55, -56, 22, 18);
     ctx.fillRect(33, -56, 22, 18);
@@ -608,22 +658,29 @@ export function drawVoxelAvatar(
     ctx.fillRect(-72, -88, 144, 34);
     ctx.fillRect(-72, -60, 18, 118);
     ctx.fillRect(54, -60, 18, 118);
+    drawVoxelMicroGrid(ctx, -72, -88, 144, 34, 8, 0.2);
+    drawVoxelMicroGrid(ctx, -72, -60, 18, 118, 8, 0.2);
+    drawVoxelMicroGrid(ctx, 54, -60, 18, 118, 8, 0.2);
   } else if (preset.headwear === "cap") {
     ctx.fillStyle = "#292524";
     ctx.fillRect(-66, -112, 132, 50);
+    drawVoxelMicroGrid(ctx, -66, -112, 132, 50, 8, 0.22);
     ctx.fillStyle = "#44403c";
-    ctx.fillRect(-66, -74, 160, 16); // Cap brim
+    ctx.fillRect(-66, -74, 160, 16);
+    drawVoxelMicroGrid(ctx, -66, -74, 160, 16, 8, 0.2);
   } else if (preset.headwear === "cyber-hair") {
     ctx.fillStyle = preset.hairColor;
     ctx.fillRect(-66, -110, 132, 48);
     ctx.fillRect(-48, -124, 44, 20);
     ctx.fillRect(6, -118, 38, 16);
+    drawVoxelMicroGrid(ctx, -66, -110, 132, 48, 7, 0.22);
   } else {
     ctx.fillStyle = preset.hairColor;
     ctx.fillRect(-66, -102, 132, 42);
     ctx.fillRect(-66, -70, 16, 50);
     ctx.fillRect(50, -70, 16, 50);
     ctx.fillRect(-42, -64, 84, 14);
+    drawVoxelMicroGrid(ctx, -66, -102, 132, 42, 8, 0.22);
   }
 
   // 7. EYES & EYEBROWS (Expressive & Blinking)
@@ -984,6 +1041,7 @@ export interface Human2DPreset {
   id: Human2DPresetId;
   name: string;
   niche: string;
+  gender: "male" | "female";
   skinColor: string;
   skinShadow: string;
   hairColor: string;
@@ -998,6 +1056,7 @@ export const HUMAN_2D_PRESETS: Record<Human2DPresetId, Human2DPreset> = {
     id: "tech-creator",
     name: "Raka • Tech & AI",
     niche: "Tech, AI & SaaS",
+    gender: "male",
     skinColor: "#f5c8a4",
     skinShadow: "#e0a980",
     hairColor: "#1e1b18",
@@ -1010,6 +1069,7 @@ export const HUMAN_2D_PRESETS: Record<Human2DPresetId, Human2DPreset> = {
     id: "hijab-educator",
     name: "Nadia • Hijab Edukator",
     niche: "Skincare & Edukasi",
+    gender: "female",
     skinColor: "#f6cfb0",
     skinShadow: "#e2b28c",
     hairColor: "#047857",
@@ -1022,6 +1082,7 @@ export const HUMAN_2D_PRESETS: Record<Human2DPresetId, Human2DPreset> = {
     id: "finance-exec",
     name: "Bima • Finance CEO",
     niche: "Finansial & Bisnis",
+    gender: "male",
     skinColor: "#f1c29b",
     skinShadow: "#d99b72",
     hairColor: "#1c1917",
@@ -1034,6 +1095,7 @@ export const HUMAN_2D_PRESETS: Record<Human2DPresetId, Human2DPreset> = {
     id: "coffee-barista",
     name: "Dika • Barista Kopi",
     niche: "Kuliner & Kopi",
+    gender: "male",
     skinColor: "#e8b48a",
     skinShadow: "#cf986e",
     hairColor: "#292524",
@@ -1046,6 +1108,7 @@ export const HUMAN_2D_PRESETS: Record<Human2DPresetId, Human2DPreset> = {
     id: "genz-casual",
     name: "Salsa • Gen-Z Affiliate",
     niche: "Affiliate & Lifestyle",
+    gender: "female",
     skinColor: "#f7d4b8",
     skinShadow: "#e3b694",
     hairColor: "#3f2212",
@@ -1058,6 +1121,7 @@ export const HUMAN_2D_PRESETS: Record<Human2DPresetId, Human2DPreset> = {
     id: "stoic-mentor",
     name: "Arjun • Stoic Mentor",
     niche: "Motivasi & Stoic",
+    gender: "male",
     skinColor: "#e6b38c",
     skinShadow: "#c99269",
     hairColor: "#27272a",
