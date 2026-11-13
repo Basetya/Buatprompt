@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 
+export type VideoAiEngine =
+  | "google-flow"
+  | "runway-gen3"
+  | "kling-ai"
+  | "luma-dream-machine"
+  | "pika-labs"
+  | "hailuo-minimax"
+  | "wan-video"
+  | "capcut-ai"
+  | "llm-native";
+
+export type LlmModelType = "gemini" | "claude" | "gpt" | "deepseek" | "kimi" | "grok";
+
 interface UgcFlowClarifyRequest {
   topic: string;
   targetDuration: "<=10s" | "<=60s" | "<=120s" | ">120s";
-  engineTarget: "llm-native" | "google-flow";
-  llmModel?: "gemini" | "claude" | "gpt" | "deepseek" | "kimi" | "grok";
+  engineTarget: VideoAiEngine;
+  llmModel?: LlmModelType;
   styleGenre: "hyper-real-ugc" | "cinematic-resort" | "tech-review" | "cartoon-3d-animation" | "luxury-commercial";
   hostType: "male-casual" | "female-pro" | "custom" | "none-faceless" | "cartoon-3d-animation";
   customHostDescription?: string;
@@ -103,7 +116,7 @@ export async function POST(req: NextRequest) {
       try {
         const ai = new GoogleGenAI({ apiKey });
         const systemPrompt = `Anda adalah Creative Video Director & Prompt Architect kelas dunia.
-Tugas: Buat 4 pertanyaan klarifikasi pilihan ganda yang cerdas, tajam, dan membantu kreator video memilih arah produksi klip ${targetDuration} untuk ${engineTarget === "llm-native" ? `LLM prompt (${llmModel})` : "Google Flow multi-shot"}.
+Tugas: Buat 4 pertanyaan klarifikasi pilihan ganda yang cerdas, tajam, dan membantu kreator video memilih arah produksi klip ${targetDuration} untuk ${engineTarget}.
 
 WAJIB SERTAKAN:
 - label: Judul singkat aspek video
@@ -128,7 +141,7 @@ Format Output JSON:
 
         const prompt = `Topik: "${topic}"
 Durasi: ${targetDuration}
-Engine: ${engineTarget} (${llmModel})
+Engine Target: ${engineTarget} ${engineTarget === "llm-native" ? `(${llmModel})` : ""}
 Genre: ${styleGenre}
 Host: ${hostType} ${customHostDescription}
 Preferensi Kamera: ${cameraArchetype}

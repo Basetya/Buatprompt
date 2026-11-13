@@ -28,6 +28,7 @@ import {
   Sparkle,
   MessageSquare,
 } from "lucide-react";
+import { VideoAiEngine, LlmModelType } from "../api/ugc-flow-clarify/route";
 
 interface ClarifyQuestion {
   id: string;
@@ -53,7 +54,7 @@ interface MasterDirectiveData {
   projectTitle: string;
   overview: string;
   totalDuration: string;
-  engineTarget: "llm-native" | "google-flow";
+  engineTarget: VideoAiEngine;
   llmModel?: string;
   hostProfile: {
     name: string;
@@ -73,16 +74,36 @@ interface MasterDirectiveData {
     masterObjectPrompt: string;
   };
   scenes: UgcScene[];
-  llmDirectPrompt?: string;
+  engineDirectPrompt?: string;
   operatorGuide: string[];
 }
 
+const VIDEO_TOOLS: Array<{ id: VideoAiEngine; label: string; desc: string }> = [
+  { id: "google-flow", label: "Google Flow (Veo 2)", desc: "Multi-shot /camera & tag @" },
+  { id: "runway-gen3", label: "Runway Gen-3 Alpha", desc: "Cinematic movement & lens" },
+  { id: "kling-ai", label: "Kling AI", desc: "High-fidelity motion & physics" },
+  { id: "luma-dream-machine", label: "Luma Dream Machine", desc: "Camera trajectory & smooth flow" },
+  { id: "hailuo-minimax", label: "Hailuo AI (MiniMax)", desc: "Ekspresi manusia hiper-nyata" },
+  { id: "wan-video", label: "Wan2.1 (Wan Video)", desc: "Open-source aesthetic cinematic" },
+  { id: "capcut-ai", label: "CapCut AI Video", desc: "Beat-sync & media b-roll" },
+];
+
+const LLM_MODELS: Array<{ id: LlmModelType; label: string }> = [
+  { id: "gemini", label: "Gemini" },
+  { id: "claude", label: "Claude" },
+  { id: "gpt", label: "ChatGPT" },
+  { id: "deepseek", label: "DeepSeek" },
+  { id: "kimi", label: "Kimi" },
+  { id: "grok", label: "Grok" },
+];
+
 export default function UgcFlowStudioPage() {
-  // Step 1: Core Inputs (Clean, Japandi, No Hardcoded Placeholders)
+  // Step 1: Core Inputs
   const [topic, setTopic] = useState("");
   const [targetDuration, setTargetDuration] = useState<"<=10s" | "<=60s" | "<=120s" | ">120s">("<=60s");
-  const [engineTarget, setEngineTarget] = useState<"llm-native" | "google-flow">("google-flow");
-  const [llmModel, setLlmModel] = useState<"gemini" | "claude" | "gpt" | "deepseek" | "kimi" | "grok">("gemini");
+  const [engineCategory, setEngineCategory] = useState<"video-ai" | "llm-native">("video-ai");
+  const [videoTool, setVideoTool] = useState<VideoAiEngine>("google-flow");
+  const [llmModel, setLlmModel] = useState<LlmModelType>("gemini");
 
   const [styleGenre, setStyleGenre] = useState<
     "hyper-real-ugc" | "cinematic-resort" | "tech-review" | "cartoon-3d-animation" | "luxury-commercial"
@@ -101,18 +122,21 @@ export default function UgcFlowStudioPage() {
 
   const [isGeneratingFinal, setIsGeneratingFinal] = useState(false);
   const [masterResult, setMasterResult] = useState<MasterDirectiveData | null>(null);
-  const [activeBoardTab, setActiveBoardTab] = useState<"storyboard" | "character" | "environment" | "llm" | "guide">("storyboard");
+  const [activeBoardTab, setActiveBoardTab] = useState<"storyboard" | "direct-prompt" | "character" | "environment" | "guide">("storyboard");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Voiceover Preview State
   const [playingSceneAudio, setPlayingSceneAudio] = useState<number | null>(null);
   const [audioLoadingScene, setAudioLoadingScene] = useState<number | null>(null);
 
+  // Active engine computation
+  const activeEngineTarget: VideoAiEngine = engineCategory === "llm-native" ? "llm-native" : videoTool;
+
   // Auto-switch engine when <=10s is selected
   const handleDurationChange = (dur: "<=10s" | "<=60s" | "<=120s" | ">120s") => {
     setTargetDuration(dur);
     if (dur === "<=10s") {
-      setEngineTarget("llm-native");
+      setEngineCategory("llm-native");
     }
   };
 
@@ -129,7 +153,7 @@ export default function UgcFlowStudioPage() {
         body: JSON.stringify({
           topic,
           targetDuration,
-          engineTarget,
+          engineTarget: activeEngineTarget,
           llmModel,
           styleGenre,
           hostType,
@@ -165,7 +189,7 @@ export default function UgcFlowStudioPage() {
         body: JSON.stringify({
           topic,
           targetDuration,
-          engineTarget,
+          engineTarget: activeEngineTarget,
           llmModel,
           styleGenre,
           hostType,
@@ -179,9 +203,7 @@ export default function UgcFlowStudioPage() {
       if (data.data) {
         setMasterResult(data.data);
         setWorkflowStep(3);
-        if (data.data.engineTarget === "llm-native" || targetDuration === "<=10s") {
-          setActiveBoardTab("storyboard");
-        }
+        setActiveBoardTab("storyboard");
       }
     } catch (err) {
       console.error("Final generation error:", err);
@@ -246,7 +268,7 @@ export default function UgcFlowStudioPage() {
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[#c29b74]/30 bg-[#c29b74]/10 px-3 py-0.5 text-[11px] font-mono text-[#d4af88]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#d4af88]" />
-            <span>STUDIO UGC & VIDEO DIRECTOR</span>
+            <span>STUDIO UGC & MULTI-TOOL DIRECTOR</span>
           </span>
         </div>
       </header>
@@ -258,13 +280,13 @@ export default function UgcFlowStudioPage() {
             UGC & Cinematic Director
           </h1>
           <p className="mt-2 text-xs sm:text-sm text-[#9e978f] leading-relaxed max-w-2xl">
-            Rancang konsep narasi UGC dan sekuens video profesional. Pilih durasi instan (≤10 detik) untuk pembuatan langsung di LLM, atau multi-shot terpadu untuk Google Flow.
+            Rancang konsep narasi UGC dan sekuens video profesional. Mendukung beragam tools favorit editor: Google Flow, Runway, Kling, Luma, MiniMax, Wan, CapCut, hingga prompt langsung ke LLM.
           </p>
 
           {/* Clean Stepper */}
           <div className="mt-6 flex items-center gap-2 sm:gap-3 border-t border-[#262422] pt-4 text-xs font-mono">
             <span className={`px-2.5 py-1 rounded-md ${workflowStep >= 1 ? "bg-[#c29b74] text-[#121315] font-semibold" : "text-[#6b6660]"}`}>
-              1. Brief & Durasi
+              1. Brief & Tools
             </span>
             <span className="text-[#4a4642]">/</span>
             <span className={`px-2.5 py-1 rounded-md ${workflowStep >= 2 ? "bg-[#c29b74] text-[#121315] font-semibold" : "text-[#6b6660]"}`}>
@@ -281,7 +303,7 @@ export default function UgcFlowStudioPage() {
         {workflowStep === 1 && (
           <form onSubmit={handleStartClarification} className="space-y-6">
             <div className="rounded-2xl border border-[#2b2724] bg-[#151619] p-6 sm:p-8 space-y-6">
-              {/* Topic Input without hardcoded placeholders */}
+              {/* Topic Input */}
               <div>
                 <label className="block text-xs font-mono font-medium text-[#c4bcb2] mb-2 uppercase tracking-wider">
                   Topik Video atau Deskripsi Produk *
@@ -296,7 +318,7 @@ export default function UgcFlowStudioPage() {
                 />
               </div>
 
-              {/* 1. Target Duration Selector: <=10s, <=60s, <=120s, >120s */}
+              {/* Target Duration Selector */}
               <div>
                 <label className="block text-xs font-mono font-medium text-[#c4bcb2] mb-2 uppercase tracking-wider flex items-center justify-between">
                   <span>Pilihan Durasi Video</span>
@@ -336,61 +358,78 @@ export default function UgcFlowStudioPage() {
                 </div>
               </div>
 
-              {/* Engine Selector: LLM Native vs Google Flow */}
-              <div className="rounded-xl border border-[#2d2a27] bg-[#1a1b1f] p-4 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              {/* Multi-Tool Video & LLM Engine Selector */}
+              <div className="rounded-xl border border-[#2d2a27] bg-[#1a1b1f] p-5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#262422] pb-3">
                   <div>
                     <h4 className="text-xs font-mono font-semibold text-[#f5f1eb] flex items-center gap-1.5">
                       <Cpu className="h-4 w-4 text-[#c29b74]" />
-                      <span>Target Engine Eksekusi</span>
+                      <span>Target Engine Eksekusi Video</span>
                     </h4>
                     <p className="text-[11px] text-[#8c857c] mt-0.5">
-                      Pilih apakah Anda ingin generate langsung di LLM pilihan, atau merancang sekuens multi-shot untuk Google Flow.
+                      Pilih software atau platform AI yang biasa Anda pakai untuk render video.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setEngineTarget("llm-native")}
+                      onClick={() => setEngineCategory("video-ai")}
                       className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
-                        engineTarget === "llm-native"
+                        engineCategory === "video-ai"
                           ? "bg-[#c29b74] text-[#121315] font-bold"
                           : "bg-[#151619] border border-[#2d2a27] text-[#8c857c]"
                       }`}
                     >
-                      Langsung di LLM
+                      Tools Video AI (7 Pilihan)
                     </button>
                     <button
                       type="button"
-                      onClick={() => setEngineTarget("google-flow")}
+                      onClick={() => setEngineCategory("llm-native")}
                       className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
-                        engineTarget === "google-flow"
+                        engineCategory === "llm-native"
                           ? "bg-[#c29b74] text-[#121315] font-bold"
                           : "bg-[#151619] border border-[#2d2a27] text-[#8c857c]"
                       }`}
                     >
-                      Google Flow (Veo 2)
+                      Langsung di LLM (6 Model)
                     </button>
                   </div>
                 </div>
 
-                {/* LLM Choice selector */}
-                {engineTarget === "llm-native" && (
-                  <div className="pt-2 border-t border-[#262422]">
-                    <span className="block text-[11px] font-mono text-[#a39e97] mb-2">
-                      Pilih Aplikasi LLM Pilihan Anda:
+                {/* Video AI Tools Grid */}
+                {engineCategory === "video-ai" && (
+                  <div className="space-y-2">
+                    <span className="block text-[11px] font-mono text-[#a39e97]">
+                      Pilih Tools Video Pilihan Editor:
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {VIDEO_TOOLS.map((tool) => (
+                        <button
+                          key={tool.id}
+                          type="button"
+                          onClick={() => setVideoTool(tool.id)}
+                          className={`p-3 rounded-xl border text-left transition-all ${
+                            videoTool === tool.id
+                              ? "border-[#c29b74] bg-[#c29b74]/15 text-[#f5f1eb]"
+                              : "border-[#262422] bg-[#151619] text-[#8c857c] hover:border-[#383531] hover:text-[#b8b0a5]"
+                          }`}
+                        >
+                          <span className="block text-xs font-mono font-semibold">{tool.label}</span>
+                          <span className="block text-[10px] text-[#706a62] mt-0.5">{tool.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* LLM Models Grid */}
+                {engineCategory === "llm-native" && (
+                  <div className="space-y-2">
+                    <span className="block text-[11px] font-mono text-[#a39e97]">
+                      Pilih Model LLM untuk Eksekusi Langsung:
                     </span>
                     <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                      {(
-                        [
-                          { id: "gemini", label: "Gemini" },
-                          { id: "claude", label: "Claude" },
-                          { id: "gpt", label: "ChatGPT" },
-                          { id: "deepseek", label: "DeepSeek" },
-                          { id: "kimi", label: "Kimi" },
-                          { id: "grok", label: "Grok" },
-                        ] as const
-                      ).map((m) => (
+                      {LLM_MODELS.map((m) => (
                         <button
                           key={m.id}
                           type="button"
@@ -638,10 +677,11 @@ export default function UgcFlowStudioPage() {
                   {masterResult.projectTitle}
                 </h3>
                 <p className="text-xs text-[#8c857c] font-mono mt-0.5">
-                  Durasi: {masterResult.totalDuration} • {masterResult.scenes.length} Adegan • Target:{" "}
-                  {masterResult.engineTarget === "llm-native"
-                    ? `Prompt Langsung (${masterResult.llmModel?.toUpperCase()})`
-                    : "Google Flow Multi-Shot"}
+                  Durasi: {masterResult.totalDuration} • {masterResult.scenes.length} Adegan • Format Tool:{" "}
+                  <span className="text-[#c29b74] uppercase font-bold">{masterResult.engineTarget}</span>
+                  {masterResult.engineTarget === "llm-native" && masterResult.llmModel && (
+                    <span> ({masterResult.llmModel.toUpperCase()})</span>
+                  )}
                 </p>
               </div>
 
@@ -671,9 +711,11 @@ export default function UgcFlowStudioPage() {
             <div className="flex border-b border-[#282624] gap-1 overflow-x-auto">
               {[
                 { id: "storyboard", label: `Naskah & Adegan (${masterResult.scenes.length})`, icon: Film },
-                ...(masterResult.engineTarget === "llm-native"
-                  ? [{ id: "llm", label: `Prompt LLM (${masterResult.llmModel?.toUpperCase()})`, icon: MessageSquare }]
-                  : []),
+                {
+                  id: "direct-prompt",
+                  label: `Master Prompt (${masterResult.engineTarget.toUpperCase()})`,
+                  icon: MessageSquare,
+                },
                 { id: "character", label: "Karakter (@host)", icon: Users },
                 { id: "environment", label: "Setting & Objek", icon: Boxes },
                 { id: "guide", label: "Panduan", icon: Compass },
@@ -779,14 +821,14 @@ export default function UgcFlowStudioPage() {
                     <div className="space-y-2">
                       <div className="rounded-lg border border-[#282624] bg-[#111214] p-3 font-mono text-xs text-[#d4af88]">
                         <span className="text-[10px] uppercase text-[#6e6861] block mb-0.5">
-                          Arahan Kamera:
+                          Arahan Kamera ({masterResult.engineTarget.toUpperCase()}):
                         </span>
                         {scene.cameraDirective}
                       </div>
 
                       <div className="rounded-xl border border-[#262422] bg-[#111214] p-4 font-mono text-xs text-[#cfc8bf] leading-relaxed whitespace-pre-wrap select-all">
                         <span className="text-[10px] uppercase text-[#6e6861] block mb-0.5">
-                          Visual Prompt:
+                          Visual Prompt ({masterResult.engineTarget.toUpperCase()}):
                         </span>
                         {scene.flowVisualPrompt}
                       </div>
@@ -802,30 +844,30 @@ export default function UgcFlowStudioPage() {
               </div>
             )}
 
-            {/* TAB: LLM DIRECT PROMPT */}
-            {activeBoardTab === "llm" && masterResult.llmDirectPrompt && (
+            {/* TAB: DIRECT PROMPT READY FOR CHOSEN TOOL */}
+            {activeBoardTab === "direct-prompt" && masterResult.engineDirectPrompt && (
               <div className="rounded-2xl border border-[#282624] bg-[#151619] p-6 space-y-4">
                 <div className="flex items-center justify-between border-b border-[#242220] pb-3">
                   <div>
                     <h4 className="text-sm font-semibold text-[#f5f1eb] font-sans">
-                      Prompt Siap Pakai Langsung ke {masterResult.llmModel?.toUpperCase()}
+                      Master Prompt Khusus {masterResult.engineTarget.toUpperCase()}
                     </h4>
                     <p className="text-xs text-[#8c857c] font-sans mt-0.5">
-                      Salin dan tempelkan langsung ke chatbox {masterResult.llmModel?.toUpperCase()} untuk membuat variasi naskah atau visual klip singkat seketika.
+                      Diformat sesuai parameter spesifik dari {masterResult.engineTarget.toUpperCase()}. Salin dan langsung tempelkan ke tools favorit Anda.
                     </p>
                   </div>
                   <button
                     onClick={() =>
-                      copyText(masterResult.llmDirectPrompt || "", "llm-prompt")
+                      copyText(masterResult.engineDirectPrompt || "", "direct-prompt")
                     }
                     className="flex items-center gap-1.5 rounded-lg bg-[#c29b74] px-3.5 py-1.5 text-xs font-mono font-semibold text-[#121315] hover:bg-[#d1aa82]"
                   >
-                    {copiedKey === "llm-prompt" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copiedKey === "direct-prompt" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                     <span>Salin Prompt</span>
                   </button>
                 </div>
                 <div className="rounded-xl border border-[#262422] bg-[#111214] p-4 font-mono text-xs text-[#cfc8bf] leading-relaxed whitespace-pre-wrap select-all">
-                  {masterResult.llmDirectPrompt}
+                  {masterResult.engineDirectPrompt}
                 </div>
               </div>
             )}
@@ -922,7 +964,7 @@ export default function UgcFlowStudioPage() {
             {activeBoardTab === "guide" && (
               <div className="rounded-2xl border border-[#282624] bg-[#151619] p-6 space-y-4">
                 <h4 className="text-base font-semibold text-[#f5f1eb] font-sans">
-                  Panduan Penggunaan
+                  Panduan Penggunaan ({masterResult.engineTarget.toUpperCase()})
                 </h4>
                 <div className="space-y-2.5">
                   {masterResult.operatorGuide.map((step, idx) => (
