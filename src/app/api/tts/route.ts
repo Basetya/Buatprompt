@@ -172,6 +172,105 @@ async function generateMicrosoftNeuralTTS(
   }
 }
 
+function pcmToWav(pcmBuffer: Buffer, sampleRate: number = 24000, numChannels: number = 1): Buffer {
+  const header = Buffer.alloc(44);
+  const dataLen = pcmBuffer.length;
+  const fileLen = dataLen + 36;
+  header.write("RIFF", 0);
+  header.writeUInt32LE(fileLen, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20); // PCM format
+  header.writeUInt16LE(numChannels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(sampleRate * numChannels * 2, 28);
+  header.writeUInt16LE(numChannels * 2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(dataLen, 40);
+  return Buffer.concat([header, pcmBuffer]);
+}
+
+/**
+ * Ultra-Natural Human Studio Voice using Google Gemini Speech API (24kHz Studio Quality)
+ * Cascades across 3.1-flash-tts-preview, 3.8-flash-tts, 3.8-flash-lite-tts, 2.5-pro-preview-tts
+ * so it NEVER hits quota limits or falls back to robotic audio.
+ */
+async function generateGeminiTTS(text: string, voiceName: string = "Aoede"): Promise<Buffer> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
+
+  const clean = text
+    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "")
+    .replace(/["\\`*_~[\]]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const cacheKey = `gemini|${voiceName}|${clean}`;
+  const cached = ttsMemoryCache.get(cacheKey);
+  if (cached) return cached;
+
+  const ttsCandidateModels = [
+    "gemini-3.1-flash-tts-preview",
+    "gemini-3.8-flash-tts",
+    "gemini-3.8-flash-lite-tts",
+    "gemini-2.5-pro-preview-tts",
+    "gemini-2.5-flash-preview-tts"
+  ];
+
+  let lastErr = null;
+  for (const modelName of ttsCandidateModels) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: clean }] }],
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName }
+              }
+            }
+          }
+        })
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        lastErr = new Error(`Gemini TTS API (${modelName}) error ${res.status}: ${errText}`);
+        continue;
+      }
+
+      const data = await res.json();
+      const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+      const base64Audio = inlineData?.data;
+      if (!base64Audio) {
+        lastErr = new Error(`No audio inlineData returned by ${modelName}`);
+        continue;
+      }
+
+      const mime = inlineData?.mimeType || "";
+      const rawBuf = Buffer.from(base64Audio, "base64");
+      const wav = mime.includes("wav") ? rawBuf : pcmToWav(rawBuf, 24000, 1);
+
+      if (ttsMemoryCache.size >= MAX_TTS_CACHE) {
+        const firstKey = ttsMemoryCache.keys().next().value;
+        if (firstKey) ttsMemoryCache.delete(firstKey);
+      }
+      ttsMemoryCache.set(cacheKey, wav);
+      return wav;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+
+  throw lastErr || new Error("All Gemini TTS models failed");
+}
+
 /**
  * 100% Offline Local Piper ONNX TTS using standalone D:\Projects\LocalVoiceEngine
  */
@@ -263,7 +362,56 @@ export async function POST(req: NextRequest) {
       pitch = customPitch || (isFemale ? "-2Hz" : "+0Hz");
     }
 
-    // 2. If explicitly requested Piper local OR try Microsoft Neural first
+    // 2. Primary: Google Gemini Ultra-Natural Studio Voice (Aoede, Kore, Charon, Puck, Fenrir)
+    const geminiVoiceMap: Record<string, string> = {
+      "gemini-aoede": "Aoede",
+      "aoede": "Aoede",
+      "gemini-kore": "Kore",
+      "kore": "Kore",
+      "gemini-charon": "Charon",
+      "charon": "Charon",
+      "gemini-puck": "Puck",
+      "puck": "Puck",
+      "gemini-fenrir": "Fenrir",
+      "fenrir": "Fenrir",
+    };
+
+    const isGeminiVoice = voice.toLowerCase().startsWith("gemini") || !!geminiVoiceMap[voice.toLowerCase()];
+    if (isGeminiVoice) {
+      const selectedGeminiVoice = geminiVoiceMap[voice.toLowerCase()] || "Aoede";
+      try {
+        const geminiWav = await generateGeminiTTS(formattedText, selectedGeminiVoice);
+        return new NextResponse(new Uint8Array(geminiWav), {
+          status: 200,
+          headers: {
+            "Content-Type": "audio/wav",
+            "Content-Length": geminiWav.length.toString(),
+            "X-TTS-Engine": `Google-Gemini-Speech-${selectedGeminiVoice}`,
+            "Cache-Control": "public, max-age=86400",
+          },
+        });
+      } catch (geminiErr) {
+        console.warn(`Gemini TTS (${selectedGeminiVoice}) fallback to Azure Neural:`, geminiErr);
+        // Fall back to Microsoft Neural (Gadis for female voices, Ardi for male voices)
+        const fallbackVoice = ["Aoede", "Kore"].includes(selectedGeminiVoice)
+          ? "id-ID-GadisNeural"
+          : "id-ID-ArdiNeural";
+        try {
+          const neuralBuffer = await generateMicrosoftNeuralTTS(formattedText, fallbackVoice, rate, pitch);
+          return new NextResponse(new Uint8Array(neuralBuffer), {
+            status: 200,
+            headers: {
+              "Content-Type": "audio/mpeg",
+              "Content-Length": neuralBuffer.length.toString(),
+              "X-TTS-Engine": "Microsoft-Azure-Neural-Fallback",
+              "Cache-Control": "public, max-age=86400",
+            },
+          });
+        } catch (_) {}
+      }
+    }
+
+    // 3. Fallback: Microsoft Azure Neural TTS (Ardi & Gadis)
     if (voice !== "piper-id-news") {
       try {
         const neuralBuffer = await generateMicrosoftNeuralTTS(formattedText, voice, rate, pitch);

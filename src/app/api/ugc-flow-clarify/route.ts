@@ -3,8 +3,10 @@ import { GoogleGenAI } from "@google/genai";
 
 export type VideoAiEngine =
   | "google-flow"
-  | "runway-gen3"
+  | "leonardo-ai"
+  | "dreamina-seedance"
   | "kling-ai"
+  | "runway-gen3"
   | "luma-dream-machine"
   | "pika-labs"
   | "hailuo-minimax"
@@ -14,12 +16,20 @@ export type VideoAiEngine =
 
 export type LlmModelType = "gemini" | "claude" | "gpt" | "deepseek" | "kimi" | "grok";
 
+export type TargetDurationOption =
+  | "<=10s"
+  | "<=60s"
+  | "<=120s"
+  | ">120s"
+  | "gemini-5clip"
+  | "longform-multiplier";
+
 interface UgcFlowClarifyRequest {
   topic: string;
-  targetDuration: "<=10s" | "<=60s" | "<=120s" | ">120s";
+  targetDuration: TargetDurationOption;
   engineTarget: VideoAiEngine;
   llmModel?: LlmModelType;
-  styleGenre: "hyper-real-ugc" | "cinematic-resort" | "tech-review" | "cartoon-3d-animation" | "luxury-commercial";
+  styleGenre: "hyper-real-ugc" | "cinematic-resort" | "tech-review" | "cartoon-3d-animation" | "luxury-commercial" | "house-tour";
   hostType: "male-casual" | "female-pro" | "custom" | "none-faceless" | "cartoon-3d-animation";
   customHostDescription?: string;
   cameraArchetype?: string;
@@ -30,7 +40,7 @@ export async function POST(req: NextRequest) {
     const body: UgcFlowClarifyRequest = await req.json();
     const {
       topic = "",
-      targetDuration = "<=60s",
+      targetDuration = "gemini-5clip",
       engineTarget = "google-flow",
       llmModel = "gemini",
       styleGenre = "hyper-real-ugc",
@@ -41,19 +51,46 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.GEMINI_API_KEY;
     const isShortClip = targetDuration === "<=10s";
+    const isGeminiChain = targetDuration === "gemini-5clip";
+    const isLongFormMultiplier = targetDuration === "longform-multiplier";
 
     // Director Default Questions (Zero Failure / Clean Japandi Style)
     const defaultQuestions = [
       {
         id: "cameraManeuver",
-        label: "Sudut Pandang Kamera & Pergerakan Visual",
-        question: isShortClip
+        label: isGeminiChain
+          ? "Struktur Alur Rantai 5-Klip (Gemini Continuity)"
+          : isLongFormMultiplier
+          ? "Rancangan A-Roll (Host Bicara) & B-Roll (Visual Aksi)"
+          : "Sudut Pandang Kamera & Pergerakan Visual",
+        question: isGeminiChain
+          ? `Pilih formula alur cerita 5 klip (~25 detik) untuk "${topic || "topik ini"}" yang paling memikat:`
+          : isLongFormMultiplier
+          ? `Bagaimana komposisi selingan A-Roll (Host berbicara) dan B-Roll (Detail aksi/produk) yang diinginkan?`
+          : isShortClip
           ? `Untuk klip singkat 10 detik tentang "${topic || "topik ini"}", gaya framing kamera apa yang paling memikat?`
           : `Gaya pergerakan kamera utama apa yang ingin difokuskan dalam video "${topic || "topik ini"}"?`,
-        tip: isShortClip
+        tip: isGeminiChain
+          ? "Petunjuk: Setiap klip berdurasi 5 detik dengan 'Frame Boundary Hand-off' agar sambungan antar adegan tidak patah saat digabung di CapCut."
+          : isLongFormMultiplier
+          ? "Petunjuk: Kombinasi A-Roll & B-Roll memungkinkan video berdurasi 1-3 menit tanpa membuat penonton bosan."
+          : isShortClip
           ? "Petunjuk: Klip 10 detik memerlukan framing instan yang langsung menonjolkan ekspresi subjek atau produk."
-          : "Petunjuk: Bird-Eye Drone cocok untuk lanskap luas; Low-Angle memberi kesan megah; Dutch Angle memberi tensi sinematik dinamis.",
-        options: isShortClip
+          : "Petunjuk: Bird-Eye Drone cocok untuk lanskap luas; Low-Angle memberi kesan megah.",
+        options: isGeminiChain
+          ? [
+              "Formula Hook-Problem-Hero-Crunch-CTA: Hook heboh -> Kegalauan -> Solusi produk -> Pembuktian reaksi/kriuk -> Ajakan keranjang kuning",
+              "Formula Before & After Transformation: Kondisi awal sebelum coba -> Penasaran rahasia -> Pemakaian langsung -> Hasil memukau -> Rekomendasi jujur",
+              "Formula Honest Review & Unboxing: Tampilan kemasan -> Buka & impresi pertama -> Uji coba tekstur/rasa -> Kelebihan utama -> Kesimpulan akhir",
+              "Formula Storytime & Edukasi Cepat: Cerita pengalaman pribadi -> Momen sadar kesalahan -> Solusi praktis -> Tips penggunaan -> Penutup berkesan",
+            ]
+          : isLongFormMultiplier
+          ? [
+              "50% A-Roll + 50% B-Roll (Seimbang): Host bicara diselingi aksi close-up memotong/mencoba produk",
+              "30% A-Roll + 70% B-Roll (Visual-Heavy): Lebih banyak aksi estetik sinematik, host hanya sebagai narator pembuka & penutup",
+              "Step-by-Step Tutorial: Setiap poin penjelasan host langsung diikuti B-roll cara mempraktekkannya",
+            ]
+          : isShortClip
           ? [
               "Selfie Close-Up UGC: Presenter berbicara langsung ke kamera HP dengan gestur tangan antusias",
               "Dynamic Macro Reveal: Kamera maju cepat dari detail produk ke wajah presenter yang tersenyum",
@@ -67,35 +104,39 @@ export async function POST(req: NextRequest) {
               "First-Person POV & Whip-Pan: Kamera bergerak dinamis seperti sudut pandang orang pertama",
               "Dutch Angle & High-Tension Tracking: Kamera miring 15 derajat mengikuti langkah dinamis presenter",
             ],
-        defaultChoice: isShortClip
+        defaultChoice: isGeminiChain
+          ? "Formula Hook-Problem-Hero-Crunch-CTA: Hook heboh -> Kegalauan -> Solusi produk -> Pembuktian reaksi/kriuk -> Ajakan keranjang kuning"
+          : isLongFormMultiplier
+          ? "50% A-Roll + 50% B-Roll (Seimbang): Host bicara diselingi aksi close-up memotong/mencoba produk"
+          : isShortClip
           ? "Selfie Close-Up UGC: Presenter berbicara langsung ke kamera HP dengan gestur tangan antusias"
           : "Bird-Eye Drone to Eye-Level: Drone meluncur turun dari ketinggian dan melambat halus di depan presenter",
       },
       {
         id: "visualLensAndLighting",
-        label: "Karakter Lensa & Tata Cahaya",
-        question: "Suasana pencahayaan dan karakter warna apa yang ingin ditampilkan?",
-        tip: "Petunjuk: Golden Hour memberi nuansa hangat bersahabat; Natural Daylight memberi kesan jujur dan autentik tanpa rekayasa.",
+        label: "Karakter Lensa & Tata Cahaya (Lighting Continuity)",
+        question: "Suasana pencahayaan yang akan dikunci identik di semua klip?",
+        tip: "Petunjuk: Mengunci pencahayaan yang sama persis mencegah warna video melompat saat klip disambung di CapCut.",
         options: [
-          "Natural Warm Daylight: Pencahayaan alami yang lembut, warna kulit segar dan autentik",
-          "Golden Hour Glow + Bokeh: Cahaya senja keemasan dengan latar belakang lembut nan estetik",
+          "Natural Warm Daylight: Cahaya jendela alami yang lembut, warna kulit segar dan autentik",
+          "Golden Hour Glow + Soft Bokeh: Cahaya sore keemasan hangat dengan latar belakang estetik",
           "Crisp High-Key Clean: Sangat jernih dan terang, menonjolkan tekstur asli material dan detail",
-          "Moody Editorial: Kontras bayangan lembut dan elegan bergaya visual majalah modern",
+          "Moody Cinematic Editorial: Kontras bayangan lembut dan elegan bergaya majalah modern",
         ],
-        defaultChoice: "Natural Warm Daylight: Pencahayaan alami yang lembut, warna kulit segar dan autentik",
+        defaultChoice: "Natural Warm Daylight: Cahaya jendela alami yang lembut, warna kulit segar dan autentik",
       },
       {
         id: "heroObjectOrFeature",
-        label: "Konsistensi Objek & Detail Utama",
-        question: "Elemen fisik atau detail apa yang ingin difokuskan sepanjang video?",
-        tip: "Petunjuk: Pilih 'NONE' bila visual berganti-ganti di tiap adegan, atau ketik manual jika ada produk spesifik.",
+        label: "Pilar Konsistensi Produk & Hand-off Gerakan",
+        question: "Bagaimana interaksi fisik host dengan produk yang ingin dijaga konsisten?",
+        tip: "Petunjuk: Objek (@hero_object) dan busana host (@host_anchor) akan dikunci agar tidak berubah bentuk.",
         options: [
-          "NONE: Tidak Ada Objek Terkunci (Visual Tiap Adegan Bebas Berganti-ganti)",
-          "Produk / Objek di Tangan Presenter (Diperlihatkan dengan jelas ke kamera)",
-          "Latar Tempat / Arsitektur Ruangan yang Konsisten",
-          "Fasilitas & Suasana Lingkungan Sekitar",
+          "Produk di Tangan Host: Diperlihatkan dengan jelas ke kamera saat bicara dan dicoba langsung",
+          "Produk di Meja + Interaksi Tangan: Produk diletakkan estetik di meja dan diambil saat giliran adegan",
+          "Fokus Aksi Fisik & Rasa: Menekankan tekstur (kriuk/lembut/oles) dengan sinkronisasi suara 100%",
+          "NONE: Bebas Berganti-ganti Tanpa Produk Spesifik",
         ],
-        defaultChoice: "NONE: Tidak Ada Objek Terkunci (Visual Tiap Adegan Bebas Berganti-ganti)",
+        defaultChoice: "Produk di Tangan Host: Diperlihatkan dengan jelas ke kamera saat bicara dan dicoba langsung",
       },
       {
         id: "paceAndVoiceTone",

@@ -61,17 +61,25 @@ Kembalikan HANYA JSON VALID (tanpa markdown code fences, tanpa kata pengantar) d
 }`;
 
       try {
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
-        });
+        let response;
+        try {
+          response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
+          });
+        } catch (mErr) {
+          response = await ai.models.generateContent({
+            model: "gemini-3.5-flash-lite",
+            contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
+          });
+        }
 
         const rawText = response.text || "";
         const cleanedJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
         const parsed = JSON.parse(cleanedJson);
         return NextResponse.json({
           status: "success",
-          source: "gemini-2.5-flash-distillation",
+          source: "gemini-3-flash-preview-distillation",
           vault: parsed
         });
       } catch (geminiErr: any) {

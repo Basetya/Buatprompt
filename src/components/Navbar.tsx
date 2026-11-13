@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ALL_TOOLS } from "@/data/tools";
 import {
@@ -60,6 +60,11 @@ const ICON_MAP: Record<string, any> = {
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-white/[0.07] bg-[#08090d]/90 backdrop-blur-xl">
@@ -91,7 +96,7 @@ export default function Navbar() {
               onMouseEnter={() => setDropdownOpen(true)}
               className="flex items-center gap-1.5 hover:text-cyan-300 transition-colors py-2 cursor-pointer uppercase tracking-wider"
             >
-              <span>STUDIO SUITE ({ALL_TOOLS.length})</span>
+              <span suppressHydrationWarning>STUDIO SUITE ({mounted ? ALL_TOOLS.length : 29})</span>
               <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`} />
             </button>
 
@@ -145,8 +150,14 @@ export default function Navbar() {
             )}
           </div>
 
+          <Link href="/asset-vault" className="hover:text-amber-300 transition-colors flex items-center gap-1.5 text-amber-400 font-semibold">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+            <span>ASSET VAULT</span>
+          </Link>
+          <Link href="/ugc-flow-studio" className="hover:text-cyan-300 transition-colors flex items-center gap-1 text-cyan-400">
+            <span>UGC STUDIO</span>
+          </Link>
           <Link href="/character-board" className="hover:text-indigo-300 transition-colors flex items-center gap-1 text-indigo-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse" />
             <span>CHARACTER ANCHOR</span>
           </Link>
           <Link href="/i2v-motion" className="hover:text-emerald-300 transition-colors text-emerald-400">
@@ -187,7 +198,7 @@ export default function Navbar() {
           <div className="flex flex-col gap-2">
             <div className="px-2 py-1 text-[11px] font-mono text-cyan-400 uppercase tracking-wider flex items-center justify-between">
               <span>Studio Tools Suite</span>
-              <span className="text-zinc-500">{ALL_TOOLS.length} Engines</span>
+              <span className="text-zinc-500" suppressHydrationWarning>{mounted ? ALL_TOOLS.length : 29} Engines</span>
             </div>
             <div className="grid grid-cols-1 gap-1">
               {ALL_TOOLS.map((tool) => {

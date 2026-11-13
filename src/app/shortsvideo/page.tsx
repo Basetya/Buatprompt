@@ -230,38 +230,130 @@ export default function ShortsVideoCinematicsPage() {
         </div>
 
         {/* Results Container */}
-        {resultPrompt && (
-          <div className="rounded-2xl border border-emerald-500/30 bg-[#0d1017] p-6 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <h3 className="font-mono text-xs font-bold text-white uppercase tracking-wider">
-                  Hasil Rekonstruksi Prompt Sutradara (Google Veo)
-                </h3>
+        {resultPrompt && (() => {
+          let parsedScenes: any[] | null = null;
+          try {
+            const cleaned = resultPrompt.replace(/```json/g, "").replace(/```/g, "").trim();
+            const parsed = JSON.parse(cleaned);
+            if (Array.isArray(parsed)) parsedScenes = parsed;
+          } catch {}
+
+          return (
+            <div className="rounded-2xl border border-emerald-500/30 bg-[#0d1017] p-6 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <div>
+                    <h3 className="font-mono text-sm font-bold text-white uppercase tracking-wider">
+                      Hasil Rekonstruksi Prompt Sinematik
+                    </h3>
+                    <p className="text-[11px] font-mono text-zinc-400">
+                      Bahasa ucapan & dialog asli dipertahankan verbatim (Multilingual Speech Preserved)
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={copyToClipboard}
+                  className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-mono font-semibold transition-all shrink-0 cursor-pointer ${
+                    copied
+                      ? "bg-emerald-500 text-black font-bold"
+                      : "studio-btn-primary shadow-md"
+                  }`}
+                >
+                  {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  <span>{copied ? "Seluruh JSON Disalin!" : "Salin Seluruh JSON"}</span>
+                </button>
               </div>
-              <button
-                onClick={copyToClipboard}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-mono font-semibold transition-all ${
-                  copied
-                    ? "bg-emerald-500 text-black font-bold"
-                    : "studio-btn-primary shadow-md"
-                }`}
-              >
-                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                <span>{copied ? "Disalin!" : "Salin Prompt"}</span>
-              </button>
-            </div>
 
-            <div className="rounded-xl border border-white/10 bg-black/80 p-4 font-mono text-xs leading-relaxed text-zinc-200 select-all whitespace-pre-wrap max-h-96 overflow-y-auto">
-              {resultPrompt}
-            </div>
+              {parsedScenes ? (
+                <div className="space-y-4">
+                  {parsedScenes.map((scene, idx) => (
+                    <div
+                      key={idx}
+                      className="rounded-xl border border-white/10 bg-[#121622] p-4 space-y-3 shadow-md"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-mono text-xs font-bold border border-emerald-500/30">
+                            Scene {idx + 1} ({scene.start || "00:00"} - {scene.end || "00:03"})
+                          </span>
+                          {scene.speech_language && (
+                            <span className="px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300 font-mono text-[11px] border border-cyan-500/20">
+                              🗣️ Bahasa: {scene.speech_language}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={async () => {
+                            await navigator.clipboard.writeText(scene.director_prompt || scene.label || "");
+                            alert(`Prompt Scene ${idx + 1} berhasil disalin!`);
+                          }}
+                          className="text-[11px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer bg-white/5 hover:bg-white/10 px-2 py-1 rounded border border-white/10"
+                        >
+                          <Copy className="h-3 w-3" />
+                          <span>Salin Prompt Scene</span>
+                        </button>
+                      </div>
 
-            <div className="mt-4 flex items-center justify-between text-[11px] font-mono text-zinc-500">
-              <span>Dioptimalkan khusus untuk video generator Google Flow (Veo)</span>
-              <span className="text-emerald-400 font-bold">Director Grade</span>
+                      <p className="text-xs text-zinc-300 font-sans leading-relaxed">
+                        {scene.label}
+                      </p>
+
+                      {scene.spoken_dialogue && (
+                        <div className="rounded-lg bg-emerald-950/30 border border-emerald-500/30 p-3 space-y-1">
+                          <div className="flex items-center gap-1.5 text-[11px] font-mono font-semibold text-emerald-400">
+                            <span>🎙️ Ucapan Asli (Verbatim / Tidak Diubah):</span>
+                          </div>
+                          <p className="text-xs font-mono text-white italic">
+                            "{scene.spoken_dialogue}"
+                          </p>
+                          {scene.vocal_tone && (
+                            <p className="text-[10px] font-mono text-emerald-300/80">
+                              Gaya Vokal & Emosi: {scene.vocal_tone}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono text-zinc-400">
+                        {scene.camera_move && (
+                          <div className="p-2 rounded bg-black/40 border border-white/5">
+                            <span className="text-zinc-500">Kamera:</span> {scene.camera_move}
+                          </div>
+                        )}
+                        {scene.lighting && (
+                          <div className="p-2 rounded bg-black/40 border border-white/5">
+                            <span className="text-zinc-500">Lighting:</span> {scene.lighting}
+                          </div>
+                        )}
+                      </div>
+
+                      {scene.director_prompt && (
+                        <div className="p-3 rounded-lg bg-black/70 border border-white/10 space-y-1">
+                          <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block">
+                            Prompt Sutradara Siap Tempel (Veo / Kling / Sora):
+                          </span>
+                          <p className="text-xs font-mono text-cyan-200 select-all leading-relaxed">
+                            {scene.director_prompt}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-white/10 bg-black/80 p-4 font-mono text-xs leading-relaxed text-zinc-200 select-all whitespace-pre-wrap max-h-96 overflow-y-auto">
+                  {resultPrompt}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-[11px] font-mono text-zinc-500 border-t border-white/5 pt-3">
+                <span>Dioptimalkan khusus untuk video generator Google Flow (Veo 2) & Kling</span>
+                <span className="text-emerald-400 font-bold">Director Grade • Speech Preserved</span>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

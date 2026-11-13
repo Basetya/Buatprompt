@@ -152,7 +152,7 @@ export default function KineticMotionPage() {
   const [bgmEnabled, setBgmEnabled] = useState(true);
   const [sfxEnabled, setSfxEnabled] = useState(true);
   const [characterLayout, setCharacterLayout] = useState<"single" | "duo">("single");
-  const [voiceActor, setVoiceActor] = useState<"id-ID-ArdiNeural" | "id-ID-GadisNeural">("id-ID-ArdiNeural");
+  const [voiceActor, setVoiceActor] = useState<string>("gemini-aoede");
   const [isAudioLoading, setIsAudioLoading] = useState(false);
 
   // Single mode state
@@ -179,7 +179,7 @@ export default function KineticMotionPage() {
     note: string;
   } | null>(null);
 
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordProgress, setRecordProgress] = useState(0);
   const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
@@ -202,6 +202,7 @@ export default function KineticMotionPage() {
   const loFiBgmRef = useRef<ProceduralLoFiBGM | null>(null);
   const audioBuffersRef = useRef<Record<number, AudioBuffer>>({});
   const activeAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const activeAudioGainRef = useRef<GainNode | null>(null);
   const lastSceneIndexRef = useRef<number>(-1);
   const playedSceneAudioRef = useRef<number>(-1);
   const scene0PromiseRef = useRef<Promise<void> | null>(null);
@@ -249,23 +250,32 @@ export default function KineticMotionPage() {
       const buf = audioBuffersRef.current[sceneIdx];
       if (!buf) return false;
 
-      if (activeAudioSourceRef.current) {
+      if (activeAudioSourceRef.current && activeAudioGainRef.current) {
         try {
-          activeAudioSourceRef.current.stop();
-        } catch (_) {}
+          const t = audioCtxRef.current.currentTime;
+          activeAudioGainRef.current.gain.setValueAtTime(activeAudioGainRef.current.gain.value, t);
+          activeAudioGainRef.current.gain.linearRampToValueAtTime(0.001, t + 0.06);
+          const oldSrc = activeAudioSourceRef.current;
+          setTimeout(() => {
+            try { oldSrc.stop(); oldSrc.disconnect(); } catch (_) { }
+          }, 70);
+        } catch (_) { }
       }
 
-      if (offsetSec < buf.duration - 0.15) {
+      if (offsetSec < buf.duration - 0.1) {
         try {
           const src = audioCtxRef.current.createBufferSource();
+          const gain = audioCtxRef.current.createGain();
           src.buffer = buf;
+          src.connect(gain);
           if (analyserRef.current) {
-            src.connect(analyserRef.current);
+            gain.connect(analyserRef.current);
           }
-          src.connect(audioCtxRef.current.destination);
-          src.connect(audioDestRef.current);
+          gain.connect(audioCtxRef.current.destination);
+          gain.connect(audioDestRef.current);
           src.start(0, Math.max(0, offsetSec));
           activeAudioSourceRef.current = src;
+          activeAudioGainRef.current = gain;
         } catch (err) {
           console.warn("Buffer playback notice:", err);
         }
@@ -291,6 +301,11 @@ export default function KineticMotionPage() {
           });
           if (buf) {
             audioBuffersRef.current[i] = buf;
+            // Auto-expand scene duration so speech is never clipped before sentence ends naturally
+            const neededDuration = Math.ceil(buf.duration + 0.35);
+            if (neededDuration > s.durationSec) {
+              s.durationSec = neededDuration;
+            }
             if (i === 0 && playedSceneAudioRef.current === 0) {
               playedSceneAudioRef.current = -1;
             }
@@ -325,7 +340,7 @@ export default function KineticMotionPage() {
     fetch("/api/local-lipsync")
       .then((r) => r.json())
       .then((d) => setLocalGpuInfo(d))
-      .catch(() => {});
+      .catch(() => { });
 
     try {
       const savedFavs = localStorage.getItem("buatprompt_favorite_archetypes");
@@ -335,7 +350,7 @@ export default function KineticMotionPage() {
           setFavoriteStyles(parsed);
         }
       }
-    } catch (_) {}
+    } catch (_) { }
   }, []);
 
   const toggleFavoriteStyle = (id: MotionStyleId) => {
@@ -344,7 +359,7 @@ export default function KineticMotionPage() {
       const next = exists ? prev.filter((item) => item !== id) : [...prev, id];
       try {
         localStorage.setItem("buatprompt_favorite_archetypes", JSON.stringify(next));
-      } catch (_) {}
+      } catch (_) { }
       return next;
     });
   };
@@ -490,9 +505,11 @@ export default function KineticMotionPage() {
     const render = () => {
       const now = Date.now();
       if (!startTimeRef.current) startTimeRef.current = now;
-      const elapsed = (now - startTimeRef.current) / 1000;
-      const loopTime = elapsed % totalDurationSec;
-      const globalProgress = loopTime / totalDurationSec;
+      const elapsed = isPlaying
+        ? (now - startTimeRef.current) / 1000
+        : (pausedElapsedRef.current || 0) / 1000;
+      const loopTime = elapsed % Math.max(totalDurationSec, 1);
+      const globalProgress = loopTime / Math.max(totalDurationSec, 1);
 
       // Determine active scene
       let sceneIndex = 0;
@@ -555,22 +572,31 @@ export default function KineticMotionPage() {
       ) {
         const buf = audioBuffersRef.current[sceneIndex];
         if (buf) {
-          if (activeAudioSourceRef.current) {
+          if (activeAudioSourceRef.current && activeAudioGainRef.current) {
             try {
-              activeAudioSourceRef.current.stop();
-            } catch (_) {}
+              const t = audioCtxRef.current.currentTime;
+              activeAudioGainRef.current.gain.setValueAtTime(activeAudioGainRef.current.gain.value, t);
+              activeAudioGainRef.current.gain.linearRampToValueAtTime(0.001, t + 0.06);
+              const oldSrc = activeAudioSourceRef.current;
+              setTimeout(() => {
+                try { oldSrc.stop(); oldSrc.disconnect(); } catch (_) { }
+              }, 70);
+            } catch (_) { }
           }
-          if (timeInScene < buf.duration - 0.15) {
+          if (timeInScene < buf.duration - 0.1) {
             try {
               const src = audioCtxRef.current.createBufferSource();
+              const gain = audioCtxRef.current.createGain();
               src.buffer = buf;
+              src.connect(gain);
               if (analyserRef.current) {
-                src.connect(analyserRef.current);
+                gain.connect(analyserRef.current);
               }
-              src.connect(audioCtxRef.current.destination);
-              src.connect(audioDestRef.current);
+              gain.connect(audioCtxRef.current.destination);
+              gain.connect(audioDestRef.current);
               src.start(0, Math.max(0, timeInScene));
               activeAudioSourceRef.current = src;
+              activeAudioGainRef.current = gain;
             } catch (err) {
               console.warn("Buffer playback notice:", err);
             }
@@ -1324,7 +1350,7 @@ export default function KineticMotionPage() {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       try {
         mediaRecorderRef.current.requestData();
-      } catch (_) {}
+      } catch (_) { }
       mediaRecorderRef.current.stop();
     }
   };
@@ -1353,10 +1379,13 @@ export default function KineticMotionPage() {
         await ctx.resume();
       }
 
-      // Ensure Scene 0 voiceover buffer is ready before starting recording
-      if (audioEnabled && !audioBuffersRef.current[0]) {
+      // Ensure ALL scene voiceover buffers are completely loaded before starting recording
+      if (audioEnabled) {
+        const targetScenes = mode === "multi" ? scenes : [{ headline: singleHeadline, subtext: singleSubtext }];
         const waitStart = Date.now();
-        while (!audioBuffersRef.current[0] && Date.now() - waitStart < 4500) {
+        while (Date.now() - waitStart < 8000) {
+          const allReady = targetScenes.every((_, idx) => !!audioBuffersRef.current[idx]);
+          if (allReady) break;
           await new Promise((r) => setTimeout(r, 150));
         }
       }
@@ -1366,10 +1395,26 @@ export default function KineticMotionPage() {
         loFiBgmRef.current.start();
       }
 
+      // Continuous inaudible audio carrier to ensure browser audio encoder keeps active clock
+      const silentOsc = ctx.createOscillator();
+      const silentGain = ctx.createGain();
+      silentGain.gain.setValueAtTime(0.00001, ctx.currentTime);
+      silentOsc.connect(silentGain);
+      silentGain.connect(dest);
+      silentOsc.start();
+
       // Reset loop timing to 0
       startTimeRef.current = Date.now();
       lastSceneIndexRef.current = -1;
       playedSceneAudioRef.current = -1;
+
+      // Trigger initial scene audio & foley at recording start
+      if (sfxEnabled && audioDestRef.current) {
+        playProceduralSFX(ctx, [ctx.destination, audioDestRef.current], "whoosh");
+      }
+      if (audioEnabled) {
+        playSceneVoiceNow(0, 0);
+      }
 
       // Capture canvas visual stream at 30fps
       const canvasStream = (canvas as any).captureStream(30);
@@ -1384,11 +1429,23 @@ export default function KineticMotionPage() {
       ]);
 
       let mimeType = "video/webm;codecs=vp9,opus";
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
+      let ext = "webm";
+
+      if (MediaRecorder.isTypeSupported("video/mp4;codecs=avc1,mp4a.40.2")) {
+        mimeType = "video/mp4;codecs=avc1,mp4a.40.2";
+        ext = "mp4";
+      } else if (MediaRecorder.isTypeSupported("video/mp4")) {
+        mimeType = "video/mp4";
+        ext = "mp4";
+      } else if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")) {
+        mimeType = "video/webm;codecs=vp9,opus";
+        ext = "webm";
+      } else if (MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")) {
         mimeType = "video/webm;codecs=vp8,opus";
-      }
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        ext = "webm";
+      } else {
         mimeType = "video/webm";
+        ext = "webm";
       }
 
       const recorderOptions: MediaRecorderOptions = MediaRecorder.isTypeSupported(mimeType)
@@ -1407,6 +1464,10 @@ export default function KineticMotionPage() {
 
       recorder.onerror = (ev: any) => {
         console.error("MediaRecorder error:", ev);
+        try {
+          silentOsc.stop();
+          silentOsc.disconnect();
+        } catch (_) { }
         setRecordError("Gagal merekam stream video/audio di browser.");
         setIsRecording(false);
         if (recordTimerRef.current) {
@@ -1416,6 +1477,11 @@ export default function KineticMotionPage() {
       };
 
       recorder.onstop = () => {
+        try {
+          silentOsc.stop();
+          silentOsc.disconnect();
+        } catch (_) { }
+
         if (recordTimerRef.current) {
           clearInterval(recordTimerRef.current);
           recordTimerRef.current = null;
@@ -1430,7 +1496,7 @@ export default function KineticMotionPage() {
         const actualType = recorder.mimeType || mimeType || "video/webm";
         const blob = new Blob(chunks, { type: actualType });
         const url = URL.createObjectURL(blob);
-        const filename = `buatprompt-kinetic-${mode}-${totalDurationSec}s-audio.webm`;
+        const filename = `buatprompt-kinetic-${mode}-${totalDurationSec}s-audio.${ext}`;
 
         setRecordedVideoUrl(url);
         setRecordedFileName(filename);
@@ -1469,7 +1535,7 @@ export default function KineticMotionPage() {
           if (recorder.state !== "inactive") {
             try {
               recorder.requestData();
-            } catch (_) {}
+            } catch (_) { }
             recorder.stop();
           }
         }
@@ -1516,11 +1582,10 @@ export default function KineticMotionPage() {
           <button
             type="button"
             onClick={() => setMode("multi")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
-              mode === "multi"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${mode === "multi"
                 ? "bg-white text-black shadow-lg"
                 : "bg-white/5 border border-white/10 text-zinc-400 hover:text-white"
-            }`}
+              }`}
           >
             <Layers className="h-4 w-4" />
             <span>FULL 4-SCENE STORY MOVIE ({totalDurationSec}s)</span>
@@ -1532,11 +1597,10 @@ export default function KineticMotionPage() {
           <button
             type="button"
             onClick={() => setMode("single")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
-              mode === "single"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${mode === "single"
                 ? "bg-white text-black shadow-lg"
                 : "bg-white/5 border border-white/10 text-zinc-400 hover:text-white"
-            }`}
+              }`}
           >
             <Play className="h-4 w-4 fill-current" />
             <span>SINGLE HOOK CLIP (6s)</span>
@@ -1552,45 +1616,107 @@ export default function KineticMotionPage() {
               getOrCreateAudioEngine();
               setAudioEnabled(!audioEnabled);
             }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${
-              audioEnabled
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${audioEnabled
                 ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-300"
                 : "border-white/10 bg-black/40 text-zinc-500 hover:text-white"
-            }`}
+              }`}
           >
             {audioEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
             <span>Voiceover: {audioEnabled ? "AKTIF ✓" : "MUTE"}</span>
           </button>
 
-          {/* Microsoft Azure Neural Voice Selector */}
-          <div className="flex items-center gap-1 rounded-xl bg-black/40 border border-white/10 p-1">
+          {/* Studio Voice Character Selector (Gemini Ultra-Natural Primary + Azure Fallback) */}
+          <div className="flex flex-wrap items-center gap-1 rounded-xl bg-black/50 border border-white/10 p-1">
             <button
               type="button"
               onClick={() => {
                 getOrCreateAudioEngine();
-                setVoiceActor("id-ID-ArdiNeural");
+                setVoiceActor("gemini-aoede");
               }}
-              className={`px-2.5 py-1.5 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer ${
-                voiceActor === "id-ID-ArdiNeural"
-                  ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+              className={`px-2.5 py-1.5 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${voiceActor === "gemini-aoede"
+                  ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 shadow-sm"
                   : "text-zinc-400 hover:text-white"
-              }`}
+                }`}
             >
-              🎙️ Ardi (Pria)
+              <span>✨ Aoede (Wanita)</span>
+              <span className="text-[9px] px-1 rounded bg-emerald-500/20 text-emerald-400">Gemini</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                getOrCreateAudioEngine();
+                setVoiceActor("gemini-kore");
+              }}
+              className={`px-2.5 py-1.5 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${voiceActor === "gemini-kore"
+                  ? "bg-cyan-500/25 text-cyan-300 border border-cyan-500/50 shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+                }`}
+            >
+              <span>✨ Kore (Ceria)</span>
+              <span className="text-[9px] px-1 rounded bg-cyan-500/20 text-cyan-400">Gemini</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                getOrCreateAudioEngine();
+                setVoiceActor("gemini-charon");
+              }}
+              className={`px-2.5 py-1.5 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${voiceActor === "gemini-charon"
+                  ? "bg-indigo-500/25 text-indigo-300 border border-indigo-500/50 shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+                }`}
+            >
+              <span>✨ Charon (Pria)</span>
+              <span className="text-[9px] px-1 rounded bg-indigo-500/20 text-indigo-400">Gemini</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                getOrCreateAudioEngine();
+                setVoiceActor("gemini-puck");
+              }}
+              className={`px-2.5 py-1.5 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${voiceActor === "gemini-puck"
+                  ? "bg-amber-500/25 text-amber-300 border border-amber-500/50 shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+                }`}
+            >
+              <span>✨ Puck (Casual)</span>
+              <span className="text-[9px] px-1 rounded bg-amber-500/20 text-amber-400">Gemini</span>
+            </button>
+
+            <div className="h-4 w-px bg-white/10 mx-1 hidden sm:block" />
+
             <button
               type="button"
               onClick={() => {
                 getOrCreateAudioEngine();
                 setVoiceActor("id-ID-GadisNeural");
               }}
-              className={`px-2.5 py-1.5 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer ${
-                voiceActor === "id-ID-GadisNeural"
-                  ? "bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm"
-                  : "text-zinc-400 hover:text-white"
-              }`}
+              className={`px-2 py-1 rounded-md font-mono text-[10px] transition-all cursor-pointer ${voiceActor === "id-ID-GadisNeural"
+                  ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                  : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              title="Cadangan Azure Neural"
             >
-              🎙️ Gadis (Wanita)
+              Gadis (Fallback)
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                getOrCreateAudioEngine();
+                setVoiceActor("id-ID-ArdiNeural");
+              }}
+              className={`px-2 py-1 rounded-md font-mono text-[10px] transition-all cursor-pointer ${voiceActor === "id-ID-ArdiNeural"
+                  ? "bg-blue-500/20 text-blue-300 border border-blue-500/40"
+                  : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              title="Cadangan Azure Neural"
+            >
+              Ardi (Fallback)
             </button>
           </div>
 
@@ -1601,11 +1727,10 @@ export default function KineticMotionPage() {
               getOrCreateAudioEngine();
               setBgmEnabled(!bgmEnabled);
             }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${
-              bgmEnabled
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${bgmEnabled
                 ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
                 : "border-white/10 bg-black/40 text-zinc-500 hover:text-white"
-            }`}
+              }`}
           >
             <Music className="h-3.5 w-3.5" />
             <span>BGM Lo-Fi: {bgmEnabled ? "ON ✓" : "OFF"}</span>
@@ -1625,11 +1750,10 @@ export default function KineticMotionPage() {
           <button
             type="button"
             onClick={() => setShowUpperCard(!showUpperCard)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${
-              showUpperCard
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${showUpperCard
                 ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
                 : "border-white/10 bg-black/40 text-zinc-500 hover:text-white"
-            }`}
+              }`}
           >
             <Layers className="h-3.5 w-3.5" />
             <span>Showcase: {showUpperCard ? "ON ✓" : "OFF"}</span>
@@ -1639,11 +1763,10 @@ export default function KineticMotionPage() {
           <button
             type="button"
             onClick={() => setShowMascot(!showMascot)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${
-              showMascot
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${showMascot
                 ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
                 : "border-white/10 bg-black/40 text-zinc-500 hover:text-white"
-            }`}
+              }`}
           >
             <Smile className="h-3.5 w-3.5" />
             <span>Maskot: {showMascot ? "ON ✓" : "OFF"}</span>
@@ -1665,9 +1788,8 @@ export default function KineticMotionPage() {
                 <span className="text-emerald-300 font-bold">~{estimatedSeconds} Detik</span>
                 <span className="text-zinc-500 mx-2">•</span>
                 <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                    isPacingOverLimit ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"
-                  }`}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${isPacingOverLimit ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"
+                    }`}
                 >
                   {isPacingOverLimit ? "TERLALU PANJANG (>55s)" : "RETENSI OPTIMAL ✓"}
                 </span>
@@ -1738,11 +1860,10 @@ export default function KineticMotionPage() {
                 <button
                   type="button"
                   onClick={() => setCreationTab("idea")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg font-mono text-xs font-bold transition-all cursor-pointer ${
-                    creationTab === "idea"
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg font-mono text-xs font-bold transition-all cursor-pointer ${creationTab === "idea"
                       ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
                       : "text-zinc-400 hover:text-white"
-                  }`}
+                    }`}
                 >
                   <Lightbulb className="h-3.5 w-3.5" />
                   <span>💡 BUAT NASKAH DARI IDE</span>
@@ -1750,11 +1871,10 @@ export default function KineticMotionPage() {
                 <button
                   type="button"
                   onClick={() => setCreationTab("script")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg font-mono text-xs font-bold transition-all cursor-pointer ${
-                    creationTab === "script"
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg font-mono text-xs font-bold transition-all cursor-pointer ${creationTab === "script"
                       ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
                       : "text-zinc-400 hover:text-white"
-                  }`}
+                    }`}
                 >
                   <FileText className="h-3.5 w-3.5" />
                   <span>📝 MASUKKAN NASKAH SENDIRI</span>
@@ -1790,22 +1910,20 @@ export default function KineticMotionPage() {
                         <button
                           type="button"
                           onClick={() => setDurationTarget("55s")}
-                          className={`py-1.5 px-2 text-center rounded-lg font-mono text-[10px] font-bold border transition-all cursor-pointer ${
-                            durationTarget === "55s"
+                          className={`py-1.5 px-2 text-center rounded-lg font-mono text-[10px] font-bold border transition-all cursor-pointer ${durationTarget === "55s"
                               ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-300"
                               : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
-                          }`}
+                            }`}
                         >
                           52-55s (Deep Story)
                         </button>
                         <button
                           type="button"
                           onClick={() => setDurationTarget("26s")}
-                          className={`py-1.5 px-2 text-center rounded-lg font-mono text-[10px] font-bold border transition-all cursor-pointer ${
-                            durationTarget === "26s"
+                          className={`py-1.5 px-2 text-center rounded-lg font-mono text-[10px] font-bold border transition-all cursor-pointer ${durationTarget === "26s"
                               ? "border-cyan-500/40 bg-cyan-500/20 text-cyan-300"
                               : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
-                          }`}
+                            }`}
                         >
                           26s (Express Hook)
                         </button>
@@ -1954,11 +2072,10 @@ export default function KineticMotionPage() {
                       key={s.sceneNumber}
                       type="button"
                       onClick={() => setActiveSceneTab(idx)}
-                      className={`py-1.5 text-center rounded-lg font-mono text-[10px] font-bold transition-all cursor-pointer ${
-                        activeSceneTab === idx
+                      className={`py-1.5 text-center rounded-lg font-mono text-[10px] font-bold transition-all cursor-pointer ${activeSceneTab === idx
                           ? "bg-white text-black shadow"
                           : "text-zinc-400 hover:text-white"
-                      }`}
+                        }`}
                     >
                       SCENE {s.sceneNumber} ({s.durationSec}s)
                     </button>
@@ -2111,11 +2228,10 @@ export default function KineticMotionPage() {
               {localGpuInfo && (
                 <span
                   title={localGpuInfo.note}
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-[10px] border ${
-                    localGpuInfo.gpuAvailable
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-[10px] border ${localGpuInfo.gpuAvailable
                       ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
                       : "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
-                  }`}
+                    }`}
                 >
                   <Cpu className="h-3 w-3" />
                   <span>{localGpuInfo.gpuAvailable ? `GPU: ${localGpuInfo.gpuName}` : "Browser Real-Time"}</span>
@@ -2137,17 +2253,16 @@ export default function KineticMotionPage() {
                     setAvatarEngine(eng.id as any);
                     if (eng.id === "human-rigged") {
                       const g = HUMAN_2D_PRESETS[humanPreset]?.gender;
-                      if (g) setVoiceActor(g === "female" ? "id-ID-GadisNeural" : "id-ID-ArdiNeural");
+                      if (g) setVoiceActor(g === "female" ? "gemini-aoede" : "gemini-charon");
                     } else if (eng.id === "voxel") {
                       const g = VOXEL_3D_PRESETS[voxelPreset]?.gender;
-                      if (g) setVoiceActor(g === "female" ? "id-ID-GadisNeural" : "id-ID-ArdiNeural");
+                      if (g) setVoiceActor(g === "female" ? "gemini-aoede" : "gemini-charon");
                     }
                   }}
-                  className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${
-                    avatarEngine === eng.id
+                  className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${avatarEngine === eng.id
                       ? "border-emerald-400 bg-emerald-500/15 text-white shadow-md shadow-emerald-500/10"
                       : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
-                  }`}
+                    }`}
                 >
                   <div className="text-xs font-bold">{eng.label}</div>
                   <div className="text-[10px] text-zinc-400 mt-0.5">{eng.desc}</div>
@@ -2168,13 +2283,12 @@ export default function KineticMotionPage() {
                       type="button"
                       onClick={() => {
                         setHumanPreset(char.id);
-                        setVoiceActor(char.gender === "female" ? "id-ID-GadisNeural" : "id-ID-ArdiNeural");
+                        setVoiceActor(char.gender === "female" ? "gemini-aoede" : "gemini-charon");
                       }}
-                      className={`p-2 rounded-xl border text-left font-mono transition-all cursor-pointer ${
-                        humanPreset === char.id
+                      className={`p-2 rounded-xl border text-left font-mono transition-all cursor-pointer ${humanPreset === char.id
                           ? "border-emerald-400 bg-emerald-500/15 text-white"
                           : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between gap-1">
                         <div className="flex items-center gap-1.5 min-w-0">
@@ -2208,13 +2322,12 @@ export default function KineticMotionPage() {
                       type="button"
                       onClick={() => {
                         setVoxelPreset(vox.id);
-                        setVoiceActor(vox.gender === "female" ? "id-ID-GadisNeural" : "id-ID-ArdiNeural");
+                        setVoiceActor(vox.gender === "female" ? "gemini-aoede" : "gemini-charon");
                       }}
-                      className={`p-2 rounded-xl border text-left font-mono transition-all cursor-pointer ${
-                        voxelPreset === vox.id
+                      className={`p-2 rounded-xl border text-left font-mono transition-all cursor-pointer ${voxelPreset === vox.id
                           ? "border-emerald-400 bg-emerald-500/15 text-white"
                           : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between gap-1">
                         <div className="flex items-center gap-1.5 min-w-0">
@@ -2311,22 +2424,20 @@ export default function KineticMotionPage() {
                 <button
                   type="button"
                   onClick={() => setStyleFilter("all")}
-                  className={`px-2.5 py-1 rounded-md font-bold transition-colors cursor-pointer ${
-                    styleFilter === "all"
+                  className={`px-2.5 py-1 rounded-md font-bold transition-colors cursor-pointer ${styleFilter === "all"
                       ? "bg-white/15 text-white"
                       : "text-zinc-400 hover:text-white"
-                  }`}
+                    }`}
                 >
                   Semua ({Object.keys(MOTION_PALETTES).length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setStyleFilter("favorites")}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-bold transition-colors cursor-pointer ${
-                    styleFilter === "favorites"
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-bold transition-colors cursor-pointer ${styleFilter === "favorites"
                       ? "bg-amber-500/25 text-amber-300 border border-amber-500/40"
                       : "text-zinc-400 hover:text-amber-300"
-                  }`}
+                    }`}
                 >
                   <Star className="h-3 w-3 fill-current" />
                   <span>Favorit ({favoriteStyles.length})</span>
@@ -2361,13 +2472,12 @@ export default function KineticMotionPage() {
                             setMotionStyle(st.id);
                           }
                         }}
-                        className={`relative p-2.5 rounded-xl border text-left font-mono text-xs transition-all cursor-pointer select-none ${
-                          motionStyle === st.id
+                        className={`relative p-2.5 rounded-xl border text-left font-mono text-xs transition-all cursor-pointer select-none ${motionStyle === st.id
                             ? "border-emerald-400 bg-emerald-500/10 text-white font-bold shadow-md shadow-emerald-500/10"
                             : isFav
-                            ? "border-amber-500/30 bg-amber-500/5 text-zinc-200 hover:border-amber-400/50"
-                            : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
-                        }`}
+                              ? "border-amber-500/30 bg-amber-500/5 text-zinc-200 hover:border-amber-400/50"
+                              : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                          }`}
                       >
                         <div className="flex items-center justify-between gap-1.5 mb-1">
                           <div className="flex items-center gap-1.5">
@@ -2386,11 +2496,10 @@ export default function KineticMotionPage() {
                               toggleFavoriteStyle(st.id);
                             }}
                             title={isFav ? "Hapus dari Cluster Favorit" : "Simpan ke Cluster Favorit"}
-                            className={`p-1 rounded-md transition-colors cursor-pointer ${
-                              isFav
+                            className={`p-1 rounded-md transition-colors cursor-pointer ${isFav
                                 ? "text-amber-400 hover:text-amber-300"
                                 : "text-zinc-600 hover:text-amber-300"
-                            }`}
+                              }`}
                           >
                             <Star className={`h-3.5 w-3.5 ${isFav ? "fill-current" : ""}`} />
                           </button>
@@ -2446,14 +2555,41 @@ export default function KineticMotionPage() {
               )}
 
               {recordedVideoUrl && !isRecording && (
-                <a
-                  href={recordedVideoUrl}
-                  download={recordedFileName}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-500/15 hover:bg-emerald-500/25 px-4 py-3 font-mono text-xs font-bold text-emerald-300 transition-colors"
-                >
-                  <Download className="h-4 w-4" />
-                  <span>✅ VIDEO SIAP! KLIK DI SINI JIKA FILE BELUM TERUNDUH OTOMATIS ({recordedFileName})</span>
-                </a>
+                <div className="rounded-2xl border border-emerald-500/40 bg-emerald-950/20 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5">
+                      <Check className="h-4 w-4" />
+                      <span>Video & Audio Berhasil Direkam!</span>
+                    </span>
+                    <span className="text-[10px] font-mono text-zinc-400">
+                      {recordedFileName}
+                    </span>
+                  </div>
+
+                  {/* Direct In-Browser Playback to verify audio */}
+                  <div className="rounded-xl overflow-hidden border border-white/10 bg-black">
+                    <video
+                      src={recordedVideoUrl}
+                      controls
+                      autoPlay={false}
+                      playsInline
+                      className="w-full max-h-56 object-contain bg-black"
+                    />
+                  </div>
+
+                  <a
+                    href={recordedVideoUrl}
+                    download={recordedFileName}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-500/20 hover:bg-emerald-500/30 px-4 py-2.5 font-mono text-xs font-bold text-emerald-300 transition-colors"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>Download Ulang File ({recordedFileName})</span>
+                  </a>
+
+                  <p className="text-[10px] font-mono text-zinc-400 leading-relaxed bg-black/40 p-2.5 rounded-lg border border-white/5">
+                    💡 <strong className="text-zinc-200">Tips Pemutaran di Windows:</strong> Jika video diputar melalui pemutar bawaan Windows (Windows Media Player default), audio format WebM (Opus) mungkin tidak terdengar karena batasan codec bawaan Windows. Namun audio <strong className="text-emerald-300">100% terekam dan aktif</strong> saat diputar langsung di pemutar web di atas, di browser Google Chrome, VLC Player, CapCut, Premiere, Instagram, atau TikTok!
+                  </p>
+                </div>
               )}
 
               <p className="text-[11px] font-mono text-zinc-400 text-center">
@@ -2475,6 +2611,27 @@ export default function KineticMotionPage() {
             {/* The Actual HTML5 Canvas */}
             <div className="w-full h-full rounded-[26px] overflow-hidden relative bg-black">
               <canvas ref={canvasRef} className="w-full h-full object-cover" />
+
+              {/* Pause / Play Click Overlay - Hanya aktif saat ditekan Play */}
+              {!isPlaying && !isRecording && (
+                <div
+                  onClick={async () => {
+                    const { ctx } = getOrCreateAudioEngine();
+                    if (ctx.state === "suspended") await ctx.resume();
+                    startTimeRef.current = Date.now() - (pausedElapsedRef.current || 0);
+                    playedSceneAudioRef.current = -1;
+                    if (bgmEnabled && loFiBgmRef.current) loFiBgmRef.current.start();
+                    setIsPlaying(true);
+                  }}
+                  className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px] cursor-pointer group transition-all"
+                >
+                  <div className="h-16 w-16 rounded-full bg-emerald-500/95 text-black flex items-center justify-center shadow-2xl group-hover:scale-110 group-hover:bg-emerald-400 transition-all">
+                    <Play className="h-7 w-7 fill-current ml-1" />
+                  </div>
+                  <span className="mt-3 text-xs font-mono font-bold text-white tracking-wider">KLIK UNTUK PUTAR PREVIEW</span>
+                  <span className="text-[10px] font-mono text-zinc-400 mt-0.5">Video petunjuk hanya aktif jika ditekan play</span>
+                </div>
+              )}
 
               {/* Recording Overlay Tag */}
               {isRecording && (
@@ -2501,7 +2658,7 @@ export default function KineticMotionPage() {
                   if (activeAudioSourceRef.current) {
                     try {
                       activeAudioSourceRef.current.stop();
-                    } catch (_) {}
+                    } catch (_) { }
                   }
                   startTimeRef.current = Date.now();
                   pausedElapsedRef.current = 0;
@@ -2534,7 +2691,7 @@ export default function KineticMotionPage() {
                     if (activeAudioSourceRef.current) {
                       try {
                         activeAudioSourceRef.current.stop();
-                      } catch (_) {}
+                      } catch (_) { }
                     }
                     playedSceneAudioRef.current = -1;
                     setIsPlaying(false);

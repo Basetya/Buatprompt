@@ -34,6 +34,8 @@ import {
   FileText,
 } from "lucide-react";
 import { VideoAiEngine, LlmModelType } from "../api/ugc-flow-clarify/route";
+import AssetVaultPickerModal, { VaultPickerCategory } from "@/components/AssetVaultPickerModal";
+import { addOrUpdateCharacter, addOrUpdateProduct, addOrUpdateEnvironment } from "@/lib/assetVault";
 
 interface ClarifyQuestion {
   id: string;
@@ -48,11 +50,16 @@ interface UgcScene {
   sceneNumber: number;
   timeRange: string;
   stageName: string;
+  rollType?: string;
+  startingFrame?: string;
+  endingFrame?: string;
+  lightingAnchor?: string;
   voiceoverScriptId: string;
   cameraDirective: string;
   flowVisualPrompt: string;
   audioSoundscapePrompt: string;
   keyVisualBeat: string;
+  capcutEditNote?: string;
 }
 
 interface MasterDirectiveData {
@@ -83,16 +90,75 @@ interface MasterDirectiveData {
   operatorGuide: string[];
   hostImage?: string | null;
   productImage?: string | null;
+  settingImage?: string | null;
+  geminiChainPrompts?: string[];
+  capcutAssemblyGuide?: string[];
 }
 
-const VIDEO_TOOLS: Array<{ id: VideoAiEngine; label: string; desc: string }> = [
-  { id: "google-flow", label: "Google Flow (Veo 2)", desc: "Multi-shot /camera & tag @" },
-  { id: "runway-gen3", label: "Runway Gen-3 Alpha", desc: "Cinematic movement & lens" },
-  { id: "kling-ai", label: "Kling AI", desc: "High-fidelity motion & physics" },
-  { id: "luma-dream-machine", label: "Luma Dream Machine", desc: "Camera trajectory & smooth flow" },
-  { id: "hailuo-minimax", label: "Hailuo AI (MiniMax)", desc: "Ekspresi manusia hiper-nyata" },
-  { id: "wan-video", label: "Wan2.1 (Wan Video)", desc: "Open-source aesthetic cinematic" },
-  { id: "capcut-ai", label: "CapCut AI Video", desc: "Beat-sync & media b-roll" },
+const VIDEO_TOOLS: Array<{
+  id: VideoAiEngine;
+  label: string;
+  desc: string;
+  badge?: string;
+  quotaInfo: string;
+}> = [
+  {
+    id: "google-flow",
+    label: "Google Flow (Veo 3.1)",
+    desc: "Multi-shot /camera & tag @",
+    badge: "Juara Mutlak",
+    quotaInfo: "50 kredit/hari (~1.500/bln) • Veo 3.1 Lite & Omni Flash 720p",
+  },
+  {
+    id: "leonardo-ai",
+    label: "Leonardo.Ai",
+    desc: "150 fast token/hari (~4.500/bln)",
+    badge: "Top Free Tier",
+    quotaInfo: "150 fast token/hari • Cukup 4-6 klip motion video 4 detik",
+  },
+  {
+    id: "dreamina-seedance",
+    label: "Dreamina (Seedance 2.0/2.5)",
+    desc: "120 kredit/hari • Seedance Dynamic",
+    badge: "Top Free Tier",
+    quotaInfo: "120 kredit/hari • 1 klip Seedance 2.0 (85 kr) atau 3-4 klip Fast/Mini",
+  },
+  {
+    id: "kling-ai",
+    label: "Kling AI",
+    desc: "High-fidelity motion & physics",
+    quotaInfo: "Daily claim kredit • Real physics & natural micro-expressions",
+  },
+  {
+    id: "runway-gen3",
+    label: "Runway Gen-3 Alpha",
+    desc: "Cinematic movement & lens",
+    quotaInfo: "Free trial token • Sinematik f-stop & camera movement",
+  },
+  {
+    id: "luma-dream-machine",
+    label: "Luma Dream Machine",
+    desc: "Camera trajectory & smooth flow",
+    quotaInfo: "Free 30 generations/bln • Trayektori kamera mulus",
+  },
+  {
+    id: "hailuo-minimax",
+    label: "Hailuo AI (MiniMax)",
+    desc: "Ekspresi manusia hiper-nyata",
+    quotaInfo: "Free kredit harian • Sangat kuat pada mimik wajah & kain bergerak",
+  },
+  {
+    id: "wan-video",
+    label: "Wan2.1 (Wan Video)",
+    desc: "Open-source aesthetic cinematic",
+    quotaInfo: "Open access model • Estetika sinematik tajam & presisi",
+  },
+  {
+    id: "capcut-ai",
+    label: "CapCut AI Video",
+    desc: "Beat-sync & media b-roll",
+    quotaInfo: "Free script-to-video • Potongan otomatis per beat lagu",
+  },
 ];
 
 const LLM_MODELS: Array<{ id: LlmModelType; label: string }> = [
@@ -136,16 +202,24 @@ function compressImage(file: File, maxDim = 1024, quality = 0.82): Promise<strin
   });
 }
 
+export type TargetDurationOption =
+  | "<=10s"
+  | "<=60s"
+  | "<=120s"
+  | ">120s"
+  | "gemini-5clip"
+  | "longform-multiplier";
+
 export default function UgcFlowStudioPage() {
   // Step 1: Core Inputs
   const [topic, setTopic] = useState("");
-  const [targetDuration, setTargetDuration] = useState<"<=10s" | "<=60s" | "<=120s" | ">120s">("<=60s");
+  const [targetDuration, setTargetDuration] = useState<TargetDurationOption>("gemini-5clip");
   const [engineCategory, setEngineCategory] = useState<"video-ai" | "llm-native">("video-ai");
   const [videoTool, setVideoTool] = useState<VideoAiEngine>("google-flow");
   const [llmModel, setLlmModel] = useState<LlmModelType>("gemini");
 
   const [styleGenre, setStyleGenre] = useState<
-    "hyper-real-ugc" | "cinematic-resort" | "tech-review" | "cartoon-3d-animation" | "luxury-commercial"
+    "hyper-real-ugc" | "cinematic-resort" | "tech-review" | "cartoon-3d-animation" | "luxury-commercial" | "house-tour"
   >("hyper-real-ugc");
   const [hostType, setHostType] = useState<"male-casual" | "female-pro" | "custom" | "none-faceless" | "cartoon-3d-animation">("female-pro");
   const [customHostDescription, setCustomHostDescription] = useState("");
@@ -153,9 +227,11 @@ export default function UgcFlowStudioPage() {
     "auto" | "bird-eye-drone" | "low-angle-heroic" | "orbit-360" | "dutch-angle" | "pov-first-person"
   >("auto");
 
-  // User uploaded reference images for 100% character and product consistency
+  // User uploaded reference images for 100% character, product, and room consistency
   const [hostImage, setHostImage] = useState<string | null>(null);
   const [productImage, setProductImage] = useState<string | null>(null);
+  const [settingImage, setSettingImage] = useState<string | null>(null);
+  const [customSettingDescription, setCustomSettingDescription] = useState("");
 
   // Workflow State: 1 = Input, 2 = Clarification, 3 = Result
   const [workflowStep, setWorkflowStep] = useState<1 | 2 | 3>(1);
@@ -165,14 +241,73 @@ export default function UgcFlowStudioPage() {
 
   const [isGeneratingFinal, setIsGeneratingFinal] = useState(false);
   const [masterResult, setMasterResult] = useState<MasterDirectiveData | null>(null);
-  const [activeBoardTab, setActiveBoardTab] = useState<"storyboard" | "direct-prompt" | "character" | "environment" | "guide">("storyboard");
+  const [activeBoardTab, setActiveBoardTab] = useState<
+    "storyboard" | "gemini-chain" | "capcut-guide" | "direct-prompt" | "character" | "environment" | "guide"
+  >("gemini-chain");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [selectedEngineTarget, setSelectedEngineTarget] = useState<VideoAiEngine>("google-flow");
+
+  // Global Asset Vault Modal State
+  const [isVaultPickerOpen, setIsVaultPickerOpen] = useState(false);
+  const [vaultPickerCategory, setVaultPickerCategory] = useState<VaultPickerCategory>("characters");
+
+  const handleOpenVaultPicker = (cat: VaultPickerCategory) => {
+    setVaultPickerCategory(cat);
+    setIsVaultPickerOpen(true);
+  };
+
+  const handleSaveHostToVault = () => {
+    if (!hostImage) return;
+    addOrUpdateCharacter({
+      id: `char-custom-${Date.now()}`,
+      name: customHostDescription ? customHostDescription.slice(0, 30) : "Host Unggahan UGC",
+      tag: "@host_anchor",
+      role: "UGC Creator",
+      visualPrompt: customHostDescription || "UGC creator strictly matching the uploaded reference photo, natural realism.",
+      wardrobe: "Casual modern outfit",
+      gender: "female",
+      imageBase64: hostImage,
+      isCustom: true,
+    });
+    alert("Foto Host berhasil disimpan ke Brankas Aset Bersama!");
+  };
+
+  const handleSaveProductToVault = () => {
+    if (!productImage) return;
+    addOrUpdateProduct({
+      id: `prod-custom-${Date.now()}`,
+      name: topic ? topic.slice(0, 30) : "Produk Unggahan UGC",
+      tag: "@hero_object",
+      category: "other",
+      visualPrompt: `Pristine detail of product from uploaded reference photo, realistic lighting reflections.`,
+      material: "Commercial item",
+      physicalInteraction: "Held and demonstrated naturally on camera",
+      imageBase64: productImage,
+      isCustom: true,
+    });
+    alert("Foto Produk berhasil disimpan ke Brankas Aset Bersama!");
+  };
+
+  const handleSaveSettingToVault = () => {
+    if (!settingImage) return;
+    addOrUpdateEnvironment({
+      id: `env-custom-${Date.now()}`,
+      name: customSettingDescription ? customSettingDescription.slice(0, 30) : (topic ? `Latar: ${topic.slice(0, 25)}` : "Latar Ruangan Nyata"),
+      tag: "@setting_anchor",
+      visualPrompt: customSettingDescription || "Aesthetic interior matching the real uploaded photograph, exact architectural geometry, materials, and lighting continuity.",
+      spatialMap: "Exact architectural room layout and geometry matching reference photo",
+      lightingCondition: "Natural ambient lighting matching reference photo, soft realistic reflections",
+      imageBase64: settingImage,
+      isCustom: true,
+    });
+    alert("Foto Ruangan/Latar berhasil disimpan ke Brankas Aset Bersama!");
+  };
 
   // Active engine computation
   const activeEngineTarget: VideoAiEngine = engineCategory === "llm-native" ? "llm-native" : videoTool;
 
   // Auto-switch engine when <=10s is selected
-  const handleDurationChange = (dur: "<=10s" | "<=60s" | "<=120s" | ">120s") => {
+  const handleDurationChange = (dur: TargetDurationOption) => {
     setTargetDuration(dur);
     if (dur === "<=10s") {
       setEngineCategory("llm-native");
@@ -237,6 +372,7 @@ export default function UgcFlowStudioPage() {
           clarificationAnswers: clarifyAnswers,
           hostImage,
           productImage,
+          settingImage,
         }),
       });
 
@@ -244,7 +380,9 @@ export default function UgcFlowStudioPage() {
       if (data.data) {
         data.data.hostImage = hostImage;
         data.data.productImage = productImage;
+        data.data.settingImage = settingImage;
         setMasterResult(data.data);
+        setSelectedEngineTarget(data.data.engineTarget || "google-flow");
         setWorkflowStep(3);
         setActiveBoardTab("storyboard");
       }
@@ -324,6 +462,316 @@ ${s.audioSoundscapePrompt}`
       .join("\n\n");
 
     return `${header}\n\n${scenesText}`;
+  };
+
+  // Re-compose Prompt for any chosen Engine on the fly
+  const formatEnginePrompt = (result: MasterDirectiveData, targetEngine: VideoAiEngine): string => {
+    const hasHostImg = Boolean(result.hostImage);
+    const hasProdImg = Boolean(result.productImage);
+
+    let visualContinuitySection = "";
+    if (hasHostImg || hasProdImg) {
+      visualContinuitySection = `[MULTIMODAL ATTACHMENT REFERENCE]:
+- The attached reference image(s) define the visual ground truth for this project.
+${hasHostImg ? "- @host_anchor: Maintain 100% strict visual consistency matching the attached Host image (facial structure, skin tone, eye shape, hairstyle, and outfit across all scenes)." : ""}
+${hasProdImg ? "- @hero_object: Maintain 100% strict visual consistency matching the attached Product image (packaging shape, branding colors, labels, and physical material across all scenes)." : ""}\n\n`;
+    }
+
+    if (targetEngine === "google-flow") {
+      const scenesText = result.scenes
+        .map(
+          (s) =>
+            `--- SHOT ${s.sceneNumber}: ${s.stageName.toUpperCase()} (${s.timeRange}) ---
+[SPOKEN DIALOGUE]:
+"${s.voiceoverScriptId}"
+
+[CAMERA & SLASH COMMAND]:
+${s.cameraDirective.startsWith("/") ? s.cameraDirective : `/camera ${s.cameraDirective}`}
+
+[MASTER VISUAL PROMPT (GOOGLE FLOW)]:
+${s.flowVisualPrompt}
+
+[SOUNDSCAPE]:
+${s.audioSoundscapePrompt}`
+        )
+        .join("\n\n");
+
+      return `=== MASTER PROMPT: ${result.projectTitle.toUpperCase()} ===
+Engine Target: GOOGLE FLOW (VEO 3.1 / GEMINI OMNI FLASH)
+Durasi: ${result.totalDuration} (${result.scenes.length} Shots)
+
+${visualContinuitySection}[ASSET CONSISTENCY TAGS]:
+- Character Tag: ${result.hostProfile.anchorTag} -> ${result.hostProfile.masterCharacterPrompt}
+- Environment Tag: ${result.environmentProfile.anchorTag} -> ${result.environmentProfile.masterSettingPrompt}
+- Object Tag: ${result.objectProfile.anchorTag} -> ${result.objectProfile.masterObjectPrompt}
+
+[ATURAN KAUSALITAS AUDIO-VISUAL]:
+1. Action-Coupled SFX: Seluruh suara foley (kriuk/gigitan/sentuhan) wajib memiliki aksi fisik visual di detik terkait.
+2. Gunakan slash command resmi Google Flow (/camera, /lens, /motion, /lighting).
+
+==================================================
+URUTAN SHOT & NASKAH LENGKAP:
+==================================================
+
+${scenesText}`;
+    }
+
+    if (targetEngine === "leonardo-ai") {
+      const scenesText = result.scenes
+        .map(
+          (s) =>
+            `--- GENERATION CLIP ${s.sceneNumber}: ${s.stageName.toUpperCase()} (${s.timeRange}) ---
+[SPOKEN DIALOGUE / VOICEOVER]:
+"${s.voiceoverScriptId}"
+
+[LEONARDO MOTION SETTINGS]:
+- Motion Strength: 4 (Natural dynamic movement)
+- Camera Motion: Smooth pan & subtle push-in
+- Aspect Ratio: 9:16 (Vertical UGC)
+
+[LEONARDO VISUAL PROMPT]:
+${s.flowVisualPrompt.replace(/@host_anchor/g, "the featured on-camera presenter").replace(/@hero_object/g, "the featured product").replace(/@setting_anchor/g, "the ambient setting")}
+
+[AUDIO SOUNDSCAPE]:
+${s.audioSoundscapePrompt}`
+        )
+        .join("\n\n");
+
+      return `=== MASTER PROMPT: ${result.projectTitle.toUpperCase()} ===
+Engine Target: LEONARDO.AI (MOTION GENERATION)
+Durasi: ${result.totalDuration} (${result.scenes.length} Clips)
+Free Tier: 150 fast tokens/hari (~4.500 token/bln)
+
+${visualContinuitySection}[FOCAL SUBJECT & CONSISTENCY REFERENCE]:
+Presenter: ${result.hostProfile.masterCharacterPrompt}
+Environment: ${result.environmentProfile.masterSettingPrompt}
+Hero Item: ${result.objectProfile.masterObjectPrompt}
+
+[LEONARDO BEST PRACTICE]:
+- Gunakan Image2Motion atau Motion Tool pada Leonardo.Ai
+- Masukkan prompt visual per klip di bawah ini ke prompt box Leonardo.
+
+==================================================
+URUTAN KLIP LEONARDO.AI:
+==================================================
+
+${scenesText}`;
+    }
+
+    if (targetEngine === "dreamina-seedance") {
+      const scenesText = result.scenes
+        .map(
+          (s) =>
+            `--- SEEDANCE SHOT ${s.sceneNumber}: ${s.stageName.toUpperCase()} (${s.timeRange}) ---
+[SPOKEN DIALOGUE]:
+"${s.voiceoverScriptId}"
+
+[SEEDANCE 2.0 / 2.5 DIRECTIVE]:
+Action Dynamics: Continuous fluid motion, natural facial micro-expressions
+Camera: ${s.cameraDirective.replace(/^\/camera\s*/i, "")}
+
+[DREAMINA VISUAL PROMPT]:
+${s.flowVisualPrompt.replace(/@host_anchor/g, "the presenter").replace(/@hero_object/g, "the product item").replace(/@setting_anchor/g, "the aesthetic background")}
+
+[SOUNDSCAPE]:
+${s.audioSoundscapePrompt}`
+        )
+        .join("\n\n");
+
+      return `=== MASTER PROMPT: ${result.projectTitle.toUpperCase()} ===
+Engine Target: DREAMINA (SEEDANCE 2.0 / 2.5)
+Durasi: ${result.totalDuration} (${result.scenes.length} Shots)
+Free Tier: 120 kredit/hari
+
+${visualContinuitySection}[CORE SUBJECT DEFINITION]:
+- Subject: ${result.hostProfile.masterCharacterPrompt}
+- Environment: ${result.environmentProfile.masterSettingPrompt}
+- Focus Item: ${result.objectProfile.masterObjectPrompt}
+
+[DREAMINA SEEDANCE BEST PRACTICE]:
+- Masukkan prompt di mode Seedance 2.0 Standard / Fast di Dreamina.
+- Lampirkan foto referensi jika menggunakan mode Image-to-Video Seedance.
+
+==================================================
+DAFTAR KLIP DREAMINA SEEDANCE:
+==================================================
+
+${scenesText}`;
+    }
+
+    if (targetEngine === "kling-ai") {
+      const scenesText = result.scenes
+        .map(
+          (s) =>
+            `--- KLING SCENE ${s.sceneNumber}: ${s.stageName.toUpperCase()} (${s.timeRange}) ---
+[DIALOGUE]: "${s.voiceoverScriptId}"
+[KLING PARAMETERS]: Mode: Professional | Camera Movement: ${s.cameraDirective.replace(/^\/camera\s*/i, "")} | Motion Brush: Focus on hand interaction
+[KLING PROMPT]:
+${s.flowVisualPrompt.replace(/@host_anchor/g, "the presenter").replace(/@hero_object/g, "the product item")}
+[SOUND EFFECT]: ${s.audioSoundscapePrompt}`
+        )
+        .join("\n\n");
+
+      return `=== MASTER PROMPT: ${result.projectTitle.toUpperCase()} ===
+Engine Target: KLING AI (v1.5 / v2 PRO)
+Durasi: ${result.totalDuration} (${result.scenes.length} Scenes)
+
+${visualContinuitySection}==================================================
+URUTAN KLIP KLING AI:
+==================================================
+
+${scenesText}`;
+    }
+
+    if (targetEngine === "runway-gen3") {
+      const scenesText = result.scenes
+        .map(
+          (s) =>
+            `--- RUNWAY GEN-3 SHOT ${s.sceneNumber}: ${s.stageName.toUpperCase()} (${s.timeRange}) ---
+[DIALOGUE]: "${s.voiceoverScriptId}"
+[RUNWAY CAMERA]: ${s.cameraDirective.replace(/^\/camera\s*/i, "")}
+[PROMPT]:
+Cinematic UGC footage. ${s.flowVisualPrompt.replace(/@host_anchor/g, "the presenter").replace(/@hero_object/g, "the product item")}. 4k photorealistic, natural motion mechanics.
+[SFX]: ${s.audioSoundscapePrompt}`
+        )
+        .join("\n\n");
+
+      return `=== MASTER PROMPT: ${result.projectTitle.toUpperCase()} ===
+Engine Target: RUNWAY GEN-3 ALPHA
+Durasi: ${result.totalDuration} (${result.scenes.length} Shots)
+
+${visualContinuitySection}==================================================
+URUTAN SHOT RUNWAY GEN-3:
+==================================================
+
+${scenesText}`;
+    }
+
+    // Default to Universal Clean AI Prompt (Gemini / Claude / LLM)
+    return generateCleanAiMasterPrompt(result);
+  };
+
+  // Format single clip prompt for Gemini 1-by-1 copy
+  const formatGeminiSingleClipPrompt = (
+    result: MasterDirectiveData,
+    s: UgcScene,
+    idx: number
+  ) => {
+    const hasHostImg = Boolean(result.hostImage);
+    const hasProdImg = Boolean(result.productImage);
+    const hasSettingImg = Boolean(result.settingImage);
+
+    if (idx === 0) {
+      return `=== KLIP 1: ${s.stageName.toUpperCase()} (${s.timeRange}) ===
+Target Durasi: 5 Detik (Sesi 1 Gemini)
+Proyek: ${result.projectTitle}
+
+[INSTRUKSI MEMORI & KONSISTENSI GEMINI]:
+- Gunakan foto referensi yang saya lampirkan di chat ini:
+  * ${hasHostImg ? "Foto wajah & busana: Gunakan [IMAGE 1: @host_anchor]" : "@host_anchor: Wajah dan postur host tetap konsisten."}
+  * ${hasProdImg ? "Foto produk: Gunakan [IMAGE 2: @hero_object]" : "@hero_object: Produk/kemasan konsisten."}
+  * ${hasSettingImg ? "Foto latar/ruangan nyata: Gunakan [IMAGE 3: @setting_anchor] - Kunci tata letak arsitektur, furnitur, dan tekstur dinding tanpa halusinasi." : "@setting_anchor: Latar dan tata ruang konsisten."}
+- Kunci tata cahaya: ${s.lightingAnchor || "Natural soft daylight, 45-degree key light"} di seluruh adegan.
+- Aksi Fisik Nyata: Efek suara foley wajib terlihat aksi fisiknya di layar (zero phantom sound).
+
+[ARAHAN KAMERA]:
+${s.cameraDirective}
+
+[VISUAL PROMPT KLIP 1]:
+${s.flowVisualPrompt}
+
+[NASKAH DIALOGUE]:
+"${s.voiceoverScriptId}"
+
+[SOUNDSCAPE & SFX]:
+${s.audioSoundscapePrompt}
+
+[ENDING POSE TITIK SAMBUNG]:
+${s.endingFrame || "@host_anchor memegang produk di depan kamera dengan senyum ramah dan gestur mengajak bicara."}`;
+    }
+
+    return `=== KLIP ${s.sceneNumber}: ${s.stageName.toUpperCase()} (${s.timeRange}) ===
+Target Durasi: 5 Detik (Sambungan Langsung di Sesi Gemini yang Sama)
+
+[INSTRUKSI SAMBUNGAN GEMINI (FRAME BOUNDARY HAND-OFF)]:
+- Lanjutkan video sebelumnya di dalam satu utas percakapan ini.
+- JANGAN UBAH WAJAH, RAMBUT, BAJU, ATAU RUANGAN. Pertahankan 100% konsisten dengan klip sebelumnya.
+- Starting Frame: ${s.startingFrame || `Melanjutkan persis dari frame terakhir Klip ${idx} tanpa jeda.`}
+- Kunci tata cahaya: ${s.lightingAnchor || "Natural soft daylight"} identik dengan klip sebelumnya.
+
+[ARAHAN KAMERA]:
+${s.cameraDirective}
+
+[VISUAL PROMPT KLIP ${s.sceneNumber}]:
+${s.flowVisualPrompt}
+
+[NASKAH DIALOGUE]:
+"${s.voiceoverScriptId}"
+
+[SOUNDSCAPE & SFX (ZERO PHANTOM)]:
+${s.audioSoundscapePrompt}
+
+[ENDING POSE TITIK SAMBUNG]:
+${s.endingFrame || "@host_anchor menyelesaikan aksi dengan ekspresi puas dan bersiap untuk adegan selanjutnya."}`;
+  };
+
+  // Generate complete Gemini chain text file
+  const generateFullGeminiChainText = (result: MasterDirectiveData) => {
+    return `=== RANTAI PRODUKSI MULTI-KLIP GEMINI (FRAME BOUNDARY HAND-OFF) ===
+Proyek: ${result.projectTitle}
+Total Durasi: ${result.totalDuration} (${result.scenes.length} Klip @ 5 Detik)
+
+PETUNJUK EKSEKUSI DI GEMINI:
+1. Buka satu utas percakapan chat di Gemini (https://gemini.google.com).
+2. Lampirkan foto host & produk Anda di pesan pertama.
+3. Kirim Prompt Klip 1.
+4. Setelah video Klip 1 selesai di-generate, JANGAN BUKA CHAT BARU. Cukup balas di chat yang sama dengan Prompt Klip 2.
+5. Ulangi berurutan hingga Klip ${result.scenes.length}.
+6. Jika kuota 5 jam habis, tunggu reset lalu lanjutkan klip berikutnya di chat yang SAMA!
+
+==================================================
+DAFTAR PROMPT BERURUTAN:
+==================================================
+
+` + result.scenes.map((s, idx) => formatGeminiSingleClipPrompt(result, s, idx)).join("\n\n--------------------------------------------------\n\n");
+  };
+
+  // Generate CapCut Assembly Guide text file
+  const generateFullCapcutGuideText = (result: MasterDirectiveData) => {
+    const guideItems = result.capcutAssemblyGuide && result.capcutAssemblyGuide.length > 0
+      ? result.capcutAssemblyGuide
+      : [
+          "LANGKAH 1: Impor seluruh klip video (Klip 1 s/d Klip " + result.scenes.length + ") ke timeline CapCut.",
+          "LANGKAH 2: Susun di track utama secara berurutan. Gunakan hard cut langsung antar adegan.",
+          "LANGKAH 3: Trim 0.2 - 0.4 detik di awal/akhir klip agar ritme video dinamis dan tanpa jeda kosong.",
+          "LANGKAH 4: Berikan Speed 0.8x Smooth Optical Flow pada klip B-Roll detail produk untuk kesan mewah.",
+          "LANGKAH 5: Sinkronkan sound effect foley persis pada milidetik aksi terjadi, lalu aktifkan Auto Captions.",
+        ];
+
+    const sceneNotes = result.scenes
+      .map(
+        (s) =>
+          `[Klip ${s.sceneNumber} (${s.timeRange}) - ${s.stageName}]
+- Tipe: ${s.rollType || "A-Roll"}
+- Naskah: "${s.voiceoverScriptId}"
+- Rekomendasi Edit CapCut: ${s.capcutEditNote || "Potong halus di awal/akhir untuk kontinuitas"}`
+      )
+      .join("\n\n");
+
+    return `=== PANDUAN EDITING CAPCUT (SEAMLESS ASSEMBLY) ===
+Proyek: ${result.projectTitle}
+Total Klip: ${result.scenes.length} Klip (${result.totalDuration})
+
+--------------------------------------------------
+INSTRUKSI LANGKAH DEMI LANGKAH:
+--------------------------------------------------
+${guideItems.join("\n\n")}
+
+--------------------------------------------------
+CATATAN PEMOTONGAN PER ADEGAN:
+--------------------------------------------------
+${sceneNotes}
+`;
   };
 
   // Generate Human Execution Guide (Separated from the pure AI prompt)
@@ -434,9 +882,13 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
               {/* Target Duration Selector */}
               <div>
                 <label className="block text-xs font-mono font-medium text-[#c4bcb2] mb-2 uppercase tracking-wider flex items-center justify-between">
-                  <span>Pilihan Durasi Video</span>
+                  <span>Pilihan Format & Durasi Video</span>
                   <span className="text-[11px] text-[#8c857c] normal-case font-sans">
-                    {targetDuration === "<=10s"
+                    {targetDuration === "gemini-5clip"
+                      ? "Gemini 5-Clip Chain (5 Klip x 5s • Frame Boundary Hand-Off • Pas Kuota 5 Jam)"
+                      : targetDuration === "longform-multiplier"
+                      ? "Long-Form Multiplier (10 Klip: 5 A-Roll Bicara + 5 B-Roll Aksi/Detail untuk YouTube 1–3 Menit)"
+                      : targetDuration === "<=10s"
                       ? "Klip singkat 10 detik (Cocok langsung di LLM)"
                       : targetDuration === "<=60s"
                       ? "Short-form standar (6 Adegan)"
@@ -445,27 +897,62 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                       : "Epic Storyboard (12 Adegan)"}
                   </span>
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                   {(
                     [
-                      { id: "<=10s", label: "≤ 10 Detik", desc: "Klip Singkat Instan" },
-                      { id: "<=60s", label: "≤ 60 Detik", desc: "Shorts & Reels" },
-                      { id: "<=120s", label: "≤ 120 Detik", desc: "UGC Komplit" },
-                      { id: ">120s", label: "> 120 Detik", desc: "Story Panjang" },
-                    ] as const
+                      {
+                        id: "gemini-5clip" as const,
+                        label: "Gemini 5-Clip Chain (~25s)",
+                        badge: "Juara Mutlak / Rekomendasi",
+                        desc: "5 Klip x 5s • Sambungan mulus • Pas jatah 1 sesi Gemini (4–5 klip per 5 jam)",
+                      },
+                      {
+                        id: "longform-multiplier" as const,
+                        label: "Long-Form Multiplier (1–3 Menit)",
+                        badge: "YouTube Ready",
+                        desc: "10 Klip • 5 A-Roll (Bicara) + 5 B-Roll (Aksi/Detail) • Super kaya visual di CapCut",
+                      },
+                      {
+                        id: "<=10s" as const,
+                        label: "≤ 10 Detik (Hero Shot)",
+                        desc: "Klip Singkat Instan • Aksi fisik & suara sinkron sekali generate",
+                      },
+                      {
+                        id: "<=60s" as const,
+                        label: "≤ 60 Detik (Shorts/Reels)",
+                        desc: "Short-form standar 6 Adegan terstruktur",
+                      },
+                      {
+                        id: "<=120s" as const,
+                        label: "≤ 120 Detik (UGC Komplit)",
+                        desc: "Deep review 8 Adegan eksplorasi",
+                      },
+                      {
+                        id: ">120s" as const,
+                        label: "> 120 Detik (Epic Feature)",
+                        desc: "Storyboard 12 Adegan sinematik",
+                      },
+                    ]
                   ).map((dur) => (
                     <button
                       key={dur.id}
                       type="button"
                       onClick={() => handleDurationChange(dur.id)}
-                      className={`p-3 rounded-xl border text-left transition-all ${
+                      className={`p-3.5 rounded-xl border text-left transition-all ${
                         targetDuration === dur.id
-                          ? "border-[#c29b74] bg-[#c29b74]/15 text-[#f5f1eb]"
+                          ? "border-[#c29b74] bg-[#c29b74]/15 text-[#f5f1eb] shadow-sm"
                           : "border-[#2d2a27] bg-[#1a1b1f] text-[#8c857c] hover:border-[#423e3a] hover:text-[#c4bcb2]"
                       }`}
                     >
-                      <span className="block text-xs font-mono font-bold">{dur.label}</span>
-                      <span className="block text-[10px] text-[#736d65] mt-0.5">{dur.desc}</span>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="block text-xs font-mono font-bold">{dur.label}</span>
+                        {"badge" in dur && (
+                          <span className="text-[9px] font-sans font-bold px-1.5 py-0.5 rounded bg-[#c29b74] text-[#121315] uppercase">
+                            {dur.badge}
+                          </span>
+                        )}
+                      </div>
+                      <span className="block text-[11px] text-[#736d65] mt-1 leading-snug">{dur.desc}</span>
                     </button>
                   ))}
                 </div>
@@ -573,6 +1060,7 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                     className="w-full rounded-xl border border-[#2d2a27] bg-[#1a1b1f] p-3 text-xs text-[#f5f1eb] focus:border-[#c29b74] focus:outline-none"
                   >
                     <option value="hyper-real-ugc">Hyper-Realistic Social UGC (Autentik & Bersahabat)</option>
+                    <option value="house-tour">House Tour & Arsitektur (Walkthrough Virtual Multi-Ruangan)</option>
                     <option value="cinematic-resort">Cinematic High-End (Sinematik & Megah)</option>
                     <option value="luxury-commercial">Luxury Commercial (Editorial & Halus)</option>
                     <option value="tech-review">Tech & Product Precision (Fokus Detail Produk)</option>
@@ -601,21 +1089,21 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                 </div>
               </div>
 
-              {/* Upload Foto Referensi Karakter & Produk (Kunci Konsistensi 100%) */}
+              {/* Upload Foto Referensi Karakter, Produk & Ruangan (Kunci Konsistensi 100%) */}
               <div className="rounded-2xl border border-[#2d2a27] bg-[#141518] p-4 sm:p-5 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="text-xs font-mono font-semibold text-[#f5f1eb] uppercase tracking-wider flex items-center gap-2">
                       <Sparkles className="h-3.5 w-3.5 text-[#c29b74]" />
-                      Foto Referensi Host & Produk (Kunci Konsistensi 100%)
+                      Foto Referensi Host, Produk & Ruangan (Kunci Konsistensi 100%)
                     </h3>
                     <p className="text-[11px] text-[#8c857c] font-sans mt-0.5">
-                      Upload foto wajah kreator & foto produk asli untuk mengunci penampilan karakter dan barang agar konsisten di setiap adegan (Gemini & Flow ready).
+                      Upload foto wajah kreator, produk, atau ruangan nyata untuk mengunci karakter, barang, dan arsitektur agar konsisten di setiap adegan (Gemini & Flow ready).
                     </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Upload Foto Host / UGC Creator */}
                   <div className="rounded-xl border border-[#262422] bg-[#1a1b1f] p-3.5 space-y-2.5">
                     <div className="flex items-center justify-between">
@@ -623,27 +1111,46 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                         <Users className="h-3.5 w-3.5 text-[#c29b74]" />
                         Foto Host / Kreator (@host_anchor)
                       </span>
-                      {hostImage && (
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setHostImage(null)}
-                          className="text-[10px] font-mono text-[#e06c75] hover:underline flex items-center gap-1"
+                          onClick={() => handleOpenVaultPicker("characters")}
+                          className="text-[11px] font-mono text-[#c29b74] hover:underline flex items-center gap-1 bg-[#c29b74]/10 px-2 py-0.5 rounded border border-[#c29b74]/20"
+                          title="Pilih karakter yang tersimpan di Global Asset Vault"
                         >
-                          <X className="h-3 w-3" /> Hapus
+                          <Boxes className="h-3 w-3" /> Ambil dari Vault
                         </button>
-                      )}
+                        {hostImage && (
+                          <button
+                            type="button"
+                            onClick={() => setHostImage(null)}
+                            className="text-[10px] font-mono text-[#e06c75] hover:underline flex items-center gap-1"
+                          >
+                            <X className="h-3 w-3" /> Hapus
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {hostImage ? (
-                      <div className="flex items-center gap-3 bg-[#111214] p-2.5 rounded-lg border border-[#33302c]">
-                        <img
-                          src={hostImage}
-                          alt="Host Reference"
-                          className="h-16 w-16 rounded-lg object-cover border border-[#c29b74]/40"
-                        />
-                        <div className="text-xs">
-                          <span className="font-mono text-[#c29b74] font-medium block">Foto Host Terlampir</span>
-                          <span className="text-[11px] text-[#7d776f]">Wajah, rambut, & pakaian dikunci di semua adegan</span>
+                      <div className="flex items-center justify-between gap-3 bg-[#111214] p-2.5 rounded-lg border border-[#33302c]">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={hostImage}
+                            alt="Host Reference"
+                            className="h-16 w-16 rounded-lg object-cover border border-[#c29b74]/40 shrink-0"
+                          />
+                          <div className="text-xs">
+                            <span className="font-mono text-[#c29b74] font-medium block">Foto Host Terlampir</span>
+                            <span className="text-[11px] text-[#7d776f]">Wajah & pakaian dikunci di semua adegan</span>
+                            <button
+                              type="button"
+                              onClick={handleSaveHostToVault}
+                              className="text-[10px] font-mono text-[#d4af88] hover:underline mt-1 block"
+                            >
+                              💾 Simpan ke Brankas Aset
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ) : (
@@ -673,29 +1180,48 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-mono font-medium text-[#c4bcb2] flex items-center gap-1.5">
                         <Boxes className="h-3.5 w-3.5 text-[#c29b74]" />
-                        Foto Produk / Makanan (@hero_object)
+                        Foto Produk / Objek (@hero_object)
                       </span>
-                      {productImage && (
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setProductImage(null)}
-                          className="text-[10px] font-mono text-[#e06c75] hover:underline flex items-center gap-1"
+                          onClick={() => handleOpenVaultPicker("products")}
+                          className="text-[11px] font-mono text-[#c29b74] hover:underline flex items-center gap-1 bg-[#c29b74]/10 px-2 py-0.5 rounded border border-[#c29b74]/20"
+                          title="Pilih produk yang tersimpan di Global Asset Vault"
                         >
-                          <X className="h-3 w-3" /> Hapus
+                          <Boxes className="h-3 w-3" /> Ambil dari Vault
                         </button>
-                      )}
+                        {productImage && (
+                          <button
+                            type="button"
+                            onClick={() => setProductImage(null)}
+                            className="text-[10px] font-mono text-[#e06c75] hover:underline flex items-center gap-1"
+                          >
+                            <X className="h-3 w-3" /> Hapus
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {productImage ? (
-                      <div className="flex items-center gap-3 bg-[#111214] p-2.5 rounded-lg border border-[#33302c]">
-                        <img
-                          src={productImage}
-                          alt="Product Reference"
-                          className="h-16 w-16 rounded-lg object-cover border border-[#c29b74]/40"
-                        />
-                        <div className="text-xs">
-                          <span className="font-mono text-[#c29b74] font-medium block">Foto Produk Terlampir</span>
-                          <span className="text-[11px] text-[#7d776f]">Kemasan, warna, & tekstur dikunci di semua adegan</span>
+                      <div className="flex items-center justify-between gap-3 bg-[#111214] p-2.5 rounded-lg border border-[#33302c]">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={productImage}
+                            alt="Product Reference"
+                            className="h-16 w-16 rounded-lg object-cover border border-[#c29b74]/40 shrink-0"
+                          />
+                          <div className="text-xs">
+                            <span className="font-mono text-[#c29b74] font-medium block">Foto Produk Terlampir</span>
+                            <span className="text-[11px] text-[#7d776f]">Kemasan, warna, & tekstur dikunci</span>
+                            <button
+                              type="button"
+                              onClick={handleSaveProductToVault}
+                              className="text-[10px] font-mono text-[#d4af88] hover:underline mt-1 block"
+                            >
+                              💾 Simpan ke Brankas Aset
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ) : (
@@ -712,6 +1238,76 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                             if (file) {
                               const b64 = await compressImage(file);
                               setProductImage(b64);
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Upload Foto Latar / Ruangan Nyata (@setting_anchor) */}
+                  <div className="rounded-xl border border-[#262422] bg-[#1a1b1f] p-3.5 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono font-medium text-[#c4bcb2] flex items-center gap-1.5">
+                        <Compass className="h-3.5 w-3.5 text-[#c29b74]" />
+                        Foto Ruangan Nyata (@setting_anchor)
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenVaultPicker("environments")}
+                          className="text-[11px] font-mono text-[#c29b74] hover:underline flex items-center gap-1 bg-[#c29b74]/10 px-2 py-0.5 rounded border border-[#c29b74]/20"
+                          title="Pilih latar yang tersimpan di Global Asset Vault"
+                        >
+                          <Boxes className="h-3 w-3" /> Ambil dari Vault
+                        </button>
+                        {settingImage && (
+                          <button
+                            type="button"
+                            onClick={() => setSettingImage(null)}
+                            className="text-[10px] font-mono text-[#e06c75] hover:underline flex items-center gap-1"
+                          >
+                            <X className="h-3 w-3" /> Hapus
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {settingImage ? (
+                      <div className="flex items-center justify-between gap-3 bg-[#111214] p-2.5 rounded-lg border border-[#33302c]">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={settingImage}
+                            alt="Room Reference"
+                            className="h-16 w-16 rounded-lg object-cover border border-[#c29b74]/40 shrink-0"
+                          />
+                          <div className="text-xs">
+                            <span className="font-mono text-[#c29b74] font-medium block">Foto Ruangan Terlampir</span>
+                            <span className="text-[11px] text-[#7d776f]">Arsitektur & geometri dikunci tanpa halusinasi</span>
+                            <button
+                              type="button"
+                              onClick={handleSaveSettingToVault}
+                              className="text-[10px] font-mono text-[#d4af88] hover:underline mt-1 block"
+                            >
+                              💾 Simpan ke Brankas Aset
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#33302c] hover:border-[#c29b74]/50 rounded-xl p-4 cursor-pointer transition-all bg-[#121315]">
+                        <Upload className="h-5 w-5 text-[#8c857c] mb-1.5" />
+                        <span className="text-xs font-mono text-[#c4bcb2]">Upload Foto Ruangan / Latar</span>
+                        <span className="text-[10px] text-[#635d56] mt-0.5">JPG / PNG / WEBP</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const b64 = await compressImage(file);
+                              setSettingImage(b64);
                             }
                           }}
                         />
@@ -946,15 +1542,17 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
             {/* Board Navigation Tabs */}
             <div className="flex border-b border-[#282624] gap-1 overflow-x-auto">
               {[
+                { id: "gemini-chain", label: `Gemini Chain (${masterResult.scenes.length} Klip)`, icon: Sparkles },
+                { id: "capcut-guide", label: "Panduan Edit CapCut", icon: Film },
                 { id: "storyboard", label: `Naskah & Adegan (${masterResult.scenes.length})`, icon: Film },
                 {
                   id: "direct-prompt",
-                  label: `Master Prompt (${masterResult.engineTarget.toUpperCase()})`,
+                  label: `Master Prompt (${selectedEngineTarget.toUpperCase()})`,
                   icon: MessageSquare,
                 },
-                { id: "character", label: "Karakter (@host)", icon: Users },
+                { id: "character", label: "Pilar Konsistensi (@host)", icon: Users },
                 { id: "environment", label: "Setting & Objek", icon: Boxes },
-                { id: "guide", label: "Panduan", icon: Compass },
+                { id: "guide", label: "Alur Eksekusi", icon: Compass },
               ].map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -973,6 +1571,250 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                 );
               })}
             </div>
+
+            {/* TAB: GEMINI MULTI-CLIP CHAINING */}
+            {activeBoardTab === "gemini-chain" && (
+              <div className="space-y-6">
+                {/* Header Explainer Card */}
+                <div className="rounded-2xl border border-[#c29b74]/40 bg-gradient-to-r from-[#171615] to-[#121315] p-5 sm:p-6 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-[#c29b74]" />
+                      <h3 className="text-base font-semibold text-[#f5f1eb]">
+                        Rantai Produksi Multi-Klip Gemini (Frame Boundary Hand-off)
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          downloadTextFile(
+                            `rantai-gemini-${masterResult.projectTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}.txt`,
+                            generateFullGeminiChainText(masterResult)
+                          )
+                        }
+                        className="flex items-center gap-1.5 rounded-lg border border-[#383531] bg-[#1d1e22] px-3 py-1.5 text-xs font-mono text-[#cfc8bf] hover:text-[#f5f1eb]"
+                      >
+                        <Download className="h-3.5 w-3.5 text-[#c29b74]" />
+                        <span>Unduh Semua Klip (.txt)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          copyText(generateFullGeminiChainText(masterResult), "all-gemini-chain")
+                        }
+                        className="flex items-center gap-1.5 rounded-lg bg-[#c29b74] px-3.5 py-1.5 text-xs font-mono font-semibold text-[#121315] hover:bg-[#d1aa82]"
+                      >
+                        {copiedKey === "all-gemini-chain" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                        <span>{copiedKey === "all-gemini-chain" ? "Tersalin!" : "Salin Seluruh Rantai"}</span>
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-[#a8a197] leading-relaxed">
+                    Sistem ini dirancang khusus untuk kuota <strong>Gemini Pro (4–5 klip per 5 jam)</strong>. Eksekusi seluruh prompt di bawah secara berurutan di <strong>SATU UTAS PERCAKAPAN GEMINI YANG SAMA</strong> (jangan buat chat baru). Ketika kuota reset setelah 5 jam, lanjutkan klip berikutnya di chat yang sama sehingga karakter, pakaian, pencahayaan, dan latar belakang tetap 100% konsisten!
+                  </p>
+                </div>
+
+                {/* Clip Cards List */}
+                <div className="space-y-4">
+                  {masterResult.scenes.map((scene, idx) => (
+                    <div
+                      key={scene.sceneNumber}
+                      className="rounded-2xl border border-[#282624] bg-[#151619] p-5 sm:p-6 space-y-4 transition-all hover:border-[#c29b74]/40"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#242220] pb-3">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#c29b74] text-[#121315] font-mono font-bold text-xs">
+                            {scene.sceneNumber}
+                          </span>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-sans text-sm font-semibold text-[#f5f1eb]">
+                                Klip {scene.sceneNumber}: {scene.stageName}
+                              </h4>
+                              {scene.rollType && (
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#242220] text-[#c29b74] font-medium">
+                                  {scene.rollType}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] font-mono text-[#7d776f]">
+                              Durasi: 5 Detik ({scene.timeRange})
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              downloadTextFile(
+                                `klip-${scene.sceneNumber}-${masterResult.projectTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}.txt`,
+                                formatGeminiSingleClipPrompt(masterResult, scene, idx)
+                              )
+                            }
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1a1b1f] border border-[#2d2a27] text-xs font-mono text-[#c4bcb2] hover:text-[#f5f1eb]"
+                            title="Unduh prompt klip ini"
+                          >
+                            <Download className="h-3 w-3 text-[#c29b74]" />
+                            <span className="hidden sm:inline">Unduh</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              copyText(
+                                formatGeminiSingleClipPrompt(masterResult, scene, idx),
+                                `gemini-clip-${scene.sceneNumber}`
+                              )
+                            }
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#c29b74] text-xs font-mono font-semibold text-[#121315] hover:bg-[#d1aa82]"
+                          >
+                            {copiedKey === `gemini-clip-${scene.sceneNumber}` ? (
+                              <Check className="h-3.5 w-3.5" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                            <span>
+                              {copiedKey === `gemini-clip-${scene.sceneNumber}`
+                                ? "Klip Tersalin!"
+                                : `Salin Prompt Klip ${scene.sceneNumber}`}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Boundary Hand-off Indicators */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                        <div className="rounded-lg border border-[#282624] bg-[#121315] p-2.5">
+                          <span className="text-[10px] uppercase text-[#6e6861] block mb-0.5">
+                            🎬 Starting Frame (Titik Masuk):
+                          </span>
+                          <span className="text-[#cfc8bf] text-[11px]">
+                            {scene.startingFrame || "Melanjutkan persis dari pose akhir klip sebelumnya"}
+                          </span>
+                        </div>
+                        <div className="rounded-lg border border-[#282624] bg-[#121315] p-2.5">
+                          <span className="text-[10px] uppercase text-[#6e6861] block mb-0.5">
+                            🏁 Ending Frame (Titik Sambung):
+                          </span>
+                          <span className="text-[#cfc8bf] text-[11px]">
+                            {scene.endingFrame || "Transisi ke posisi awal klip selanjutnya"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Ready-to-Paste Code Box */}
+                      <div className="rounded-xl border border-[#262422] bg-[#111214] p-3.5 font-mono text-xs text-[#cfc8bf] leading-relaxed whitespace-pre-wrap select-all">
+                        {formatGeminiSingleClipPrompt(masterResult, scene, idx)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB: CAPCUT EDITING GUIDE */}
+            {activeBoardTab === "capcut-guide" && (
+              <div className="rounded-2xl border border-[#282624] bg-[#151619] p-6 space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#242220] pb-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-[#f5f1eb] flex items-center gap-2">
+                      <Film className="h-4 w-4 text-[#c29b74]" />
+                      Panduan Editing & Penggabungan CapCut (Seamless Assembly)
+                    </h3>
+                    <p className="text-xs text-[#8c857c] mt-0.5">
+                      Cara menyambungkan klip 5 detik menjadi video utuh tanpa terasa melompat atau kaku.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadTextFile(
+                          `panduan-capcut-${masterResult.projectTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}.txt`,
+                          generateFullCapcutGuideText(masterResult)
+                        )
+                      }
+                      className="flex items-center gap-1.5 rounded-lg border border-[#383531] bg-[#1d1e22] px-3.5 py-1.5 text-xs font-mono text-[#cfc8bf] hover:text-[#f5f1eb]"
+                    >
+                      <Download className="h-3.5 w-3.5 text-[#c29b74]" />
+                      <span>Unduh Panduan (.txt)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyText(generateFullCapcutGuideText(masterResult), "capcut-guide")
+                      }
+                      className="flex items-center gap-1.5 rounded-lg bg-[#c29b74] px-3.5 py-1.5 text-xs font-mono font-semibold text-[#121315] hover:bg-[#d1aa82]"
+                    >
+                      {copiedKey === "capcut-guide" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                      <span>{copiedKey === "capcut-guide" ? "Panduan Tersalin!" : "Salin Panduan"}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Step Cards */}
+                <div className="grid grid-cols-1 gap-3">
+                  {(masterResult.capcutAssemblyGuide && masterResult.capcutAssemblyGuide.length > 0
+                    ? masterResult.capcutAssemblyGuide
+                    : [
+                        "LANGKAH 1: PERSIAPAN MEDIA - Buka CapCut, impor seluruh video (Klip 1 s/d " + masterResult.scenes.length + "). Atur rasio kanvas 9:16 untuk Shorts/TikTok/Reels atau 16:9 untuk YouTube horizontal.",
+                        "LANGKAH 2: PENATAAN TIMELINE - Susun klip berurutan. Untuk klip B-Roll, posisikan sebagai Overlay di atas narasi suara host agar visual berganti dinamis tanpa jeda.",
+                        "LANGKAH 3: TRIMMING & PACING - Potong 0.2-0.4s di awal/akhir klip yang gerakannya lambat sebelum aksi dimulai, agar ritme napas antar adegan terasa gesit.",
+                        "LANGKAH 4: SPEED RAMP & SINEMATIK - Pada klip aksi estetik/tekstur produk, terapkan Speed 0.7x-0.8x dengan Smooth Optical Flow untuk visual mewah layaknya iklan TV.",
+                        "LANGKAH 5: SOUND EFFECT & AUTO-CAPTIONS - Tarik sound effect foley persis di bawah frame aksi fisik terjadi, lalu aktifkan Auto Captions animasi per kata.",
+                      ]
+                  ).map((guideText, idx) => (
+                    <div
+                      key={idx}
+                      className="rounded-xl border border-[#2b2926] bg-[#121315] p-4 font-mono text-xs text-[#cfc8bf] leading-relaxed whitespace-pre-wrap"
+                    >
+                      {guideText}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Scene-by-Scene Cut Cheat Sheet Table */}
+                <div className="space-y-3 pt-2">
+                  <h4 className="text-xs font-mono font-semibold text-[#f5f1eb] uppercase tracking-wider flex items-center gap-1.5">
+                    <Sliders className="h-3.5 w-3.5 text-[#c29b74]" />
+                    Tabel Rekomendasi Titik Potong & Efek CapCut per Adegan:
+                  </h4>
+                  <div className="overflow-x-auto rounded-xl border border-[#282624]">
+                    <table className="w-full text-left font-mono text-xs">
+                      <thead className="bg-[#1a1b1f] text-[#c29b74] border-b border-[#282624]">
+                        <tr>
+                          <th className="p-3">Klip</th>
+                          <th className="p-3">Tipe</th>
+                          <th className="p-3">Naskah Dialog</th>
+                          <th className="p-3">Rekomendasi Aksi CapCut</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#242220] bg-[#121315] text-[#cfc8bf]">
+                        {masterResult.scenes.map((s) => (
+                          <tr key={s.sceneNumber} className="hover:bg-[#16171b]">
+                            <td className="p-3 font-bold text-[#f5f1eb] whitespace-nowrap">
+                              Klip {s.sceneNumber} ({s.timeRange})
+                            </td>
+                            <td className="p-3 whitespace-nowrap">
+                              <span className="px-2 py-0.5 rounded text-[10px] bg-[#242220] text-[#c29b74]">
+                                {s.rollType || "A-Roll"}
+                              </span>
+                            </td>
+                            <td className="p-3 max-w-xs truncate text-[11px] text-[#a8a197]">
+                              "{s.voiceoverScriptId}"
+                            </td>
+                            <td className="p-3 text-[11px] text-[#d4af88]">
+                              {s.capcutEditNote || "Hard cut langsung menyambung gerakan sebelumnya"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* TAB: STORYBOARD & SCENE SCRIPT */}
             {activeBoardTab === "storyboard" && (
@@ -1009,15 +1851,15 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                       type="button"
                       onClick={() =>
                         downloadTextFile(
-                          `prompt-${masterResult.projectTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}-bersih.txt`,
-                          generateCleanAiMasterPrompt(masterResult)
+                          `prompt-${masterResult.projectTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${selectedEngineTarget}.txt`,
+                          formatEnginePrompt(masterResult, selectedEngineTarget)
                         )
                       }
                       className="flex items-center gap-1.5 rounded-lg border border-[#383531] bg-[#1d1e22] px-3 py-1.5 text-xs font-mono text-[#cfc8bf] hover:text-[#f5f1eb] hover:border-[#c29b74]/40"
                       title="Download file text prompt bersih 100% tanpa instruksi manusia, langsung siap tempel ke Gemini / ChatGPT"
                     >
                       <Download className="h-3.5 w-3.5 text-[#c29b74]" />
-                      <span>Unduh Prompt (.txt)</span>
+                      <span>Unduh Prompt ({selectedEngineTarget})</span>
                     </button>
 
                     {/* Unduh Panduan Terpisah (.txt) */}
@@ -1040,7 +1882,7 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                     <button
                       type="button"
                       onClick={() =>
-                        copyText(generateCleanAiMasterPrompt(masterResult), "all-scenes-clean")
+                        copyText(formatEnginePrompt(masterResult, selectedEngineTarget), "all-scenes-clean")
                       }
                       className="flex items-center gap-1.5 rounded-lg bg-[#c29b74] px-3.5 py-1.5 text-xs font-mono font-semibold text-[#121315] hover:bg-[#d1aa82]"
                       title="Salin prompt bersih 100% siap tempel ke Gemini / ChatGPT (instruksi dipisah agar AI tidak bingung)"
@@ -1050,7 +1892,7 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                       ) : (
                         <Copy className="h-3.5 w-3.5" />
                       )}
-                      <span>{copiedKey === "all-scenes-clean" ? "Prompt Bersih Tersalin!" : "Salin Prompt Bersih (Siap Copas AI)"}</span>
+                      <span>{copiedKey === "all-scenes-clean" ? "Prompt Bersih Tersalin!" : "Salin Prompt Bersih"}</span>
                     </button>
                   </div>
                 </div>
@@ -1158,11 +2000,54 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
             {/* TAB: DIRECT PROMPT READY FOR CHOSEN TOOL */}
             {activeBoardTab === "direct-prompt" && (
               <div className="rounded-2xl border border-[#282624] bg-[#151619] p-6 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#242220] pb-4">
+                {/* Engine Selector Pills for On-the-Fly Re-composition */}
+                <div className="space-y-2 border-b border-[#242220] pb-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[11px] font-mono text-[#a8a197] uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-[#c29b74]" />
+                      Pilih Tool Video (Prompt Disusun Ulang Otomatis):
+                    </span>
+                    <span className="text-[11px] font-mono text-[#c29b74] font-medium">
+                      {VIDEO_TOOLS.find((t) => t.id === selectedEngineTarget)?.quotaInfo || ""}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {VIDEO_TOOLS.map((tool) => {
+                      const isSelected = selectedEngineTarget === tool.id;
+                      return (
+                        <button
+                          key={tool.id}
+                          type="button"
+                          onClick={() => setSelectedEngineTarget(tool.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all flex items-center gap-1.5 border ${
+                            isSelected
+                              ? "bg-[#c29b74] text-[#121315] font-semibold border-[#c29b74] shadow-sm"
+                              : "bg-[#141518] text-[#a8a197] border-[#2b2724] hover:border-[#c29b74]/40 hover:text-[#f5f1eb]"
+                          }`}
+                        >
+                          <span>{tool.label}</span>
+                          {tool.badge && (
+                            <span
+                              className={`text-[9px] px-1.5 py-0.5 rounded font-sans uppercase font-bold ${
+                                isSelected
+                                  ? "bg-[#121315] text-[#c29b74]"
+                                  : "bg-[#252321] text-[#c29b74]"
+                              }`}
+                            >
+                              {tool.badge}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#242220] pb-3">
                   <div>
                     <h4 className="text-base font-semibold text-[#f5f1eb] font-sans flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-[#c29b74]" />
-                      Master Prompt Bersih ({masterResult.engineTarget.toUpperCase()})
+                      Master Prompt Bersih ({selectedEngineTarget.toUpperCase()})
                     </h4>
                     <p className="text-xs text-[#8c857c] font-sans mt-0.5">
                       Prompt 100% bersih tanpa instruksi manusia, langsung siap tempel ke AI (instruksi dipisahkan agar AI tidak bingung).
@@ -1173,20 +2058,20 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                       type="button"
                       onClick={() =>
                         downloadTextFile(
-                          `prompt-${masterResult.projectTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}-bersih.txt`,
-                          generateCleanAiMasterPrompt(masterResult)
+                          `prompt-${masterResult.projectTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${selectedEngineTarget}.txt`,
+                          formatEnginePrompt(masterResult, selectedEngineTarget)
                         )
                       }
                       className="flex items-center gap-1.5 rounded-lg border border-[#383531] bg-[#1d1e22] px-3.5 py-1.5 text-xs font-mono text-[#cfc8bf] hover:text-[#f5f1eb] hover:border-[#c29b74]/40"
                     >
                       <Download className="h-3.5 w-3.5 text-[#c29b74]" />
-                      <span>Unduh Prompt (.txt)</span>
+                      <span>Unduh Prompt ({selectedEngineTarget})</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() =>
-                        copyText(generateCleanAiMasterPrompt(masterResult), "direct-prompt-clean")
+                        copyText(formatEnginePrompt(masterResult, selectedEngineTarget), "direct-prompt-clean")
                       }
                       className="flex items-center gap-1.5 rounded-lg bg-[#c29b74] px-3.5 py-1.5 text-xs font-mono font-semibold text-[#121315] hover:bg-[#d1aa82]"
                     >
@@ -1197,7 +2082,7 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                 </div>
 
                 <div className="rounded-xl border border-[#262422] bg-[#111214] p-4 font-mono text-xs text-[#cfc8bf] leading-relaxed whitespace-pre-wrap select-all">
-                  {generateCleanAiMasterPrompt(masterResult)}
+                  {formatEnginePrompt(masterResult, selectedEngineTarget)}
                 </div>
 
                 {/* Callout Panduan Langkah Manusia Terpisah */}
@@ -1309,6 +2194,28 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                       <span>Salin Setting</span>
                     </button>
                   </div>
+
+                  {masterResult.settingImage && (
+                    <div className="flex items-center gap-4 rounded-xl border border-[#c29b74]/30 bg-[#171614] p-4">
+                      <img
+                        src={masterResult.settingImage}
+                        alt="Setting Reference"
+                        className="h-20 w-20 rounded-xl object-cover border border-[#c29b74]/50 shrink-0"
+                      />
+                      <div>
+                        <span className="inline-block rounded-md bg-[#c29b74]/20 px-2 py-0.5 text-[10px] font-mono font-semibold text-[#c29b74] uppercase mb-1">
+                          Foto Ruangan / Latar Nyata Aktif
+                        </span>
+                        <h5 className="text-sm font-semibold text-[#f5f1eb] font-sans">
+                          Arsitektur & Geometri Ruang Terkunci
+                        </h5>
+                        <p className="text-xs text-[#a8a197] font-sans mt-0.5">
+                          Semua shot mengikuti tata letak, pencahayaan alami, dan material dari foto referensi ini untuk mencegah halusinasi.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="rounded-xl border border-[#262422] bg-[#111214] p-4 font-mono text-xs text-[#cfc8bf] leading-relaxed whitespace-pre-wrap select-all">
                     {masterResult.environmentProfile.masterSettingPrompt}
                   </div>
@@ -1409,6 +2316,31 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
             )}
           </div>
         )}
+
+        {/* Universal Asset Vault Picker Modal */}
+        <AssetVaultPickerModal
+          isOpen={isVaultPickerOpen}
+          initialCategory={vaultPickerCategory}
+          onClose={() => setIsVaultPickerOpen(false)}
+          onSelectCharacter={(char) => {
+            setHostType("custom");
+            setCustomHostDescription(char.visualPrompt);
+            if (char.imageBase64) {
+              setHostImage(char.imageBase64);
+            }
+          }}
+          onSelectProduct={(prod) => {
+            if (prod.imageBase64) {
+              setProductImage(prod.imageBase64);
+            }
+          }}
+          onSelectEnvironment={(env) => {
+            setCustomSettingDescription(env.visualPrompt);
+            if (env.imageBase64) {
+              setSettingImage(env.imageBase64);
+            }
+          }}
+        />
       </main>
     </div>
   );

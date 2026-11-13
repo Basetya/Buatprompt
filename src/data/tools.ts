@@ -16,6 +16,27 @@ export interface ToolItem {
 }
 
 export const ALL_TOOLS: ToolItem[] = [
+  // --- FLAGSHIP GLOBAL: ASSET & STYLE VAULT (SHARED ENGINE ACROSS 28 TOOLS) ---
+  {
+    id: "asset-vault",
+    tool_key: "asset-vault",
+    title: "GLOBAL ASSET & STYLE VAULT",
+    name: "Global Asset & Style Vault (Brankas Referensi)",
+    path: "/asset-vault",
+    icon: "Boxes",
+    color: "text-amber-400",
+    iconBg: "bg-amber-500/15",
+    badge: "CROSS-TOOL VAULT",
+    badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+    featured: true,
+    category: "google-flow",
+    description: "Brankas referensi bersama: simpan karakter (@host_anchor), produk (@hero_object), latar (@setting_anchor), dan preset kamera satu kali, lalu gunakan secara konsisten di seluruh 28 fitur BuatPrompt.",
+    samples: [
+      "Master Character Sheet: Sarah UGC, Bimo Tech, Reza & Maya Podcast Duo",
+      "Katalog Produk & Formula Kausalitas Audio-Visual (Zero Phantom SFX)"
+    ]
+  },
+
   // --- FLAGSHIP 0: GOOGLE FLOW UGC PRODUCER (1-2 MENIT PITCHING SPECIAL) ---
   {
     id: "ugc-flow-studio",

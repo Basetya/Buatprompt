@@ -58,29 +58,52 @@ export async function POST(req: NextRequest) {
         const mimeMatch = imageBase64.match(/^data:([^;]+);base64,/);
         const mimeType = mimeMatch ? mimeMatch[1] : (mediaType === "video" ? "video/mp4" : "image/jpeg");
 
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  inlineData: {
-                    data: cleanBase64,
-                    mimeType: mimeType,
+        let response;
+        try {
+          response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    inlineData: {
+                      data: cleanBase64,
+                      mimeType: mimeType,
+                    },
                   },
-                },
-                {
-                  text: systemPrompt,
-                },
-              ],
-            },
-          ],
-        });
+                  {
+                    text: systemPrompt,
+                  },
+                ],
+              },
+            ],
+          });
+        } catch {
+          response = await ai.models.generateContent({
+            model: "gemini-3.5-flash-lite",
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    inlineData: {
+                      data: cleanBase64,
+                      mimeType: mimeType,
+                    },
+                  },
+                  {
+                    text: systemPrompt,
+                  },
+                ],
+              },
+            ],
+          });
+        }
 
         return NextResponse.json({
           prompt: response.text,
-          model: "gemini-2.5-flash",
+          model: "gemini-3-flash-preview",
           targetModel,
         });
       }
@@ -110,37 +133,48 @@ export async function POST(req: NextRequest) {
 
           const is55s = durationTarget !== "26s";
           const targetSeconds = is55s ? 52 : 26;
-          const targetWords = is55s ? "120-135 kata" : "60-65 kata";
+          const targetWords = is55s ? "110-125 kata" : "55-65 kata";
 
-          const systemPrompt = `Anda adalah Senior Creative Director dan Master Motion Graphic Copywriter.
-Tugas Anda adalah menyusun naskah video vertikal 9:16 (TikTok, Instagram Reels, YouTube Shorts) berdurasi tepat ~${targetSeconds} detik (${targetWords}) yang dibagi menjadi 4 Scene sinematik dengan alur retensi visual tinggi:
-- Scene 1: THE SHOCK HOOK (Kaitkan rasa penasaran, emosi "shocked", durasi ${is55s ? 10 : 6} detik)
-- Scene 2: THE PAIN AGITATION (Bongkar kesalahan/masalah, emosi "skeptical", durasi ${is55s ? 15 : 7} detik)
-- Scene 3: THE BREAKTHROUGH REVEAL (Solusi cerdas & aksi nyata, emosi "celebrate", durasi ${is55s ? 15 : 7} detik)
-- Scene 4: THE INFINITE LOOP CTA (Call to action dan loop anchor menyatu kembali ke Scene 1, emosi "point-cta", durasi ${is55s ? 12 : 6} detik)
+          const systemPrompt = `Anda adalah Master Scriptwriter & Top Viral TikTok/Reels Creator Indonesia.
+Tugas Anda adalah membuat naskah video vertikal 9:16 yang SANGAT ALAMI, LUWES, DAN MENGALIR SEPERTI OBROLAN NYATA ANTAR TEMAN (100% gaya tutur lisan manusia, BUKAN bahasa buku, BUKAN makalah kaku, BUKAN template korporat).
 
-Input Pengguna:
+DETAIL TARGET:
+- Durasi: Tepat ~${targetSeconds} detik (${targetWords})
+- Format: ${is55s ? "52-55s Deep Story (Storytelling mendalam, emosional, membongkar rahasia langkah demi langkah)" : "26s Express Hook (Punchy, cepat, to-the-point langsung membongkar kesalahan dan solusi)"}
 - Topik/Ide: "${topicIdea}"
-- Naskah Mentah Pengguna (jika ada): "${rawScriptText || ''}"
-- Niche Target: "${targetNiche}"
+${rawScriptText ? `- Naskah Acuan Pengguna: "${rawScriptText}"` : ""}
+- Niche: "${targetNiche}"
 - Gaya Visual: "${motionStyle}"
-- Mode Input: "${inputTab}"
 
-KEMBALIKAN HANYA JSON VALID (tanpa markdown code fences, tanpa kata pengantar) dengan struktur persis seperti ini:
+PEDOMAN PERCAKAPAN SUPER ALAMI (WAJIB DIIKUTI):
+1. DILARANG KERAS menggunakan frasa kaku seperti:
+   - ❌ "Banyak orang gagal paham tentang..."
+   - ❌ "Kesalahan terbesar adalah memaksakan hasil instan tanpa memahami sistem..."
+   - ❌ "Seperti kata [Tokoh]: ..."
+   - ❌ Mengulang kalimat tanya mentah sebagai pengantar.
+2. GUNAKAN gaya tutur lisan kreator manusia:
+   - Scene 1 (Hook): Buka dengan pertanyaan relate atau fakta mencengangkan ("Pernah nggak sih kamu...", "Stop lakukan ini kalau nggak mau...", "Jujur, siapa yang masih...").
+   - Scene 2 (Agitasi Masalah): Bahas kenapa cara lama bikin gagal dengan nada gregetan/penasaran ("Nah masalahnya...", "Biasanya kita tuh langsung...", "Padahal rahasianya bukan di situ...").
+   - Scene 3 (Solusi Teruji): Beri langkah konkrit yang bisa langsung ditiru hari ini ("Ternyata kuncinya tuh simpel banget...", "Coba lakuin dua langkah ini...", "Trik rahasianya...").
+   - Scene 4 (CTA Santai): Ajak simpan video dan ngobrol di kolom komentar ("Coba deh praktekin nanti sore! Save dulu biar nggak lupa, terus share ke temen kamu ya!").
+3. Headline harus singkat, padat, huruf kapital (maksimal 3-5 kata) agar nyaman dibaca di layar HP.
+4. Subtext adalah teks persis yang dibacakan oleh voiceover. Kalimat mengalir enak dengan intonasi natural.
+
+KEMBALIKAN HANYA JSON MURNI VALID (tanpa markdown code fences, tanpa kata pengantar):
 {
   "topic": "${topicIdea}",
-  "wordCount": 128,
+  "wordCount": ${is55s ? 118 : 60},
   "estimatedVoiceSeconds": ${targetSeconds},
   "isTooLong": false,
   "totalDurationSec": ${targetSeconds},
-  "retentionFormula": "3 Hukum Fisika Visual + Character Emotion Resonance + Word-by-Word Highlight",
+  "retentionFormula": "Human Conversational Cadence + Emotional Relatability + Word-by-Word Highlight",
   "scenes": [
     {
       "sceneNumber": 1,
       "stageName": "THE SHOCK HOOK",
       "timeRange": "0:00 - 0:${is55s ? '10' : '06'}",
-      "headline": "TEKS HEADLINE HURUF BESAR SINGKAT",
-      "subtext": "Penjelasan subteks yang dibacakan voiceover...",
+      "headline": "HEADLINE SINGKAT PUNCHY",
+      "subtext": "Kalimat pembuka hook yang bikin penasaran dan relate...",
       "metric": "STOP! 🛑",
       "highlightKeyword": "KATA_KUNCI",
       "durationSec": ${is55s ? 10 : 6},
@@ -152,10 +186,10 @@ KEMBALIKAN HANYA JSON VALID (tanpa markdown code fences, tanpa kata pengantar) d
       "sceneNumber": 2,
       "stageName": "THE PAIN AGITATION",
       "timeRange": "0:${is55s ? '10' : '06'} - 0:${is55s ? '25' : '13'}",
-      "headline": "KENDALA UTAMA YANG BIKIN GAGAL",
-      "subtext": "Penjelasan masalah yang membuat penonton merasa relate...",
+      "headline": "MASALAH YANG SERING TERJADI",
+      "subtext": "Penjelasan kenapa cara biasa selalu gagal dengan nada santai...",
       "metric": "-85% GAGAL",
-      "highlightKeyword": "KENDALA",
+      "highlightKeyword": "MASALAH",
       "durationSec": ${is55s ? 15 : 7},
       "characterEmotion": "skeptical",
       "kineticFx": "Wipe Push Left + Floating Red Question Particles",
@@ -165,8 +199,8 @@ KEMBALIKAN HANYA JSON VALID (tanpa markdown code fences, tanpa kata pengantar) d
       "sceneNumber": 3,
       "stageName": "THE BREAKTHROUGH REVEAL",
       "timeRange": "0:${is55s ? '25' : '13'} - 0:${is55s ? '40' : '20'}",
-      "headline": "TERAPKAN SOLUSI INI HARI INI",
-      "subtext": "Penjelasan solusi praktis dan langkah konkrit yang terbukti efektif...",
+      "headline": "SOLUSI RAHASIA PRAKTIS",
+      "subtext": "Langkah konkrit yang terbukti berhasil dan gampang dicoba...",
       "metric": "+350% HASIL",
       "highlightKeyword": "SOLUSI",
       "durationSec": ${is55s ? 15 : 7},
@@ -178,8 +212,8 @@ KEMBALIKAN HANYA JSON VALID (tanpa markdown code fences, tanpa kata pengantar) d
       "sceneNumber": 4,
       "stageName": "THE INFINITE LOOP CTA",
       "timeRange": "0:${is55s ? '40' : '20'} - 0:${targetSeconds}",
-      "headline": "SIMPAN VIDEO INI BIAR NGGAK LUPA",
-      "subtext": "Penjelasan ajakan simpan dan kalimat anchor yang nyambung kembali ke scene 1...",
+      "headline": "SIMPAN RESEP SEKARANG",
+      "subtext": "Ajakan simpan video dan coba sendiri di rumah...",
       "metric": "SAVE! ✨",
       "highlightKeyword": "SIMPAN",
       "durationSec": ${is55s ? 12 : 6},
@@ -190,16 +224,31 @@ KEMBALIKAN HANYA JSON VALID (tanpa markdown code fences, tanpa kata pengantar) d
   ]
 }`;
 
-          const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
-          });
-
-          const rawText = response.text || "";
-          const cleanedJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-          const parsed = JSON.parse(cleanedJson);
-          if (parsed && Array.isArray(parsed.scenes) && parsed.scenes.length === 4) {
-            return NextResponse.json(parsed);
+          // Try Gemini API models via direct v1beta endpoint
+          const candidateModels = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-flash-latest", "gemini-3-flash-preview"];
+          for (const modelName of candidateModels) {
+            try {
+              const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+              const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: systemPrompt }] }],
+                  generationConfig: { responseMimeType: "application/json" }
+                })
+              });
+              if (res.ok) {
+                const data = await res.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                  const cleanedJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
+                  const parsed = JSON.parse(cleanedJson);
+                  if (parsed && Array.isArray(parsed.scenes) && parsed.scenes.length === 4) {
+                    return NextResponse.json(parsed);
+                  }
+                }
+              }
+            } catch (_) {}
           }
         } catch (llmErr) {
           console.warn("Live Gemini multi-scene generation failed, falling back to autonomous synthesis engine:", llmErr);
@@ -207,10 +256,18 @@ KEMBALIKAN HANYA JSON VALID (tanpa markdown code fences, tanpa kata pengantar) d
       }
 
       if (taskPrompt) {
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: [{ role: "user", parts: [{ text: taskPrompt }] }],
-        });
+        let response;
+        try {
+          response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: [{ role: "user", parts: [{ text: taskPrompt }] }],
+          });
+        } catch {
+          response = await ai.models.generateContent({
+            model: "gemini-3.5-flash-lite",
+            contents: [{ role: "user", parts: [{ text: taskPrompt }] }],
+          });
+        }
         return NextResponse.json({ prompt: response.text });
       }
     }

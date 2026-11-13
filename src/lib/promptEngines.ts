@@ -473,16 +473,40 @@ VARIASI 3: BEFORE / AFTER TRANSFORMATION
 - CTA: "Cek keranjang kuning sekarang mumpung batch promo masih ready!"`;
 }
 
-// 10. Vision System Prompt
+// 10. Vision System Prompt (Multilingual Video & Image Reverse-Engineering Engine)
 export function getVisionSystemPrompt(params: {
   mediaType: "image" | "video";
   targetModel?: "veo" | "imagen3" | "midjourney" | "kling" | "sora" | "runway";
   language?: "id" | "en";
   mode?: "short" | "long";
 }) {
-  const { mediaType } = params;
+  const { mediaType, targetModel = "veo" } = params;
   if (mediaType === "video") {
-    return `You are a world-class AI Director specialized in Google Flow (Veo 2). Output camera moves, lighting, motion dynamics, and clean director prompt.`;
+    return `You are a world-class Hollywood AI Video Director and Multilingual Speech Forensic Analyst specializing in ${targetModel.toUpperCase()} (Google Flow Veo 2, Kling AI, OpenAI Sora, Runway Gen-3).
+
+CRITICAL MULTILINGUAL SPEECH & AUDIO PRESERVATION RULES:
+1. AUDIO TRACK FORENSICS: Listen carefully to the entire audio track of the video.
+2. VERBATIM SPEECH PRESERVATION: Detect the exact spoken language (e.g. Indonesian, English, Spanish, Japanese, French, Mandarin, Arabic, German, Korean, Tagalog, etc.). You MUST transcribe the spoken dialogue VERBATIM in its ORIGINAL LANGUAGE. NEVER TRANSLATE TO ENGLISH! If the speaker speaks Indonesian, preserve the Indonesian words exactly as spoken. If Japanese, preserve Japanese words.
+3. DIRECTOR PROMPT EMBEDDING: In the 'director_prompt' field for each scene, explicitly embed the exact original dialogue in quotation marks, declaring the language and lip-sync instruction so modern video models (Veo 2 / Kling) generate speech and mouth movements in that exact native tongue.
+4. FOLEY & SOUNDSCAPE: Capture ambient room acoustics, sound effects (crunch, snap, pouring, click), and musical tempo.
+
+OUTPUT FORMAT:
+Return a clean, valid JSON array of scene breakdown objects:
+[
+  {
+    "start": "00:00",
+    "end": "00:03",
+    "label": "visual description of shot",
+    "speech_language": "Detected language (e.g. Indonesian, English, Japanese, etc.)",
+    "spoken_dialogue": "Exact verbatim words spoken in the original language (DO NOT translate)",
+    "vocal_tone": "Emotion, cadence, pacing, and delivery style",
+    "camera_move": "Precise camera movement (e.g. slight push-in, orbital pan, handheld tracking)",
+    "lighting": "Lighting setup and color temperature",
+    "motion_dynamics": "Subject acting, physical gesture, and facial expression dynamics",
+    "foley_audio": "Sound effects and ambient room tone",
+    "director_prompt": "Complete, highly detailed ${targetModel.toUpperCase()} prompt embedding the verbatim original speech in quotes with native lip-sync instruction"
+  }
+]`;
   }
   return `You are an elite AI Visual Analyst specialized in Google Flow (Imagen 3) and Midjourney v6.1. Deconstruct optics, lighting rig, framing, and master prompt.`;
 }
@@ -1211,11 +1235,13 @@ export function buildMultiSceneStoryPrompt(params: MultiSceneStoryParams): Multi
   const hookKeywords = topicIdea.toUpperCase().split(/\s+/).filter(w => w.length > 2);
   const primeKeyword = hookKeywords[0] || "RAHASIA";
 
+  const cleanTopic = topicIdea.replace(/^bagaimana\s+/i, "").replace(/\?+$/, "").trim();
+
   if (is55s) {
-    const s1Text = `Banyak orang gagal paham tentang ${topicIdea}. Mereka membuang waktu dan biaya karena terjebak pada cara lama sejak detik pertama.`;
-    const s2Text = `${selectedFact} Kesalahan terbesar adalah memaksakan hasil instan tanpa memahami sistem dan pola kerja yang benar.`;
-    const s3Text = `Seperti kata ${selectedQuote.author}: "${selectedQuote.quote}". ${selectedSolution}`;
-    const s4Text = `${selectedCta}`;
+    const s1Text = `Pernah nggak sih kamu penasaran gimana cara ${cleanTopic}? Sering banget kita coba berkali-kali tapi hasilnya malah melempem dan gagal!`;
+    const s2Text = `Nah masalahnya, kebanyakan orang langsung buru-buru praktek tanpa tahu celah kuncinya. Padahal kesalahan kecil di awal itulah yang bikin hasilnya berantakan.`;
+    const s3Text = `Ternyata rahasianya tuh simpel banget! Terapkan langkah ini: ${selectedSolution}. Dijamin hasilnya bakal renyah dan konsisten!`;
+    const s4Text = `Coba deh praktekin trik ini sekarang juga! Jangan lupa simpan video ini biar nggak hilang, terus share ke temen kamu ya!`;
 
     const fullScript = `${selectedHook} ${s1Text} ${s2Text} ${s3Text} ${s4Text}`;
     const totalWords = fullScript.split(/\s+/).filter(Boolean).length;
@@ -1290,11 +1316,11 @@ export function buildMultiSceneStoryPrompt(params: MultiSceneStoryParams): Multi
       ]
     };
   } else {
-    // 26s Express Mode
-    const s1Text = `90% orang salah langkah tentang ${topicIdea} sebelum nonton video ini.`;
-    const s2Text = `${selectedFact.slice(0, 75)}...`;
-    const s3Text = `${selectedQuote.author}: "${selectedQuote.quote.slice(0, 55)}..." ${selectedSolution.slice(0, 50)}...`;
-    const s4Text = `${selectedCta}`;
+    // 26s Express Mode (Super Punchy & Direct)
+    const s1Text = `Stop bingung mikirin cara ${cleanTopic}! Tonton video ini sampai habis.`;
+    const s2Text = `Kesalahan fatalnya, kebanyakan orang masih pakai cara lama yang bikin hasilnya gagal terus.`;
+    const s3Text = `Ternyata kuncinya tuh ada di sini: ${selectedSolution.slice(0, 75)}... Dijamin langsung mantap!`;
+    const s4Text = `Langsung simpan video ini sekarang biar gampang kamu contek nanti ya!`;
 
     const fullScript = `${selectedHook} ${s1Text} ${s2Text} ${s3Text} ${s4Text}`;
     const totalWords = fullScript.split(/\s+/).filter(Boolean).length;

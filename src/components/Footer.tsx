@@ -123,8 +123,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="#pricing" className="hover:text-cyan-300 transition-colors">
-                  Paket Akses & Langganan
+                <Link href="#faqs" className="hover:text-cyan-300 transition-colors">
+                  FAQ & Panduan Studio
                 </Link>
               </li>
             </ul>

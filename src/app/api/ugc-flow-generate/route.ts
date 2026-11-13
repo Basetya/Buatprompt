@@ -4,16 +4,17 @@ import { VideoAiEngine, LlmModelType } from "../ugc-flow-clarify/route";
 
 interface UgcFlowGenerateRequest {
   topic: string;
-  targetDuration: "<=10s" | "<=60s" | "<=120s" | ">120s";
+  targetDuration: "<=10s" | "<=60s" | "<=120s" | ">120s" | "gemini-5clip" | "longform-multiplier";
   engineTarget: VideoAiEngine;
   llmModel?: LlmModelType;
-  styleGenre: "hyper-real-ugc" | "cinematic-resort" | "tech-review" | "cartoon-3d-animation" | "luxury-commercial";
+  styleGenre: "hyper-real-ugc" | "house-tour" | "cinematic-resort" | "tech-review" | "cartoon-3d-animation" | "luxury-commercial";
   hostType: string;
   customHostDescription?: string;
   cameraArchetype?: string;
   clarificationAnswers: Record<string, string>;
   hostImage?: string | null;
   productImage?: string | null;
+  settingImage?: string | null;
 }
 
 export async function POST(req: NextRequest) {
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
     const body: UgcFlowGenerateRequest = await req.json();
     const {
       topic = "",
-      targetDuration = "<=60s",
+      targetDuration = "gemini-5clip",
       engineTarget = "google-flow",
       llmModel = "gemini",
       styleGenre = "hyper-real-ugc",
@@ -31,16 +32,27 @@ export async function POST(req: NextRequest) {
       clarificationAnswers = {},
       hostImage = null,
       productImage = null,
+      settingImage = null,
     } = body;
 
     const apiKey = process.env.GEMINI_API_KEY;
 
+    const isShortClip = targetDuration === "<=10s";
+    const isGeminiChain = targetDuration === "gemini-5clip";
+    const isLongFormMultiplier = targetDuration === "longform-multiplier";
+
     // Menghitung jumlah scene secara adaptif
     let sceneCount = 6;
     let durPerScene = 10;
-    if (targetDuration === "<=10s") {
+    if (isShortClip) {
       sceneCount = 1;
       durPerScene = 10;
+    } else if (isGeminiChain) {
+      sceneCount = 5;
+      durPerScene = 5;
+    } else if (isLongFormMultiplier) {
+      sceneCount = 10;
+      durPerScene = 6;
     } else if (targetDuration === "<=60s") {
       sceneCount = 6;
       durPerScene = 10;
@@ -88,7 +100,13 @@ export async function POST(req: NextRequest) {
 
     // Engine syntax guidance helper
     let engineSpecificInstruction = "";
-    if (engineTarget === "runway-gen3") {
+    if (engineTarget === "leonardo-ai") {
+      engineSpecificInstruction =
+        "Format prompt video untuk Leonardo.Ai (Motion Generation): Tuliskan visual cinematic dengan fokus tajam pada focal subject (@host_anchor), arah pergerakan kamera (pan/tilt/zoom), depth of field, dan sertakan rekomendasi parameter Motion Strength (3-5 untuk gerak natural).";
+    } else if (engineTarget === "dreamina-seedance") {
+      engineSpecificInstruction =
+        "Format prompt video untuk Dreamina (Seedance 2.0 / 2.5): Tuliskan prompt visual dinamis, high dynamic range lighting, continuous physics, dan ekspresi realistis sesuai engine Seedance 2.0 / Fast.";
+    } else if (engineTarget === "runway-gen3") {
       engineSpecificInstruction =
         "Format prompt video sesuai standar Runway Gen-3 Alpha: Gunakan deskripsi cinematic motion terperinci, camera speed/direction, lighting, dan f/stop lens. Hindari jargon teknis yang tidak didukung.";
     } else if (engineTarget === "kling-ai") {
@@ -108,7 +126,7 @@ export async function POST(req: NextRequest) {
         "Format prompt video untuk Wan2.1 (Wan Video Open-Source): Berikan visual descriptive prompt yang kaya estetika dan kontrol kamera yang presisi.";
     } else {
       engineSpecificInstruction =
-        "Format prompt untuk Google Flow (Veo 2): Gunakan slash command resmi (/camera, /lens, /motion, /lighting) serta tag konsistensi @host_anchor dan @setting_anchor.";
+        "Format prompt untuk Google Flow (Veo 3.1 / Gemini Omni Flash): Gunakan slash command resmi (/camera, /lens, /motion, /lighting) serta tag konsistensi @host_anchor, @setting_anchor, dan @hero_object.";
     }
 
     const systemPrompt = `Anda adalah Master Creative Video Director & Multi-Engine Prompt Architect kelas dunia (Hyper-Smart AI Video Director).
@@ -118,19 +136,16 @@ Target Engine Pilihan Kreator: ${engineTarget.toUpperCase()} ${isLlmNative ? `(L
 PANDUAN KHUSUS ENGINE:
 ${engineSpecificInstruction}
 
-HUKUM MUTLAK KAUSALITAS AUDIO-VISUAL & SINKRONISASI FISIK (ZERO PHANTOM SFX):
-1. ZERO PHANTOM SFX: Dilarang keras memunculkan suara foley atau efek suara (seperti: bunyi gigitan, kriuk 'kress', patahan kentang, tegukan, decit, denting, tap layar) TANPA ADA AKSI FISIK VISUAL YANG JELAS terlihat di layar pada detik tersebut!
-2. JIKA ADA SUARA MAKANAN (CRUNCH / KRIUK / MAKAN / MINUM):
-   - Deskripsi visual prompt WAJIB menyebutkan aksi fisiknya secara eksplisit, nyata, dan kronologis:
-     * Opsi A (Snapping): "@host_anchor snaps the golden crispy @hero_object in half directly in front of the macro lens with both hands, visibly fracturing the crunchy crust with subtle crumbs and steam, directly causing and synchronizing with the crisp crunch sound."
-     * Opsi B (Biting): "@host_anchor brings the crispy @hero_object to her mouth, takes an authentic crisp bite into the food visibly fracturing the crust with tiny crumbs falling, followed by an ecstatic reaction of delight."
-   - DILARANG KERAS hanya menulis "@host_anchor holding the food and smiling" jika soundscape berbunyi kriuk/gigitan! Penonton dan model video AI wajib melihat momen kentang digigit atau dipatahkan agar sinkron 100%.
-3. KRONOLOGI BEAT PER DETIK (ACTION TIMELINE):
-   - Terutama untuk durasi pendek (<=10s) atau adegan reveal/hook, deskripsi visual prompt HARUS memiliki urutan kronologis yang jelas:
-     Misal: "[00:00-00:03]: Host shows @hero_object enthusiastically to camera. [00:03-00:06]: Host visibly snaps or bites @hero_object in macro close-up, triggering the loud crisp sound. [00:06-00:10]: Host smiles in satisfaction and delivers the warm punchline."
-4. PEMISAHAN BICARA & AKSI FISIK (NO TALKING WHILE CHEWING):
-   - Karakter tidak boleh digambarkan bicara panjang saat mulutnya sedang mengunyah makanan.
-   - Gunakan jeda napas [pause] di naskah dialog saat aksi fisik gigit/patahkan terjadi.
+TIGA PILAR KONSISTENSI VISUAL MUTLAK (THE THREE CONTINUITY PILLARS):
+1. PILAR 1 - LIGHTING CONTINUITY ANCHOR:
+   - Seluruh adegan WAJIB memiliki kondisi tata cahaya yang identik (misal: "Natural soft morning kitchen daylight, 45-degree warm key light with subtle rim reflection"). Dilarang mengubah sumber cahaya mendadak antar klip agar warna tidak melompat saat digabung di CapCut.
+2. PILAR 2 - WARDROBE & PROP LOCK ANCHOR:
+   - Pakaian, gaya rambut, dan aksesori @host_anchor serta wujud fisik kemasan/tekstur @hero_object harus 100% TERKUNCI identik di setiap scene tanpa deviasi.
+3. PILAR 3 - AUDIO-ACTION SYNC ANCHOR (ZERO PHANTOM SFX):
+   - Efek suara foley (seperti kriuk/gigitan/snap/tegukan/tuang) WAJIB terlihat aksi fisik penyebabnya secara nyata di layar pada detik tersebut! DILARANG KERAS memunculkan suara kriuk jika makanan tidak terlihat digigit atau dipatahkan secara fisik di video.
+4. FRAME BOUNDARY HAND-OFF (KONSISTENSI SAMBUNGAN KLIP):
+   - Setiap adegan (terutama adegan 2 ke atas) WAJIB mencantumkan "startingFrame" yang menyambung persis dari posisi akhir (endingFrame) adegan sebelumnya, sehingga ketika dieksekusi di sesi Gemini atau digabung di CapCut, pergerakannya mengalir mulus tanpa patah (*seamless cut*).
+   ${isLongFormMultiplier ? "- KHUSUS MODE LONG-FORM MULTIPLIER: Bagi adegan secara seimbang antara A-Roll (Host berbicara ke kamera) dan B-Roll (Visual cutaway close-up aksi/tekstur/proses produk tanpa bicara)." : ""}
 
 ATURAN NASKAH & PENGETAHUAN LOKASI:
 - Jika topik menyebut tempat/produk/hotel nyata: masukkan fakta asli lokasi tersebut secara natural dan meyakinkan.
@@ -166,12 +181,28 @@ STRUKTUR OUTPUT JSON:
       "sceneNumber": 1,
       "timeRange": "string",
       "stageName": "string",
+      "rollType": "A-Roll atau B-Roll",
+      "startingFrame": "string (Pose awal yang menyambung adegan sebelumnya)",
+      "endingFrame": "string (Pose akhir sebagai titik sambung ke adegan berikutnya)",
+      "lightingAnchor": "string (Tata cahaya konsisten)",
       "voiceoverScriptId": "string (naskah bahasa indonesia hidup dengan jeda [pause])",
       "cameraDirective": "string (/camera command atau instruksi framing sesuai ${engineTarget})",
       "flowVisualPrompt": "string (Prompt visual hiper-sinkron dengan urutan kronologi aksi dan aksi fisik penyebab suara)",
       "audioSoundscapePrompt": "string (Sound effect foley yang sinkron persis dengan aksi visual)",
-      "keyVisualBeat": "string"
+      "keyVisualBeat": "string",
+      "capcutEditNote": "string (Rekomendasi titik potong, speed ramp, atau penempatan SFX di CapCut)"
     }
+  ],
+  "capcutAssemblyGuide": [
+    "Langkah 1 (Timeline): ...",
+    "Langkah 2 (Trimming & Pacing): ...",
+    "Langkah 3 (Speed Ramp / B-Roll): ...",
+    "Langkah 4 (Audio & SFX Sync): ..."
+  ],
+  "geminiChainPrompts": [
+    "Prompt Klip 1 siap copas...",
+    "Prompt Klip 2 siap copas...",
+    "Prompt Klip 3 siap copas..."
   ],
   "engineDirectPrompt": "string (Prompt siap copy-paste langsung ke tools ${engineTarget})",
   "operatorGuide": [
@@ -227,6 +258,21 @@ Hasilkan JSON produksi utuh sekarang.`;
           });
         }
 
+        if (settingImage && typeof settingImage === "string") {
+          const cleanBase64 = settingImage.replace(/^data:[^;]+;base64,/, "");
+          const mimeMatch = settingImage.match(/^data:([^;]+);base64,/);
+          const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+          userParts.push({
+            inlineData: {
+              data: cleanBase64,
+              mimeType,
+            },
+          });
+          userParts.push({
+            text: "[FOTO REFERENSI RUANGAN / LATAR ASLI @setting_anchor]: Amati foto ruangan/properti ini dengan teliti. Ekstrak struktur arsitektur, warna dinding, perabot, pencahayaan jendela, dan lantai. Tuliskan deskripsi akurat di environmentProfile.masterSettingPrompt dan KUNCI arsitektur ruangan ini 100% konsisten di setiap adegan TANPA HALUSINASI!",
+          });
+        }
+
         userParts.push({
           text: userPromptContent,
         });
@@ -252,9 +298,18 @@ Hasilkan JSON produksi utuh sekarang.`;
           // Attach uploaded references back
           parsed.hostImage = hostImage;
           parsed.productImage = productImage;
+          parsed.settingImage = settingImage;
 
           // Hyper-Smart Audio-Visual Causality & Physical Action Lock
           enforceAudioVisualCausality(parsed.scenes, topic);
+
+          // Populate Gemini Chain Prompts and CapCut Assembly Guide if missing
+          if (!parsed.geminiChainPrompts || !Array.isArray(parsed.geminiChainPrompts) || parsed.geminiChainPrompts.length === 0) {
+            parsed.geminiChainPrompts = buildGeminiChainPrompts(parsed);
+          }
+          if (!parsed.capcutAssemblyGuide || !Array.isArray(parsed.capcutAssemblyGuide) || parsed.capcutAssemblyGuide.length === 0) {
+            parsed.capcutAssemblyGuide = buildCapcutAssemblyGuide(parsed);
+          }
 
           // Ensure engineDirectPrompt is richly populated with all dialogue & directives
           if (!parsed.engineDirectPrompt || parsed.engineDirectPrompt.length < 80) {
@@ -295,10 +350,12 @@ Hasilkan JSON produksi utuh sekarang.`;
       clarificationAnswers,
       hostImage,
       productImage,
+      settingImage,
     });
 
     fallbackData.hostImage = hostImage;
     fallbackData.productImage = productImage;
+    fallbackData.settingImage = settingImage;
 
     enforceAudioVisualCausality(fallbackData.scenes, topic);
 
@@ -343,6 +400,10 @@ function generateCleanStudioFallback(params: any) {
       sceneNumber: 1,
       timeRange: "00:00 - 00:10",
       stageName: "10-SECOND VIRAL HOOK & REVEAL",
+      rollType: "A-Roll",
+      startingFrame: "@host_anchor standing ready in front of camera with @hero_object",
+      endingFrame: "@host_anchor gives a confident, delighted smile with thumbs up",
+      lightingAnchor: lensLighting,
       voiceoverScriptId: isFood
         ? `[excited] Sumpah, ini rahasianya! [pause] Cukup taburan maizena tipis sebelum digoreng, [pause] dijamin renyah tahan seharian!`
         : `[excited] Kalau kalian lagi cari ${topic || "solusi terbaik"}, [pause] jujur ini bener-bener wajib dicoba! [warm] Cek info lengkapnya sekarang juga!`,
@@ -356,7 +417,141 @@ function generateCleanStudioFallback(params: any) {
         ? `Loud, ultra-satisfying crisp food crunch sound effect synchronized exactly with the physical bite/snap action at 00:03-00:06, followed by soft warm acoustic guitar music and clear vocal.`
         : `Crisp clean vocal, subtle warm room ambience, light modern acoustic guitar chord swell.`,
       keyVisualBeat: "Klip singkat 10 detik langsung memikat dengan aksi fisik nyata dan ekspresi autentik.",
+      capcutEditNote: "Gunakan pemotongan cepat di detik ke-6 saat gigitan terjadi untuk mempertahankan retensi tinggi.",
     });
+  } else if (targetDuration === "gemini-5clip") {
+    const isFood = /kentang|kue|snack|makan|food|crispy|renyah|krispi|goreng|kuliner|fries/i.test(topic);
+
+    scenes.push(
+      {
+        sceneNumber: 1,
+        timeRange: "00:00 - 00:05",
+        stageName: "HOOK & SETUP ANCHOR",
+        rollType: "A-Roll",
+        startingFrame: "@host_anchor standing facing the camera with welcoming energy",
+        endingFrame: "@host_anchor holds @hero_object up towards the lens at chest level with anticipation",
+        lightingAnchor: lensLighting,
+        voiceoverScriptId: isFood
+          ? `[excited] Jangan goreng kentang dulu sebelum tahu rahasia ini! [pause] Dijamin hasilnya renyah seharian!`
+          : `[excited] Kalau kalian mau hasil yang maksimal buat ${topic || "kebutuhan ini"}, [pause] wajib tahu trik simpel ini!`,
+        cameraDirective: "Medium close-up 35mm handheld eye-level / smooth creator motion",
+        flowVisualPrompt: `@host_anchor stands in @setting_anchor, looking directly into the camera with high engagement, holding @hero_object at chest level, warm ${lensLighting}, authentic skin texture.`,
+        audioSoundscapePrompt: "Clear vocal, warm room acoustic, subtle engaging pop sound effect.",
+        keyVisualBeat: "Hook pembuka 5 detik dengan ekspresi penasaran dan memegang produk.",
+        capcutEditNote: "Potong 0.2 detik awal agar hook langsung dimulai tanpa jeda.",
+      },
+      {
+        sceneNumber: 2,
+        timeRange: "00:05 - 00:10",
+        stageName: "AGITATION & REVEAL",
+        rollType: "A-Roll",
+        startingFrame: "Continues seamlessly from Scene 1: @host_anchor holding @hero_object at chest level, transitioning to gesturing with left hand",
+        endingFrame: "@host_anchor points directly towards @hero_object with an insightful nod",
+        lightingAnchor: lensLighting,
+        voiceoverScriptId: isFood
+          ? `[warm] Kesalahan kebanyakan orang itu langsung goreng pas basah. Kuncinya cuma satu taburan tipis ini!`
+          : `[warm] Masalahnya seringkali kita salah langkah di awal. Padahal solusinya cuma ada di satu fitur kunci ini!`,
+        cameraDirective: "Slow push-in 50mm portrait / shallow depth of field",
+        flowVisualPrompt: `@host_anchor continues from previous frame, speaking warmly to the audience, gesturing towards @hero_object on @setting_anchor, maintaining identical outfit, hair, and soft ${lensLighting}.`,
+        audioSoundscapePrompt: "Warm conversational vocal tone, subtle whoosh transition.",
+        keyVisualBeat: "Membahas masalah umum dan memperkenalkan solusi produk.",
+        capcutEditNote: "Hard cut langsung menyambung gerakan tangan dari adegan 1.",
+      },
+      {
+        sceneNumber: 3,
+        timeRange: "00:10 - 00:15",
+        stageName: "HERO DEMO & MACRO B-ROLL",
+        rollType: "B-Roll",
+        startingFrame: "Continues from Scene 2: Camera transitions smoothly to macro view of @hero_object",
+        endingFrame: "@host_anchor's hands lift @hero_object and prepare for the ultimate test",
+        lightingAnchor: lensLighting,
+        voiceoverScriptId: isFood
+          ? `[whisper] Cukup balur maizena tipis merata sebelum masuk minyak panas. Lihat nih teksturnya...`
+          : `[curious] Perhatiin deh detail dan presisinya pas dipakai langsung. Bener-bener beda kelas!`,
+        cameraDirective: "Macro 85mm close-up / slow tilt-down over product details",
+        flowVisualPrompt: `Extreme macro close-up of @hero_object on @setting_anchor, showing exquisite texture details, pristine quality, identical lighting reflections as previous scenes.`,
+        audioSoundscapePrompt: "Crisp macro foley sound, gentle room tone, soft ambient acoustic rhythm.",
+        keyVisualBeat: "Eksplorasi visual detail produk secara estetik tanpa distraksi.",
+        capcutEditNote: "Terapkan Speed 0.8x Smooth Optical Flow untuk kesan mewah sinematik.",
+      },
+      {
+        sceneNumber: 4,
+        timeRange: "00:15 - 00:20",
+        stageName: "SENSORY PROOF & AUDITORY SYNC",
+        rollType: "A-Roll",
+        startingFrame: "Continues from Scene 3: @host_anchor brings @hero_object to mouth / hands for the physical test",
+        endingFrame: "@host_anchor smiles in genuine amazement after the physical bite/test",
+        lightingAnchor: lensLighting,
+        voiceoverScriptId: isFood
+          ? `[pause] Dengerin baik-baik suaranya... [pause] Garing banget kan?!`
+          : `[excited] Pas dicoba langsung... [pause] bener-bener mantap dan sesuai ekspektasi!`,
+        cameraDirective: "Macro eye-level 50mm / locked tripod stability",
+        flowVisualPrompt: isFood
+          ? `@host_anchor visibly brings the crispy @hero_object to her mouth and takes an authentic crisp bite in macro view, fracturing the golden crust with tiny crumbs, physically causing and synchronizing with the loud crunch sound, followed by a delighted smile.`
+          : `@host_anchor demonstrates the active function of @hero_object with natural hand mechanics, visibly proving its capability, followed by an enthusiastic smile.`,
+        audioSoundscapePrompt: isFood
+          ? "Ultra-crisp satisfying food crunch sound effect synchronized exactly with the physical bite, followed by a relieved vocal chuckle."
+          : "Satisfying tactile click sound effect synchronized with the physical action, followed by energetic vocal.",
+        keyVisualBeat: "Bukti nyata kausalitas audio-visual: aksi fisik memicu suara secara tepat.",
+        capcutEditNote: "Pasang sound effect foley tepat di milidetik kentang/produk digigit/dites.",
+      },
+      {
+        sceneNumber: 5,
+        timeRange: "00:20 - 00:25",
+        stageName: "CALL TO ACTION & SEAMLESS LOOP",
+        rollType: "A-Roll",
+        startingFrame: "Continues from Scene 4: @host_anchor holding @hero_object, giving thumbs up",
+        endingFrame: "@host_anchor in a friendly welcoming pose matching Scene 1 starting position for infinite loop",
+        lightingAnchor: lensLighting,
+        voiceoverScriptId: isFood
+          ? `[excited] Yuk cobain resep rahasia ini sekarang juga, dan tag aku pas kalian bikin ya!`
+          : `[excited] Buruan cek link di bio atau keranjang kuning sebelum kehabisan ya guys!`,
+        cameraDirective: "Medium shot 35mm / gentle tracking out to eye-level",
+        flowVisualPrompt: `@host_anchor stands confidently holding @hero_object, pointing with a warm friendly gesture towards the camera, ending with an inviting smile that smoothly matches the starting posture of Scene 1.`,
+        audioSoundscapePrompt: "Uplifting closing chord, clear voice, subtle chime bell SFX.",
+        keyVisualBeat: "Penutup energik dengan ajakan aksi jelas dan pose yang bisa di-looping.",
+        capcutEditNote: "Tambahkan teks animasi 'Cek Keranjang Kuning / Bio' dengan efek pop CapCut.",
+      }
+    );
+  } else if (targetDuration === "longform-multiplier") {
+    // 10 Scenes: 5 A-Roll & 5 B-Roll Interleaved for 1-3 Min YouTube / Long-form Content
+    for (let i = 0; i < 10; i++) {
+      const isARoll = i % 2 === 0;
+      const sNum = i + 1;
+      const sStart = i * 6;
+      const sEnd = (i + 1) * 6;
+      const timeRange = `00:${sStart < 10 ? "0" + sStart : sStart} - 00:${sEnd < 10 ? "0" + sEnd : sEnd}`;
+
+      scenes.push({
+        sceneNumber: sNum,
+        timeRange,
+        stageName: isARoll ? `A-ROLL (TALKING HEAD ${Math.floor(i / 2) + 1})` : `B-ROLL (MACRO ACTION ${Math.floor(i / 2) + 1})`,
+        rollType: isARoll ? "A-Roll" : "B-Roll",
+        startingFrame: i === 0
+          ? "@host_anchor standing facing the camera in full focus"
+          : `Continues seamlessly from Scene ${i} ending position`,
+        endingFrame: isARoll
+          ? "@host_anchor gestures towards the demonstration area"
+          : "Smooth camera motion leading back to the host",
+        lightingAnchor: lensLighting,
+        voiceoverScriptId: isARoll
+          ? `[warm] Di langkah ke-${Math.floor(i / 2) + 1} ini, kalian perhatikan gimana ${topic || "prosesnya"} berjalan dengan sangat rapi dan praktis.`
+          : `[whisper] Lihat detailnya pas bagian ini bekerja... tekstur dan hasilnya benar-benar kelihatan nyata.`,
+        cameraDirective: isARoll
+          ? `Medium portrait 50mm / eye-level / soft directional ${lensLighting}`
+          : `Macro 85mm slow slider tracking / crisp focus on @hero_object`,
+        flowVisualPrompt: isARoll
+          ? `@host_anchor delivers insightful guidance looking directly at camera, natural hand gestures, dressed in identical attire with consistent ${lensLighting}.`
+          : `High-fidelity macro cutaway of @hero_object in @setting_anchor, showcasing active detail, materials, and motion mechanics.`,
+        audioSoundscapePrompt: isARoll
+          ? "Clear articulated vocal narration, gentle room atmosphere, soft lo-fi background beat."
+          : "Satisfying foley sound effects matching the exact physical interaction, ambient sound.",
+        keyVisualBeat: isARoll ? "Narasi edukatif host yang kredibel dan bersahabat." : "B-Roll sinematik yang memperkuat isi pembicaraan.",
+        capcutEditNote: isARoll
+          ? "Letakkan di Main Track CapCut sebagai landasan audio narasi."
+          : "Letakkan di Overlay Track di atas klip A-Roll dengan transisi cut halus.",
+      });
+    }
   } else {
     const stages = [
       { name: "PEMBUKA / HOOK", desc: "Menyapa audiens dengan hook memikat" },
@@ -492,6 +687,19 @@ ${scenes
     engineDirectPrompt,
     hostImage: params.hostImage || null,
     productImage: params.productImage || null,
+    settingImage: params.settingImage || null,
+    geminiChainPrompts: buildGeminiChainPrompts({
+      scenes,
+      projectTitle: topic || "Proyek Video UGC",
+      hostImage: params.hostImage,
+      productImage: params.productImage,
+      settingImage: params.settingImage,
+    }),
+    capcutAssemblyGuide: buildCapcutAssemblyGuide({
+      scenes,
+      projectTitle: topic || "Proyek Video UGC",
+      totalDuration: targetDuration,
+    }),
     operatorGuide: isLlmNative
       ? [
           `1. Salin prompt di tab 'Prompt Siap Pakai (${llmModel.toUpperCase()})'.`,
@@ -505,6 +713,105 @@ ${scenes
           `4. Putar preview audio di BuatPrompt untuk sinkronisasi ketukan suara.`,
         ],
   };
+}
+
+/**
+ * Builds sequential prompts for Gemini's single chat conversation thread
+ * using Frame Boundary Hand-off to ensure 100% character, prop, and motion continuity.
+ */
+function buildGeminiChainPrompts(data: any): string[] {
+  const scenes = data.scenes || [];
+  const projectTitle = data.projectTitle || "Proyek UGC";
+  const hasHostImg = Boolean(data.hostImage);
+  const hasProdImg = Boolean(data.productImage);
+  const hasSettingImg = Boolean(data.settingImage);
+
+  return scenes.map((s: any, idx: number) => {
+    if (idx === 0) {
+      return `=== KLIP 1 / ADEGAN 1: ${s.stageName.toUpperCase()} (${s.timeRange}) ===
+Format: Video 5 Detik (Gemini Prompt Sesi 1)
+Proyek: ${projectTitle}
+
+[INSTRUKSI MEMORI & KONSISTENSI GEMINI]:
+- Gunakan foto referensi yang saya lampirkan di chat ini:
+  * ${hasHostImg ? "Foto wajah & busana host: Gunakan [IMAGE 1: @host_anchor]" : "@host_anchor: Wajah dan postur host tetap konsisten."}
+  * ${hasProdImg ? "Foto produk: Gunakan [IMAGE 2: @hero_object]" : "@hero_object: Produk/kemasan konsisten."}
+  * ${hasSettingImg ? "Foto ruangan/rumah asli: Gunakan [IMAGE 3: @setting_anchor] kunci arsitektur & perabot tanpa halusinasi." : "@setting_anchor: Latar ruangan tetap konsisten."}
+- Kunci tata cahaya: ${s.lightingAnchor || "Natural soft daylight, 45-degree key light"} di seluruh adegan.
+- Aksi Fisik Nyata: Efek suara foley wajib terlihat aksi fisiknya di layar (zero phantom sound).
+
+[ARAHAN KAMERA]:
+${s.cameraDirective}
+
+[VISUAL PROMPT KLIP 1]:
+${s.flowVisualPrompt}
+
+[NASKAH DIALOGUE]:
+"${s.voiceoverScriptId}"
+
+[SOUNDSCAPE & SFX]:
+${s.audioSoundscapePrompt}
+
+[ENDING POSE TITIK SAMBUNG]:
+${s.endingFrame || "@host_anchor memegang produk di depan kamera dengan senyum ramah dan gestur mengajak bicara."}`;
+    }
+
+    return `=== KLIP ${s.sceneNumber} / ADEGAN ${s.sceneNumber}: ${s.stageName.toUpperCase()} (${s.timeRange}) ===
+Format: Video 5 Detik (Sambungan Langsung di Sesi Gemini yang Sama)
+
+[INSTRUKSI SAMBUNGAN GEMINI (FRAME BOUNDARY HAND-OFF)]:
+- Lanjutkan video sebelumnya di dalam satu utas percakapan ini.
+- JANGAN UBAH WAJAH, RAMBUT, BAJU, ATAU RUANGAN. Pertahankan 100% konsisten dengan klip sebelumnya.
+- Starting Frame: ${s.startingFrame || `Melanjutkan persis dari frame terakhir Klip ${idx} tanpa jeda.`}
+- Kunci tata cahaya: ${s.lightingAnchor || "Natural soft daylight"} identik dengan klip sebelumnya.
+
+[ARAHAN KAMERA]:
+${s.cameraDirective}
+
+[VISUAL PROMPT KLIP ${s.sceneNumber}]:
+${s.flowVisualPrompt}
+
+[NASKAH DIALOGUE]:
+"${s.voiceoverScriptId}"
+
+[SOUNDSCAPE & SFX (ZERO PHANTOM)]:
+${s.audioSoundscapePrompt}
+
+[ENDING POSE TITIK SAMBUNG]:
+${s.endingFrame || "@host_anchor menyelesaikan aksi dengan ekspresi puas dan bersiap untuk adegan selanjutnya."}`;
+  });
+}
+
+/**
+ * Builds step-by-step CapCut editing instructions
+ * for seamless assembly, trimming, speed ramp, and caption sync.
+ */
+function buildCapcutAssemblyGuide(data: any): string[] {
+  const scenes = data.scenes || [];
+  const projectTitle = data.projectTitle || "Proyek Video UGC";
+  const isLongForm = data.totalDuration === "longform-multiplier" || scenes.length >= 8;
+
+  return [
+    `LANGKAH 1: PERSIAPAN MEDIA DI CAPCUT
+- Buka aplikasi CapCut (Desktop atau Mobile).
+- Buat proyek baru dan impor seluruh video hasil unduhan dari Gemini (Klip 1 s/d Klip ${scenes.length}).
+- Atur rasio kanvas: 9:16 (untuk TikTok/Shorts/Reels) atau 16:9 (untuk YouTube horizontal).`,
+
+    `LANGKAH 2: PENATAAN TIMELINE ${isLongForm ? "(A-ROLL & B-ROLL)" : "(URUTAN KONTINUITAS)"}
+- Susun klip di timeline utama secara berurutan: Klip 1 -> Klip 2 -> Klip 3 -> ... -> Klip ${scenes.length}.
+${isLongForm ? "- Untuk adegan B-Roll (cutaway aksi/detail): letakkan di track overlay di atas naskah bicara host (A-Roll) agar narasi tetap mengalir tanpa jeda hening." : "- Pastikan sambungan antar klip menggunakan sambungan langsung (hard cut) tanpa efek transisi berlebihan agar kesan UGC alami tetap terjaga."}`,
+
+    `LANGKAH 3: PEMOTONGAN CEPAT (TRIMMING DENGAN METODE J-CUT / L-CUT)
+- Potong sekitar 0.2 hingga 0.4 detik pada awal atau akhir setiap klip jika ada bagian yang gerakannya lambat sebelum aksi dimulai.
+- Hubungkan naskah bicara agar ritme napas antar adegan terasa gesit dan tidak ada momen hening ('dead air').`,
+
+    `LANGKAH 4: SPEED RAMP & SINEMATIK B-ROLL
+- Untuk adegan detail produk atau makanan (misal: penuangan, pemotongan, atau tekstur kriuk): ubah kecepatan (Speed) menjadi 0.7x atau 0.8x dengan opsi 'Smooth Optical Flow' untuk memberi kesan visual mewah layaknya iklan TV komersial.`,
+
+    `LANGKAH 5: SINKRONISASI SOUND EFFECT & TEKS OTOMATIS
+- Tarik sound effect foley (kriuk/pop/snap) tepat di bawah frame tempat aksi fisik terjadi di layar (100% sinkron).
+- Gunakan fitur 'Auto Captions' (Teks Otomatis) bahasa Indonesia di CapCut, pilih template teks animasi modern satu-per-satu kata (Word-by-word) dengan highlight warna kuning/oranye untuk memaksimalkan retensi penonton!`
+  ];
 }
 
 /**
