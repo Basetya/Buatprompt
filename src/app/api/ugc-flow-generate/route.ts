@@ -103,12 +103,26 @@ export async function POST(req: NextRequest) {
         "Format prompt untuk Google Flow (Veo 2): Gunakan slash command resmi (/camera, /lens, /motion, /lighting) serta tag konsistensi @host_anchor dan @setting_anchor.";
     }
 
-    const systemPrompt = `Anda adalah Master Creative Video Director & Multi-Engine Prompt Architect kelas dunia.
-Tugas: Hasilkan rancangan video UGC terstruktur yang siap pakai tanpa koreksi untuk format durasi ${targetDuration} (${sceneCount} scene).
+    const systemPrompt = `Anda adalah Master Creative Video Director & Multi-Engine Prompt Architect kelas dunia (Hyper-Smart AI Video Director).
+Tugas: Hasilkan rancangan video UGC terstruktur yang 100% SIAP EKSEKUSI SEKALI PROMPT LANGSUNG JADI tanpa perlu revisi manual untuk format durasi ${targetDuration} (${sceneCount} scene).
 Target Engine Pilihan Kreator: ${engineTarget.toUpperCase()} ${isLlmNative ? `(LLM: ${llmModel.toUpperCase()})` : ""}
 
 PANDUAN KHUSUS ENGINE:
 ${engineSpecificInstruction}
+
+HUKUM MUTLAK KAUSALITAS AUDIO-VISUAL & SINKRONISASI FISIK (ZERO PHANTOM SFX):
+1. ZERO PHANTOM SFX: Dilarang keras memunculkan suara foley atau efek suara (seperti: bunyi gigitan, kriuk 'kress', patahan kentang, tegukan, decit, denting, tap layar) TANPA ADA AKSI FISIK VISUAL YANG JELAS terlihat di layar pada detik tersebut!
+2. JIKA ADA SUARA MAKANAN (CRUNCH / KRIUK / MAKAN / MINUM):
+   - Deskripsi visual prompt WAJIB menyebutkan aksi fisiknya secara eksplisit, nyata, dan kronologis:
+     * Opsi A (Snapping): "@host_anchor snaps the golden crispy @hero_object in half directly in front of the macro lens with both hands, visibly fracturing the crunchy crust with subtle crumbs and steam, directly causing and synchronizing with the crisp crunch sound."
+     * Opsi B (Biting): "@host_anchor brings the crispy @hero_object to her mouth, takes an authentic crisp bite into the food visibly fracturing the crust with tiny crumbs falling, followed by an ecstatic reaction of delight."
+   - DILARANG KERAS hanya menulis "@host_anchor holding the food and smiling" jika soundscape berbunyi kriuk/gigitan! Penonton dan model video AI wajib melihat momen kentang digigit atau dipatahkan agar sinkron 100%.
+3. KRONOLOGI BEAT PER DETIK (ACTION TIMELINE):
+   - Terutama untuk durasi pendek (<=10s) atau adegan reveal/hook, deskripsi visual prompt HARUS memiliki urutan kronologis yang jelas:
+     Misal: "[00:00-00:03]: Host shows @hero_object enthusiastically to camera. [00:03-00:06]: Host visibly snaps or bites @hero_object in macro close-up, triggering the loud crisp sound. [00:06-00:10]: Host smiles in satisfaction and delivers the warm punchline."
+4. PEMISAHAN BICARA & AKSI FISIK (NO TALKING WHILE CHEWING):
+   - Karakter tidak boleh digambarkan bicara panjang saat mulutnya sedang mengunyah makanan.
+   - Gunakan jeda napas [pause] di naskah dialog saat aksi fisik gigit/patahkan terjadi.
 
 ATURAN NASKAH & PENGETAHUAN LOKASI:
 - Jika topik menyebut tempat/produk/hotel nyata: masukkan fakta asli lokasi tersebut secara natural dan meyakinkan.
@@ -144,10 +158,10 @@ STRUKTUR OUTPUT JSON:
       "sceneNumber": 1,
       "timeRange": "string",
       "stageName": "string",
-      "voiceoverScriptId": "string (naskah bahasa indonesia hidup)",
+      "voiceoverScriptId": "string (naskah bahasa indonesia hidup dengan jeda [pause])",
       "cameraDirective": "string (/camera command atau instruksi framing sesuai ${engineTarget})",
-      "flowVisualPrompt": "string (Prompt visual terstruktur siap pakai di ${engineTarget})",
-      "audioSoundscapePrompt": "string",
+      "flowVisualPrompt": "string (Prompt visual hiper-sinkron dengan urutan kronologi aksi dan aksi fisik penyebab suara)",
+      "audioSoundscapePrompt": "string (Sound effect foley yang sinkron persis dengan aksi visual)",
       "keyVisualBeat": "string"
     }
   ],
@@ -186,17 +200,20 @@ Hasilkan JSON produksi utuh sekarang.`;
         const text = response.text || "";
         const parsed = JSON.parse(text);
         if (parsed.scenes && Array.isArray(parsed.scenes)) {
+          // Hyper-Smart Audio-Visual Causality & Physical Action Lock
+          enforceAudioVisualCausality(parsed.scenes, topic);
+
           // Ensure engineDirectPrompt is richly populated with all dialogue & directives
           if (!parsed.engineDirectPrompt || parsed.engineDirectPrompt.length < 80) {
             parsed.engineDirectPrompt = isLlmNative
-              ? `=== MASTER PROMPT UGC LENGKAP SIAP PAKAI KE ${llmModel.toUpperCase()} ===\n\nTopik: ${parsed.projectTitle || topic}\nDurasi Total: ${targetDuration} (${parsed.scenes.length} Adegan)\nHost: ${parsed.hostProfile?.name || hostName}\n\nDAFTAR ADEGAN & NASKAH LENGKAP:\n` +
+              ? `=== MASTER PROMPT UGC LENGKAP SIAP PAKAI KE ${llmModel.toUpperCase()} ===\n\nTopik: ${parsed.projectTitle || topic}\nDurasi Total: ${targetDuration} (${parsed.scenes.length} Adegan)\nHost: ${parsed.hostProfile?.name || hostName}\n\n[ATURAN SINKRONISASI MUTLAK]: Seluruh efek suara foley (seperti kriuk/gigitan/tegukan) WAJIB terlihat aksi fisiknya secara nyata di layar. Dilarang ada suara kriuk tanpa kentang/makanan digigit atau dipatahkan!\n\nDAFTAR ADEGAN & NASKAH LENGKAP:\n` +
                 parsed.scenes
                   .map(
                     (s: any) =>
                       `[Adegan ${s.sceneNumber} (${s.timeRange || ""}) - ${s.stageName || ""}]\n- Naskah Dialog: "${s.voiceoverScriptId}"\n- Arahan Kamera: ${s.cameraDirective}\n- Visual Prompt: ${s.flowVisualPrompt}\n- Soundscape: ${s.audioSoundscapePrompt}`
                   )
                   .join("\n\n")
-              : `=== MASTER PROMPT ${engineTarget.toUpperCase()} ===\n\nTopik: ${parsed.projectTitle || topic}\nKarakter: ${parsed.hostProfile?.name || hostName}\nDurasi Total: ${targetDuration}\n\nURUTAN ADEGAN:\n` +
+              : `=== MASTER PROMPT ${engineTarget.toUpperCase()} ===\n\nTopik: ${parsed.projectTitle || topic}\nKarakter: ${parsed.hostProfile?.name || hostName}\nDurasi Total: ${targetDuration}\n\n[ATURAN SINKRONISASI MUTLAK]: Zero Phantom SFX. Aksi visual fisik harus sinkron 100% dengan soundscape foley.\n\nURUTAN ADEGAN:\n` +
                 parsed.scenes
                   .map(
                     (s: any) =>
@@ -224,6 +241,8 @@ Hasilkan JSON produksi utuh sekarang.`;
       durPerScene,
       clarificationAnswers,
     });
+
+    enforceAudioVisualCausality(fallbackData.scenes, topic);
 
     return NextResponse.json({ success: true, data: fallbackData, engine: "director-clean-base" });
   } catch (err: any) {
@@ -260,17 +279,25 @@ function generateCleanStudioFallback(params: any) {
   const scenes = [];
 
   if (targetDuration === "<=10s") {
+    const isFood = /kentang|kue|snack|makan|food|crispy|renyah|krispi|goreng|kuliner|fries/i.test(topic);
+
     scenes.push({
       sceneNumber: 1,
       timeRange: "00:00 - 00:10",
-      stageName: "10-SECOND VIRAL HOOK",
-      voiceoverScriptId: `[excited] Kalau kalian lagi cari ${topic || "solusi terbaik"}, [pause] jujur ini bener-bener wajib dicoba! [warm] Cek info lengkapnya sekarang juga!`,
+      stageName: "10-SECOND VIRAL HOOK & REVEAL",
+      voiceoverScriptId: isFood
+        ? `[excited] Sumpah, ini rahasianya! [pause] Cukup taburan maizena tipis sebelum digoreng, [pause] dijamin renyah tahan seharian!`
+        : `[excited] Kalau kalian lagi cari ${topic || "solusi terbaik"}, [pause] jujur ini bener-bener wajib dicoba! [warm] Cek info lengkapnya sekarang juga!`,
       cameraDirective: isSelfie
-        ? `Handheld selfie close-up 28mm / subtle organic phone sway / natural daylight`
-        : `Dynamic push-in 35mm to eye-level medium-shot / soft ambient light`,
-      flowVisualPrompt: `Authentic UGC video clip of @host_anchor talking enthusiastically directly to phone camera, natural facial expression, visible skin micro-texture, 4K social media organic quality, zero plastic look.`,
-      audioSoundscapePrompt: `Crisp clean vocal, subtle warm room ambience, light modern acoustic guitar chord swell.`,
-      keyVisualBeat: "Klip singkat 10 detik langsung memikat dengan ekspresi autentik.",
+        ? `Handheld selfie macro close-up 28mm / subtle organic phone sway / natural warm daylight`
+        : `Dynamic macro push-in 35mm to eye-level / soft ambient rim light`,
+      flowVisualPrompt: isFood
+        ? `[00:00-00:03]: @host_anchor presents the golden crispy @hero_object on @setting_anchor near camera with an excited smile. [00:03-00:06]: In macro close-up, @host_anchor brings @hero_object to her mouth and takes an authentic crisp bite (or snaps it in two with both hands), with visible golden crust fracturing and crumbs gently falling, perfectly causing and synchronizing with the loud food crunch sound. [00:06-00:10]: @host_anchor chews with a genuine delighted smile and gives an enthusiastic thumbs up to camera.`
+        : `[00:00-00:03]: @host_anchor hooks the audience looking directly at the camera with an authentic, friendly smile. [00:03-00:07]: @host_anchor gestures towards @hero_object, showcasing its key benefit in organic lighting. [00:07-00:10]: Warm closing expression with call-to-action gesture.`,
+      audioSoundscapePrompt: isFood
+        ? `Loud, ultra-satisfying crisp food crunch sound effect synchronized exactly with the physical bite/snap action at 00:03-00:06, followed by soft warm acoustic guitar music and clear vocal.`
+        : `Crisp clean vocal, subtle warm room ambience, light modern acoustic guitar chord swell.`,
+      keyVisualBeat: "Klip singkat 10 detik langsung memikat dengan aksi fisik nyata dan ekspresi autentik.",
     });
   } else {
     const stages = [
@@ -418,4 +445,57 @@ ${scenes
           `4. Putar preview audio di BuatPrompt untuk sinkronisasi ketukan suara.`,
         ],
   };
+}
+
+/**
+ * Hyper-Smart Audio-Visual Causality & Physical Action Lock
+ * Ensures every Foley sound effect (crunch, bite, snap, chew, sip, click)
+ * has an explicit, observable, physical cause-and-effect visual trigger.
+ */
+function enforceAudioVisualCausality(scenes: any[], topic: string) {
+  const isFoodTopic =
+    /kentang|kue|snack|makan|food|crispy|renyah|krispi|goreng|kuliner|minum|kopi|coffee|drink|fries/i.test(
+      topic
+    );
+
+  for (const scene of scenes) {
+    const soundscape = (scene.audioSoundscapePrompt || "").toLowerCase();
+    const visual = (scene.flowVisualPrompt || "").toLowerCase();
+
+    // Check for food crunch / bite / chewing sounds
+    const hasFoodCrunchSFX =
+      /crunch|kriuk|bite|gigit|snap|patah|chew|kunyah|crisp snap|sound effect 'kress'|kress/i.test(
+        soundscape
+      ) ||
+      (isFoodTopic && /crunch|kriuk|kress/i.test(scene.voiceoverScriptId || ""));
+
+    const hasBiteOrSnapAction =
+      /bites|biting|takes a bite|snaps|snapping|in half|fractur|chews|menggigit|mematahkan/i.test(
+        visual
+      );
+
+    if (hasFoodCrunchSFX && !hasBiteOrSnapAction) {
+      // Injects explicit, synchronized micro-action to prevent phantom sound
+      if (
+        scene.timeRange &&
+        (scene.timeRange.includes("00:10") || scene.timeRange.includes("00:09"))
+      ) {
+        scene.flowVisualPrompt = `[00:00-00:03]: @host_anchor presents the golden crispy @hero_object near camera with lively smiling expression. [00:03-00:06]: In macro close-up, @host_anchor brings the crispy @hero_object to her mouth and takes an authentic crisp bite (or snaps it in two with both hands in front of the lens), with visible golden crust fracturing and crumbs gently falling, perfectly causing and synchronizing with the loud food crunch sound. [00:06-00:10]: @host_anchor chews with a genuine delighted smile and gives an enthusiastic thumbs up to camera.`;
+      } else {
+        scene.flowVisualPrompt = `${scene.flowVisualPrompt.trim()} [SYNCHRONIZED CAUSAL ACTION]: In macro close-up, @host_anchor visibly snaps the ultra-crispy @hero_object in half (or takes a crisp bite into the mouth), with visible crust fracturing and subtle crumbs falling, directly triggering and synchronizing with the loud crunch sound.`;
+      }
+
+      // Ensure soundscape also explicitly mentions the sync
+      if (!scene.audioSoundscapePrompt.includes("synchronized")) {
+        scene.audioSoundscapePrompt = `${scene.audioSoundscapePrompt.trim()} (synchronized directly with the visible physical bite/snap action on screen).`;
+      }
+    }
+
+    // Check for drink / sip sounds
+    const hasDrinkSFX = /sip|slurp|teguk|drink|minum|swallow/i.test(soundscape);
+    const hasDrinkAction = /sip|slurp|teguk|drink|minum|cup to mouth|glass to mouth/i.test(visual);
+    if (hasDrinkSFX && !hasDrinkAction) {
+      scene.flowVisualPrompt = `${scene.flowVisualPrompt.trim()} [SYNCHRONIZED CAUSAL ACTION]: @host_anchor lifts the beverage to lips and takes a refreshing sip with visible throat movement, directly causing the drinking sound effect.`;
+    }
+  }
 }

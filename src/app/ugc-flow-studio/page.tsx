@@ -237,6 +237,10 @@ Deskripsi: ${result.environmentProfile.masterSettingPrompt}
 Tag: ${result.objectProfile.anchorTag}
 Deskripsi: ${result.objectProfile.masterObjectPrompt}
 
+[HUKUM SINKRONISASI AI VIDEO (HYPER-SMART ONE-SHOT)]:
+1. Causal Audio-Visual Lock: Seluruh efek suara foley (misal: bunyi kriuk makanan 'kress', patahan, tegukan) WAJIB disertai aksi fisik visual nyata di layar pada detik terjadinya suara (hindari suara kriuk tanpa kentang/makanan digigit atau dipatahkan).
+2. Action Breakdown: Momen aksi fisik (menggigit/mematahkan) terjadi saat jeda bicara [pause], disusul ekspresi reaksi puas.
+
 ==================================================
 DAFTAR ADEGAN, NASKAH DIALOG & ARAHAN PROMPT:
 ==================================================`;
