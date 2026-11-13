@@ -30,6 +30,8 @@ import {
   Upload,
   X,
   Image as ImageIcon,
+  Download,
+  FileText,
 } from "lucide-react";
 import { VideoAiEngine, LlmModelType } from "../api/ugc-flow-clarify/route";
 
@@ -166,10 +168,6 @@ export default function UgcFlowStudioPage() {
   const [activeBoardTab, setActiveBoardTab] = useState<"storyboard" | "direct-prompt" | "character" | "environment" | "guide">("storyboard");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // Voiceover Preview State
-  const [playingSceneAudio, setPlayingSceneAudio] = useState<number | null>(null);
-  const [audioLoadingScene, setAudioLoadingScene] = useState<number | null>(null);
-
   // Active engine computation
   const activeEngineTarget: VideoAiEngine = engineCategory === "llm-native" ? "llm-native" : videoTool;
 
@@ -264,43 +262,47 @@ export default function UgcFlowStudioPage() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  const generateFullProjectPrompt = (result: MasterDirectiveData) => {
-    const isLlm = result.engineTarget === "llm-native" || result.totalDuration === "<=10s";
+  // Helper download file text (.txt)
+  const downloadTextFile = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Generate 100% Pure, Clean AI Master Prompt (Zero Human Meta-Instructions)
+  const generateCleanAiMasterPrompt = (result: MasterDirectiveData) => {
     const hasHostImg = Boolean(result.hostImage);
     const hasProdImg = Boolean(result.productImage);
 
-    const multimodalGuide =
-      hasHostImg || hasProdImg
-        ? `\n[PANDUAN EKSEKUSI MULTIMODAL DI GEMINI / VIDEO AI]:
-1. Buka Gemini (gemini.google.com) atau video generator favorit Anda.
-2. Lampirkan/Upload foto referensi berikut ke chatbox:
-   ${hasHostImg ? "-> [FOTO 1]: Foto Host / Karakter (@host_anchor)" : ""}
-   ${hasProdImg ? "-> [FOTO 2]: Foto Produk / Objek (@hero_object)" : ""}
-3. Tempelkan seluruh prompt ini. Gemini & Video AI akan mengunci konsistensi 100% wajah, pakaian, dan wujud produk di semua sekuens adegan berantai!\n`
-        : "";
+    let visualContinuitySection = "";
+    if (hasHostImg || hasProdImg) {
+      visualContinuitySection = `[MULTIMODAL ATTACHMENT CONTINUITY]:
+- The attached reference image(s) define the visual ground truth for this project.
+${hasHostImg ? "- @host_anchor: Maintain 100% strict visual consistency matching the attached Host image (facial structure, skin tone, eye shape, hairstyle, and outfit across all scenes)." : ""}
+${hasProdImg ? "- @hero_object: Maintain 100% strict visual consistency matching the attached Product image (packaging shape, branding colors, labels, and physical material across all scenes)." : ""}\n\n`;
+    }
 
-    const header = `=== PROYEK: ${result.projectTitle.toUpperCase()} ===
-Durasi Total: ${result.totalDuration} (${result.scenes.length} Adegan)
-Target Format: ${result.engineTarget.toUpperCase()}${result.llmModel ? ` (Model: ${result.llmModel.toUpperCase()})` : ""}
-${multimodalGuide}
-[REFERENSI KARAKTER & HOST]:
-Tag: ${result.hostProfile.anchorTag}${hasHostImg ? " (MENGACU PADA FOTO REFERENSI HOST TERLAMPIR)" : ""}
-Deskripsi: ${result.hostProfile.masterCharacterPrompt}
+    const header = `=== MASTER PROMPT: ${result.projectTitle.toUpperCase()} ===
+Target Durasi: ${result.totalDuration} (${result.scenes.length} Adegan)
+Engine Format: ${result.engineTarget.toUpperCase()}${result.llmModel ? ` (Model: ${result.llmModel.toUpperCase()})` : ""}
 
-[REFERENSI SETTING & AMBIENCE]:
-Tag: ${result.environmentProfile.anchorTag}
-Deskripsi: ${result.environmentProfile.masterSettingPrompt}
+${visualContinuitySection}[VISUAL PROFILES & ANCHORS]:
+- Karakter (@host_anchor): ${result.hostProfile.masterCharacterPrompt}
+- Setting (@setting_anchor): ${result.environmentProfile.masterSettingPrompt}
+- Objek Utama (@hero_object): ${result.objectProfile.masterObjectPrompt}
 
-[REFERENSI OBJEK / HERO DETAIL]:
-Tag: ${result.objectProfile.anchorTag}${hasProdImg ? " (MENGACU PADA FOTO REFERENSI PRODUK TERLAMPIR)" : ""}
-Deskripsi: ${result.objectProfile.masterObjectPrompt}
-
-[HUKUM SINKRONISASI AI VIDEO (HYPER-SMART ONE-SHOT)]:
-1. Causal Audio-Visual Lock: Seluruh efek suara foley (misal: bunyi kriuk makanan 'kress', patahan, tegukan) WAJIB disertai aksi fisik visual nyata di layar pada detik terjadinya suara (hindari suara kriuk tanpa kentang/makanan digigit atau dipatahkan).
-2. Action Breakdown: Momen aksi fisik (menggigit/mematahkan) terjadi saat jeda bicara [pause], disusul ekspresi reaksi puas.
+[HUKUM KAUSALITAS AUDIO-VISUAL (ZERO PHANTOM SFX)]:
+1. Action-Coupled SFX: Seluruh efek suara foley (seperti kriuk makanan, patahan, tegukan, sentuhan) WAJIB disertai aksi fisik visual nyata di layar pada detik terjadinya suara.
+2. Timeline Chronology: Aksi fisik dan dialog terbagi secara kronologis; ada jeda napas [pause] saat aksi fisik terjadi.
 
 ==================================================
-DAFTAR ADEGAN, NASKAH DIALOG & ARAHAN PROMPT:
+DAFTAR ADEGAN & NASKAH LENGKAP:
 ==================================================`;
 
     const scenesText = result.scenes
@@ -324,6 +326,38 @@ ${s.audioSoundscapePrompt}`
     return `${header}\n\n${scenesText}`;
   };
 
+  // Generate Human Execution Guide (Separated from the pure AI prompt)
+  const generateHumanExecutionGuide = (result: MasterDirectiveData) => {
+    const hasHostImg = Boolean(result.hostImage);
+    const hasProdImg = Boolean(result.productImage);
+
+    return `=== PANDUAN EKSEKUSI PRODUKSI KONTEN ===
+Proyek: ${result.projectTitle}
+Target Durasi: ${result.totalDuration} (${result.scenes.length} Adegan)
+Format Tool: ${result.engineTarget.toUpperCase()}${result.llmModel ? ` (${result.llmModel.toUpperCase()})` : ""}
+
+--------------------------------------------------
+LANGKAH 1: PERSIAPAN FILE & FOTO
+--------------------------------------------------
+${hasHostImg ? "✓ Gunakan Foto Host / Kreator yang telah Anda unggah (@host_anchor)\n" : ""}${hasProdImg ? "✓ Gunakan Foto Produk / Makanan yang telah Anda unggah (@hero_object)\n" : ""}
+--------------------------------------------------
+LANGKAH 2: EKSEKUSI DI AI (GEMINI / VIDEO ENGINE)
+--------------------------------------------------
+1. Buka aplikasi AI pilihan Anda:
+   - Jika Gemini: Kunjungi https://gemini.google.com
+   - Jika Google Flow / Runway / Kling / CapCut: Buka studio video masing-masing.
+2. Lampirkan (Upload) file foto Host & Produk Anda ke chatbox Gemini.
+3. Buka file atau salin teks dari 'PROMPT BERSIH' (master-prompt-ugc.txt).
+4. Tempelkan (Paste) prompt bersih tersebut ke dalam chatbox dan kirim.
+5. Gemini & AI Video akan membaca seluruh sekuens adegan secara konsisten mengikuti wajah dan produk asli Anda tanpa tertukar!
+
+--------------------------------------------------
+PANDUAN OPERATOR PER TAHAP:
+--------------------------------------------------
+${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
+`;
+  };
+
   const generateFullScriptOnly = (result: MasterDirectiveData) => {
     return result.scenes
       .map(
@@ -331,41 +365,6 @@ ${s.audioSoundscapePrompt}`
           `[Adegan ${s.sceneNumber} (${s.timeRange}) - ${s.stageName}]\n"${s.voiceoverScriptId}"`
       )
       .join("\n\n");
-  };
-
-  // Play Real TTS Voiceover for scene script
-  const handlePlayVoice = async (sceneNumber: number, scriptText: string) => {
-    if (playingSceneAudio === sceneNumber) {
-      setPlayingSceneAudio(null);
-      return;
-    }
-
-    setAudioLoadingScene(sceneNumber);
-    try {
-      const voice = hostType === "female-pro" ? "id-ID-GadisNeural" : "id-ID-ArdiNeural";
-      const res = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: scriptText.replace(/\[.*?\]/g, ""),
-          voice,
-        }),
-      });
-
-      if (!res.ok) throw new Error("TTS failed");
-      const blob = await res.blob();
-      const audioUrl = URL.createObjectURL(blob);
-      const audio = new Audio(audioUrl);
-      setPlayingSceneAudio(sceneNumber);
-      audio.play();
-      audio.onended = () => {
-        setPlayingSceneAudio(null);
-      };
-    } catch (err) {
-      console.error("Audio playback error:", err);
-    } finally {
-      setAudioLoadingScene(null);
-    }
   };
 
   return (
@@ -987,7 +986,8 @@ ${s.audioSoundscapePrompt}`
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Salin Dialog Saja */}
                     <button
                       type="button"
                       onClick={() =>
@@ -1001,23 +1001,56 @@ ${s.audioSoundscapePrompt}`
                       ) : (
                         <Copy className="h-3 w-3" />
                       )}
-                      <span>{copiedKey === "all-dialogues" ? "Semua Dialog Tersalin" : "Salin Semua Dialog"}</span>
+                      <span>{copiedKey === "all-dialogues" ? "Dialog Tersalin" : "Salin Dialog"}</span>
                     </button>
 
+                    {/* Unduh Prompt Bersih (.txt) */}
                     <button
                       type="button"
                       onClick={() =>
-                        copyText(generateFullProjectPrompt(masterResult), "all-scenes-full")
+                        downloadTextFile(
+                          `prompt-${masterResult.projectTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}-bersih.txt`,
+                          generateCleanAiMasterPrompt(masterResult)
+                        )
+                      }
+                      className="flex items-center gap-1.5 rounded-lg border border-[#383531] bg-[#1d1e22] px-3 py-1.5 text-xs font-mono text-[#cfc8bf] hover:text-[#f5f1eb] hover:border-[#c29b74]/40"
+                      title="Download file text prompt bersih 100% tanpa instruksi manusia, langsung siap tempel ke Gemini / ChatGPT"
+                    >
+                      <Download className="h-3.5 w-3.5 text-[#c29b74]" />
+                      <span>Unduh Prompt (.txt)</span>
+                    </button>
+
+                    {/* Unduh Panduan Terpisah (.txt) */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadTextFile(
+                          `panduan-langkah-${masterResult.projectTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}.txt`,
+                          generateHumanExecutionGuide(masterResult)
+                        )
+                      }
+                      className="flex items-center gap-1.5 rounded-lg border border-[#383531] bg-[#1d1e22] px-3 py-1.5 text-xs font-mono text-[#a8a197] hover:text-[#f5f1eb]"
+                      title="Download panduan langkah penggunaan terpisah"
+                    >
+                      <FileText className="h-3.5 w-3.5 text-[#a8a197]" />
+                      <span>Unduh Panduan (.txt)</span>
+                    </button>
+
+                    {/* Salin Prompt Bersih Siap Copas */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyText(generateCleanAiMasterPrompt(masterResult), "all-scenes-clean")
                       }
                       className="flex items-center gap-1.5 rounded-lg bg-[#c29b74] px-3.5 py-1.5 text-xs font-mono font-semibold text-[#121315] hover:bg-[#d1aa82]"
-                      title="Salin seluruh naskah + arahan kamera + visual prompt semua adegan sekaligus"
+                      title="Salin prompt bersih 100% siap tempel ke Gemini / ChatGPT (instruksi dipisah agar AI tidak bingung)"
                     >
-                      {copiedKey === "all-scenes-full" ? (
+                      {copiedKey === "all-scenes-clean" ? (
                         <Check className="h-3.5 w-3.5" />
                       ) : (
                         <Copy className="h-3.5 w-3.5" />
                       )}
-                      <span>{copiedKey === "all-scenes-full" ? "Semua Adegan Tersalin!" : "Salin Seluruh Adegan (Lengkap)"}</span>
+                      <span>{copiedKey === "all-scenes-clean" ? "Prompt Bersih Tersalin!" : "Salin Prompt Bersih (Siap Copas AI)"}</span>
                     </button>
                   </div>
                 </div>
@@ -1043,33 +1076,6 @@ ${s.audioSoundscapePrompt}`
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
-                        {/* Audio Voiceover Button */}
-                        <button
-                          type="button"
-                          onClick={() => handlePlayVoice(scene.sceneNumber, scene.voiceoverScriptId)}
-                          disabled={audioLoadingScene === scene.sceneNumber}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
-                            playingSceneAudio === scene.sceneNumber
-                              ? "bg-[#c29b74] text-[#121315] font-semibold"
-                              : "bg-[#1a1b1f] border border-[#2d2a27] text-[#c4bcb2] hover:text-[#f5f1eb]"
-                          }`}
-                        >
-                          {audioLoadingScene === scene.sceneNumber ? (
-                            <RefreshCw className="h-3 w-3 animate-spin" />
-                          ) : playingSceneAudio === scene.sceneNumber ? (
-                            <Volume2 className="h-3 w-3 animate-pulse" />
-                          ) : (
-                            <Play className="h-3 w-3" />
-                          )}
-                          <span>
-                            {audioLoadingScene === scene.sceneNumber
-                              ? "Memuat..."
-                              : playingSceneAudio === scene.sceneNumber
-                              ? "Memutar..."
-                              : "Dengar Suara"}
-                          </span>
-                        </button>
-
                         {/* Copy Dialog Only */}
                         <button
                           type="button"
@@ -1150,29 +1156,73 @@ ${s.audioSoundscapePrompt}`
             )}
 
             {/* TAB: DIRECT PROMPT READY FOR CHOSEN TOOL */}
-            {activeBoardTab === "direct-prompt" && masterResult.engineDirectPrompt && (
+            {activeBoardTab === "direct-prompt" && (
               <div className="rounded-2xl border border-[#282624] bg-[#151619] p-6 space-y-4">
-                <div className="flex items-center justify-between border-b border-[#242220] pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#242220] pb-4">
                   <div>
-                    <h4 className="text-sm font-semibold text-[#f5f1eb] font-sans">
-                      Master Prompt Khusus {masterResult.engineTarget.toUpperCase()}
+                    <h4 className="text-base font-semibold text-[#f5f1eb] font-sans flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-[#c29b74]" />
+                      Master Prompt Bersih ({masterResult.engineTarget.toUpperCase()})
                     </h4>
                     <p className="text-xs text-[#8c857c] font-sans mt-0.5">
-                      Diformat sesuai parameter spesifik dari {masterResult.engineTarget.toUpperCase()}. Salin dan langsung tempelkan ke tools favorit Anda.
+                      Prompt 100% bersih tanpa instruksi manusia, langsung siap tempel ke AI (instruksi dipisahkan agar AI tidak bingung).
                     </p>
                   </div>
-                  <button
-                    onClick={() =>
-                      copyText(masterResult.engineDirectPrompt || "", "direct-prompt")
-                    }
-                    className="flex items-center gap-1.5 rounded-lg bg-[#c29b74] px-3.5 py-1.5 text-xs font-mono font-semibold text-[#121315] hover:bg-[#d1aa82]"
-                  >
-                    {copiedKey === "direct-prompt" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                    <span>Salin Prompt</span>
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadTextFile(
+                          `prompt-${masterResult.projectTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}-bersih.txt`,
+                          generateCleanAiMasterPrompt(masterResult)
+                        )
+                      }
+                      className="flex items-center gap-1.5 rounded-lg border border-[#383531] bg-[#1d1e22] px-3.5 py-1.5 text-xs font-mono text-[#cfc8bf] hover:text-[#f5f1eb] hover:border-[#c29b74]/40"
+                    >
+                      <Download className="h-3.5 w-3.5 text-[#c29b74]" />
+                      <span>Unduh Prompt (.txt)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyText(generateCleanAiMasterPrompt(masterResult), "direct-prompt-clean")
+                      }
+                      className="flex items-center gap-1.5 rounded-lg bg-[#c29b74] px-3.5 py-1.5 text-xs font-mono font-semibold text-[#121315] hover:bg-[#d1aa82]"
+                    >
+                      {copiedKey === "direct-prompt-clean" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                      <span>{copiedKey === "direct-prompt-clean" ? "Prompt Bersih Tersalin!" : "Salin Prompt Bersih"}</span>
+                    </button>
+                  </div>
                 </div>
+
                 <div className="rounded-xl border border-[#262422] bg-[#111214] p-4 font-mono text-xs text-[#cfc8bf] leading-relaxed whitespace-pre-wrap select-all">
-                  {masterResult.engineDirectPrompt}
+                  {generateCleanAiMasterPrompt(masterResult)}
+                </div>
+
+                {/* Callout Panduan Langkah Manusia Terpisah */}
+                <div className="rounded-xl border border-[#2b2926] bg-[#141416] p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono font-semibold text-[#a8a197] flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5 text-[#c29b74]" />
+                      Panduan Langkah Eksekusi (Untuk Pengguna):
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadTextFile(
+                          `panduan-langkah-${masterResult.projectTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}.txt`,
+                          generateHumanExecutionGuide(masterResult)
+                        )
+                      }
+                      className="text-[11px] font-mono text-[#c29b74] hover:underline flex items-center gap-1"
+                    >
+                      <Download className="h-3 w-3" /> Unduh Panduan (.txt)
+                    </button>
+                  </div>
+                  <p className="text-xs font-sans text-[#7d776f] leading-relaxed">
+                    Instruksi cara upload dan urutan eksekusi sengaja dipisahkan dari prompt utama di atas agar model LLM tidak bingung saat membaca arahan teknis.
+                  </p>
                 </div>
               </div>
             )}
@@ -1311,9 +1361,24 @@ ${s.audioSoundscapePrompt}`
             {/* TAB: GUIDE */}
             {activeBoardTab === "guide" && (
               <div className="rounded-2xl border border-[#282624] bg-[#151619] p-6 space-y-4">
-                <h4 className="text-base font-semibold text-[#f5f1eb] font-sans">
-                  Panduan Penggunaan ({masterResult.engineTarget.toUpperCase()})
-                </h4>
+                <div className="flex items-center justify-between border-b border-[#242220] pb-3">
+                  <h4 className="text-base font-semibold text-[#f5f1eb] font-sans">
+                    Panduan Penggunaan ({masterResult.engineTarget.toUpperCase()})
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      downloadTextFile(
+                        `panduan-eksekusi-${masterResult.projectTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}.txt`,
+                        generateHumanExecutionGuide(masterResult)
+                      )
+                    }
+                    className="flex items-center gap-1.5 rounded-lg border border-[#2d2a27] bg-[#1a1b1f] px-3.5 py-1.5 text-xs font-mono text-[#c4bcb2] hover:text-[#f5f1eb]"
+                  >
+                    <Download className="h-3.5 w-3.5 text-[#c29b74]" />
+                    <span>Unduh Panduan (.txt)</span>
+                  </button>
+                </div>
                 <div className="space-y-2.5">
                   {masterResult.operatorGuide.map((step, idx) => (
                     <div key={idx} className="flex items-start gap-3 rounded-xl border border-[#262422] bg-[#1a1b1f] p-3.5">
