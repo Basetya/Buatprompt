@@ -8,10 +8,12 @@ interface UgcFlowGenerateRequest {
   engineTarget: VideoAiEngine;
   llmModel?: LlmModelType;
   styleGenre: "hyper-real-ugc" | "cinematic-resort" | "tech-review" | "cartoon-3d-animation" | "luxury-commercial";
-  hostType: "male-casual" | "female-pro" | "custom" | "none-faceless" | "cartoon-3d-animation";
+  hostType: string;
   customHostDescription?: string;
   cameraArchetype?: string;
   clarificationAnswers: Record<string, string>;
+  hostImage?: string | null;
+  productImage?: string | null;
 }
 
 export async function POST(req: NextRequest) {
@@ -27,6 +29,8 @@ export async function POST(req: NextRequest) {
       customHostDescription = "",
       cameraArchetype = "auto",
       clarificationAnswers = {},
+      hostImage = null,
+      productImage = null,
     } = body;
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -51,7 +55,11 @@ export async function POST(req: NextRequest) {
     // Host description
     let hostName = "Presenter Utama";
     let hostVisualPrompt = "";
-    if (hostType === "male-casual") {
+    if (hostImage) {
+      hostName = "Custom UGC Creator (Foto Referensi Anda)";
+      hostVisualPrompt =
+        "UGC Creator strictly matching the attached reference photo [IMAGE 1: @host_anchor], preserving identical facial structure, hairstyle, skin tone, eye shape, and clothing style across all scenes.";
+    } else if (hostType === "male-casual") {
       hostName = "Bimo — Smart Casual";
       hostVisualPrompt =
         "Indonesian male creator in late 20s, natural groomed short black hair, casual smart navy linen shirt, silver watch, authentic friendly smile, natural skin micro-texture, visible pores, medically accurate facial anatomy, professional soft daylight.";
@@ -187,9 +195,50 @@ Hasilkan JSON produksi utuh sekarang.`;
     if (apiKey) {
       try {
         const ai = new GoogleGenAI({ apiKey });
+
+        const userParts: any[] = [];
+        if (hostImage && typeof hostImage === "string") {
+          const cleanBase64 = hostImage.replace(/^data:[^;]+;base64,/, "");
+          const mimeMatch = hostImage.match(/^data:([^;]+);base64,/);
+          const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+          userParts.push({
+            inlineData: {
+              data: cleanBase64,
+              mimeType,
+            },
+          });
+          userParts.push({
+            text: "[FOTO REFERENSI HOST / UGC CREATOR @host_anchor]: Amati foto orang ini. Ekstrak ciri wajah, potongan rambut, warna kulit, pakaian, dan pembawaannya secara detail. Tuliskan deskripsi akurat di hostProfile.masterCharacterPrompt dan kunci penampilannya 100% konsisten di setiap adegan.",
+          });
+        }
+
+        if (productImage && typeof productImage === "string") {
+          const cleanBase64 = productImage.replace(/^data:[^;]+;base64,/, "");
+          const mimeMatch = productImage.match(/^data:([^;]+);base64,/);
+          const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+          userParts.push({
+            inlineData: {
+              data: cleanBase64,
+              mimeType,
+            },
+          });
+          userParts.push({
+            text: "[FOTO REFERENSI PRODUK / HERO OBJECT @hero_object]: Amati foto produk ini. Ekstrak bentuk fisik, warna kemasan, label, dan tekstur produk. Tuliskan deskripsi akurat di objectProfile.masterObjectPrompt dan kunci wujud produk 100% konsisten di setiap adegan.",
+          });
+        }
+
+        userParts.push({
+          text: userPromptContent,
+        });
+
         const response = await ai.models.generateContent({
           model: "gemini-3.5-flash-lite",
-          contents: userPromptContent,
+          contents: [
+            {
+              role: "user",
+              parts: userParts,
+            },
+          ],
           config: {
             systemInstruction: systemPrompt,
             responseMimeType: "application/json",
@@ -200,6 +249,10 @@ Hasilkan JSON produksi utuh sekarang.`;
         const text = response.text || "";
         const parsed = JSON.parse(text);
         if (parsed.scenes && Array.isArray(parsed.scenes)) {
+          // Attach uploaded references back
+          parsed.hostImage = hostImage;
+          parsed.productImage = productImage;
+
           // Hyper-Smart Audio-Visual Causality & Physical Action Lock
           enforceAudioVisualCausality(parsed.scenes, topic);
 
@@ -240,7 +293,12 @@ Hasilkan JSON produksi utuh sekarang.`;
       sceneCount,
       durPerScene,
       clarificationAnswers,
+      hostImage,
+      productImage,
     });
+
+    fallbackData.hostImage = hostImage;
+    fallbackData.productImage = productImage;
 
     enforceAudioVisualCausality(fallbackData.scenes, topic);
 
@@ -432,6 +490,8 @@ ${scenes
     },
     scenes,
     engineDirectPrompt,
+    hostImage: params.hostImage || null,
+    productImage: params.productImage || null,
     operatorGuide: isLlmNative
       ? [
           `1. Salin prompt di tab 'Prompt Siap Pakai (${llmModel.toUpperCase()})'.`,

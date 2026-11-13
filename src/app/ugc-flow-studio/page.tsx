@@ -27,6 +27,9 @@ import {
   Clock,
   Sparkle,
   MessageSquare,
+  Upload,
+  X,
+  Image as ImageIcon,
 } from "lucide-react";
 import { VideoAiEngine, LlmModelType } from "../api/ugc-flow-clarify/route";
 
@@ -76,6 +79,8 @@ interface MasterDirectiveData {
   scenes: UgcScene[];
   engineDirectPrompt?: string;
   operatorGuide: string[];
+  hostImage?: string | null;
+  productImage?: string | null;
 }
 
 const VIDEO_TOOLS: Array<{ id: VideoAiEngine; label: string; desc: string }> = [
@@ -97,6 +102,38 @@ const LLM_MODELS: Array<{ id: LlmModelType; label: string }> = [
   { id: "grok", label: "Grok" },
 ];
 
+function compressImage(file: File, maxDim = 1024, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function UgcFlowStudioPage() {
   // Step 1: Core Inputs
   const [topic, setTopic] = useState("");
@@ -113,6 +150,10 @@ export default function UgcFlowStudioPage() {
   const [cameraArchetype, setCameraArchetype] = useState<
     "auto" | "bird-eye-drone" | "low-angle-heroic" | "orbit-360" | "dutch-angle" | "pov-first-person"
   >("auto");
+
+  // User uploaded reference images for 100% character and product consistency
+  const [hostImage, setHostImage] = useState<string | null>(null);
+  const [productImage, setProductImage] = useState<string | null>(null);
 
   // Workflow State: 1 = Input, 2 = Clarification, 3 = Result
   const [workflowStep, setWorkflowStep] = useState<1 | 2 | 3>(1);
@@ -192,15 +233,19 @@ export default function UgcFlowStudioPage() {
           engineTarget: activeEngineTarget,
           llmModel,
           styleGenre,
-          hostType,
+          hostType: hostImage ? "custom-upload" : hostType,
           customHostDescription,
           cameraArchetype,
           clarificationAnswers: clarifyAnswers,
+          hostImage,
+          productImage,
         }),
       });
 
       const data = await res.json();
       if (data.data) {
+        data.data.hostImage = hostImage;
+        data.data.productImage = productImage;
         setMasterResult(data.data);
         setWorkflowStep(3);
         setActiveBoardTab("storyboard");
@@ -221,12 +266,25 @@ export default function UgcFlowStudioPage() {
 
   const generateFullProjectPrompt = (result: MasterDirectiveData) => {
     const isLlm = result.engineTarget === "llm-native" || result.totalDuration === "<=10s";
+    const hasHostImg = Boolean(result.hostImage);
+    const hasProdImg = Boolean(result.productImage);
+
+    const multimodalGuide =
+      hasHostImg || hasProdImg
+        ? `\n[PANDUAN EKSEKUSI MULTIMODAL DI GEMINI / VIDEO AI]:
+1. Buka Gemini (gemini.google.com) atau video generator favorit Anda.
+2. Lampirkan/Upload foto referensi berikut ke chatbox:
+   ${hasHostImg ? "-> [FOTO 1]: Foto Host / Karakter (@host_anchor)" : ""}
+   ${hasProdImg ? "-> [FOTO 2]: Foto Produk / Objek (@hero_object)" : ""}
+3. Tempelkan seluruh prompt ini. Gemini & Video AI akan mengunci konsistensi 100% wajah, pakaian, dan wujud produk di semua sekuens adegan berantai!\n`
+        : "";
+
     const header = `=== PROYEK: ${result.projectTitle.toUpperCase()} ===
 Durasi Total: ${result.totalDuration} (${result.scenes.length} Adegan)
 Target Format: ${result.engineTarget.toUpperCase()}${result.llmModel ? ` (Model: ${result.llmModel.toUpperCase()})` : ""}
-
+${multimodalGuide}
 [REFERENSI KARAKTER & HOST]:
-Tag: ${result.hostProfile.anchorTag}
+Tag: ${result.hostProfile.anchorTag}${hasHostImg ? " (MENGACU PADA FOTO REFERENSI HOST TERLAMPIR)" : ""}
 Deskripsi: ${result.hostProfile.masterCharacterPrompt}
 
 [REFERENSI SETTING & AMBIENCE]:
@@ -234,7 +292,7 @@ Tag: ${result.environmentProfile.anchorTag}
 Deskripsi: ${result.environmentProfile.masterSettingPrompt}
 
 [REFERENSI OBJEK / HERO DETAIL]:
-Tag: ${result.objectProfile.anchorTag}
+Tag: ${result.objectProfile.anchorTag}${hasProdImg ? " (MENGACU PADA FOTO REFERENSI PRODUK TERLAMPIR)" : ""}
 Deskripsi: ${result.objectProfile.masterObjectPrompt}
 
 [HUKUM SINKRONISASI AI VIDEO (HYPER-SMART ONE-SHOT)]:
@@ -532,12 +590,135 @@ ${s.audioSoundscapePrompt}`
                     onChange={(e: any) => setHostType(e.target.value)}
                     className="w-full rounded-xl border border-[#2d2a27] bg-[#1a1b1f] p-3 text-xs text-[#f5f1eb] focus:border-[#c29b74] focus:outline-none"
                   >
+                    {hostImage && (
+                      <option value="custom">👤 Foto Host Terlampir (Kreator Anda Sendiri)</option>
+                    )}
                     <option value="female-pro">Sarah — Modern Professional (Hangat & Artikulatif)</option>
                     <option value="male-casual">Bimo — Smart Casual (Ramah & Terbuka)</option>
                     <option value="none-faceless">Faceless / POV (Fokus Produk & Tangan)</option>
                     <option value="cartoon-3d-animation">Stylized 3D Animated Host (Karakter Kartun)</option>
                     <option value="custom">Kustomisasi Sendiri (Tulis deskripsi)</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Upload Foto Referensi Karakter & Produk (Kunci Konsistensi 100%) */}
+              <div className="rounded-2xl border border-[#2d2a27] bg-[#141518] p-4 sm:p-5 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-xs font-mono font-semibold text-[#f5f1eb] uppercase tracking-wider flex items-center gap-2">
+                      <Sparkles className="h-3.5 w-3.5 text-[#c29b74]" />
+                      Foto Referensi Host & Produk (Kunci Konsistensi 100%)
+                    </h3>
+                    <p className="text-[11px] text-[#8c857c] font-sans mt-0.5">
+                      Upload foto wajah kreator & foto produk asli untuk mengunci penampilan karakter dan barang agar konsisten di setiap adegan (Gemini & Flow ready).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Upload Foto Host / UGC Creator */}
+                  <div className="rounded-xl border border-[#262422] bg-[#1a1b1f] p-3.5 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono font-medium text-[#c4bcb2] flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5 text-[#c29b74]" />
+                        Foto Host / Kreator (@host_anchor)
+                      </span>
+                      {hostImage && (
+                        <button
+                          type="button"
+                          onClick={() => setHostImage(null)}
+                          className="text-[10px] font-mono text-[#e06c75] hover:underline flex items-center gap-1"
+                        >
+                          <X className="h-3 w-3" /> Hapus
+                        </button>
+                      )}
+                    </div>
+
+                    {hostImage ? (
+                      <div className="flex items-center gap-3 bg-[#111214] p-2.5 rounded-lg border border-[#33302c]">
+                        <img
+                          src={hostImage}
+                          alt="Host Reference"
+                          className="h-16 w-16 rounded-lg object-cover border border-[#c29b74]/40"
+                        />
+                        <div className="text-xs">
+                          <span className="font-mono text-[#c29b74] font-medium block">Foto Host Terlampir</span>
+                          <span className="text-[11px] text-[#7d776f]">Wajah, rambut, & pakaian dikunci di semua adegan</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#33302c] hover:border-[#c29b74]/50 rounded-xl p-4 cursor-pointer transition-all bg-[#121315]">
+                        <Upload className="h-5 w-5 text-[#8c857c] mb-1.5" />
+                        <span className="text-xs font-mono text-[#c4bcb2]">Upload Foto Wajah / Kreator</span>
+                        <span className="text-[10px] text-[#635d56] mt-0.5">JPG / PNG / WEBP</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const b64 = await compressImage(file);
+                              setHostImage(b64);
+                              setHostType("custom");
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Upload Foto Produk / Hero Object */}
+                  <div className="rounded-xl border border-[#262422] bg-[#1a1b1f] p-3.5 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono font-medium text-[#c4bcb2] flex items-center gap-1.5">
+                        <Boxes className="h-3.5 w-3.5 text-[#c29b74]" />
+                        Foto Produk / Makanan (@hero_object)
+                      </span>
+                      {productImage && (
+                        <button
+                          type="button"
+                          onClick={() => setProductImage(null)}
+                          className="text-[10px] font-mono text-[#e06c75] hover:underline flex items-center gap-1"
+                        >
+                          <X className="h-3 w-3" /> Hapus
+                        </button>
+                      )}
+                    </div>
+
+                    {productImage ? (
+                      <div className="flex items-center gap-3 bg-[#111214] p-2.5 rounded-lg border border-[#33302c]">
+                        <img
+                          src={productImage}
+                          alt="Product Reference"
+                          className="h-16 w-16 rounded-lg object-cover border border-[#c29b74]/40"
+                        />
+                        <div className="text-xs">
+                          <span className="font-mono text-[#c29b74] font-medium block">Foto Produk Terlampir</span>
+                          <span className="text-[11px] text-[#7d776f]">Kemasan, warna, & tekstur dikunci di semua adegan</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#33302c] hover:border-[#c29b74]/50 rounded-xl p-4 cursor-pointer transition-all bg-[#121315]">
+                        <Upload className="h-5 w-5 text-[#8c857c] mb-1.5" />
+                        <span className="text-xs font-mono text-[#c4bcb2]">Upload Foto Produk / Objek</span>
+                        <span className="text-[10px] text-[#635d56] mt-0.5">JPG / PNG / WEBP</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const b64 = await compressImage(file);
+                              setProductImage(b64);
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1019,6 +1200,27 @@ ${s.audioSoundscapePrompt}`
                   </button>
                 </div>
 
+                {masterResult.hostImage && (
+                  <div className="flex items-center gap-4 rounded-xl border border-[#c29b74]/30 bg-[#171614] p-4">
+                    <img
+                      src={masterResult.hostImage}
+                      alt="Host Reference"
+                      className="h-20 w-20 rounded-xl object-cover border border-[#c29b74]/50 shrink-0"
+                    />
+                    <div>
+                      <span className="inline-block rounded-md bg-[#c29b74]/20 px-2 py-0.5 text-[10px] font-mono font-semibold text-[#c29b74] uppercase mb-1">
+                        Foto Referensi Host Aktif
+                      </span>
+                      <h5 className="text-sm font-semibold text-[#f5f1eb] font-sans">
+                        Identitas Wajah & Penampilan Terkunci
+                      </h5>
+                      <p className="text-xs text-[#a8a197] font-sans mt-0.5">
+                        Karakter di setiap adegan dikunci mengikuti foto wajah dan pakaian ini secara 100% konsisten.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <span className="text-xs font-mono font-medium text-[#a39e97] block mb-2">
                     Master Character Reference:
@@ -1077,6 +1279,28 @@ ${s.audioSoundscapePrompt}`
                       <span>Salin Objek</span>
                     </button>
                   </div>
+
+                  {masterResult.productImage && (
+                    <div className="flex items-center gap-4 rounded-xl border border-[#c29b74]/30 bg-[#171614] p-4">
+                      <img
+                        src={masterResult.productImage}
+                        alt="Product Reference"
+                        className="h-20 w-20 rounded-xl object-cover border border-[#c29b74]/50 shrink-0"
+                      />
+                      <div>
+                        <span className="inline-block rounded-md bg-[#c29b74]/20 px-2 py-0.5 text-[10px] font-mono font-semibold text-[#c29b74] uppercase mb-1">
+                          Foto Referensi Produk Aktif
+                        </span>
+                        <h5 className="text-sm font-semibold text-[#f5f1eb] font-sans">
+                          Wujud & Kemasan Produk Terkunci
+                        </h5>
+                        <p className="text-xs text-[#a8a197] font-sans mt-0.5">
+                          Bentuk kemasan, warna, logo, dan tekstur produk dikunci di setiap adegan mengikuti foto ini.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="rounded-xl border border-[#262422] bg-[#111214] p-4 font-mono text-xs text-[#cfc8bf] leading-relaxed whitespace-pre-wrap select-all">
                     {masterResult.objectProfile.masterObjectPrompt}
                   </div>
@@ -1101,6 +1325,20 @@ ${s.audioSoundscapePrompt}`
                       </p>
                     </div>
                   ))}
+                </div>
+
+                {/* Gemini Chained Sequences Consistency Pro-Tip */}
+                <div className="rounded-xl border border-[#c29b74]/30 bg-[#171614] p-4 space-y-2 mt-4">
+                  <span className="text-xs font-mono font-semibold text-[#c29b74] uppercase tracking-wider block flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Cara Menghasilkan Rangkaian Klip Konsisten Langsung di Gemini:
+                  </span>
+                  <div className="text-xs font-sans text-[#cfc8bf] leading-relaxed space-y-1">
+                    <p>1. Buka <strong>gemini.google.com</strong>.</p>
+                    <p>2. Lampirkan/Upload foto Host dan foto Produk Anda ke dalam chat Gemini.</p>
+                    <p>3. Salin <strong>Master Prompt</strong> dari tab Master Prompt dan tempelkan ke Gemini.</p>
+                    <p>4. Gemini akan membaca kedua foto dan mengunci wajah karakter serta wujud produk di seluruh rangkaian adegan tanpa berganti-ganti wajah atau kemasan!</p>
+                  </div>
                 </div>
               </div>
             )}
