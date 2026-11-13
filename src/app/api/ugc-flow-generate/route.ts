@@ -3,7 +3,9 @@ import { GoogleGenAI } from "@google/genai";
 
 interface UgcFlowGenerateRequest {
   topic: string;
-  targetDuration: "60s" | "90s" | "120s";
+  targetDuration: "<=10s" | "<=60s" | "<=120s" | ">120s";
+  engineTarget: "llm-native" | "google-flow";
+  llmModel?: "gemini" | "claude" | "gpt" | "deepseek" | "kimi" | "grok";
   styleGenre: "hyper-real-ugc" | "cinematic-resort" | "tech-review" | "cartoon-3d-animation" | "luxury-commercial";
   hostType: "male-casual" | "female-pro" | "custom" | "none-faceless" | "cartoon-3d-animation";
   customHostDescription?: string;
@@ -15,9 +17,11 @@ export async function POST(req: NextRequest) {
   try {
     const body: UgcFlowGenerateRequest = await req.json();
     const {
-      topic = "Seaside Resort Luxury Project",
-      targetDuration = "60s",
-      styleGenre = "cinematic-resort",
+      topic = "",
+      targetDuration = "<=60s",
+      engineTarget = "google-flow",
+      llmModel = "gemini",
+      styleGenre = "hyper-real-ugc",
       hostType = "female-pro",
       customHostDescription = "",
       cameraArchetype = "auto",
@@ -26,25 +30,43 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.GEMINI_API_KEY;
 
-    // Jumlah scene berdasarkan durasi (60s = 6 scene, 90s = 8 scene, 120s = 10 scene)
-    const sceneCount = targetDuration === "120s" ? 10 : targetDuration === "90s" ? 8 : 6;
-    const durPerScene = Math.round(parseInt(targetDuration) / sceneCount);
+    // Menghitung jumlah scene secara adaptif
+    let sceneCount = 6;
+    let durPerScene = 10;
+    if (targetDuration === "<=10s") {
+      sceneCount = 1;
+      durPerScene = 10;
+    } else if (targetDuration === "<=60s") {
+      sceneCount = 6;
+      durPerScene = 10;
+    } else if (targetDuration === "<=120s") {
+      sceneCount = 8;
+      durPerScene = 15;
+    } else {
+      // > 120s (Epic Story)
+      sceneCount = 12;
+      durPerScene = 15;
+    }
 
-    // Host description synthesis
+    // Host description
     let hostName = "Presenter Utama";
     let hostVisualPrompt = "";
     if (hostType === "male-casual") {
-      hostName = "Bimo / Male Casual Architect";
+      hostName = "Bimo — Smart Casual";
       hostVisualPrompt =
-        "Indonesian male creator in late 20s, natural groomed short black hair, casual smart navy linen shirt, silver watch, authentic friendly smile, natural skin micro-texture, visible pores, medically accurate facial anatomy, professional documentary lighting.";
+        "Indonesian male creator in late 20s, natural groomed short black hair, casual smart navy linen shirt, silver watch, authentic friendly smile, natural skin micro-texture, visible pores, medically accurate facial anatomy, professional soft daylight.";
     } else if (hostType === "female-pro") {
-      hostName = "Sarah / Female Luxury Presenter";
+      hostName = "Sarah — Modern Professional";
       hostVisualPrompt =
-        "Indonesian female luxury host in late 20s, elegant modern beige blazer over silk top, subtle minimalist jewelry, natural polished ponytail hair, warm articulate expression, natural skin subsurface scattering, realistic eye catchlights, flawless anatomy.";
+        "Indonesian female creator in late 20s, elegant modern beige linen blazer over silk top, subtle minimalist jewelry, natural polished ponytail hair, warm articulate expression, natural skin subsurface scattering, realistic eye catchlights, flawless anatomy.";
     } else if (hostType === "cartoon-3d-animation") {
       hostName = "Stylized 3D Character Host";
       hostVisualPrompt =
         "Charming stylized 3D animated character host, Pixar-quality subsurface scattering, soft studio lighting, expressive facial mechanics, vibrant textured fabric clothing, friendly large expressive eyes.";
+    } else if (hostType === "none-faceless") {
+      hostName = "Faceless First-Person POV";
+      hostVisualPrompt =
+        "First-person perspective, authentic human hands interacting with objects, dynamic environmental focus, no face shown.";
     } else {
       hostName = "Custom Host";
       hostVisualPrompt = customHostDescription || "Professional on-camera presenter with authentic human realism.";
@@ -54,47 +76,38 @@ export async function POST(req: NextRequest) {
       .map(([k, v]) => `- ${k}: ${v}`)
       .join("\n");
 
-    const systemPrompt = `Anda adalah Master Executive Director Google Flow (Veo 2) dan Lead Scriptwriter AI Video kelas dunia.
-Tugas Anda adalah menghasilkan master blueprint produksi 100% UTUH dan PRESISI TANPA KOREKSI untuk pitch pembuatan video UGC / Sinematik berdurasi ${targetDuration} (${sceneCount} scenes).
+    const isLlmNative = engineTarget === "llm-native" || targetDuration === "<=10s";
 
-ATURAN WAJIB NASKAH & PENGETAHUAN LOKASI (GROUNDING):
-- Jika topik menyebutkan tempat/hotel/proyek nyata (contoh: "The Ululani Bali" / "The Rich Prada" di Pecatu Indah Resort Bali dekat Pantai Dreamland/Balangan/Bingin dan New Kuta Golf):
-  WAJIB masukkan FAKTA ASLI LOKASI TERSEBUT ke dalam naskah! Jangan buat naskah generik fiktif. Sebutkan nama tempat, suasana tebing Pecatu, akses pantai surfer, dan keunikan aslinya.
-- GAYA BICARA UGC AUTENTIK & ANTUSIAS: Naskah harus terdengar seperti kreator/host UGC sungguhan yang antusias, cerdas, dan persuasif ("Kalian bayangin...", "Ini salah satu hidden-gem paling underrated di Uluwatu...", "View sunset dari tebing ini bener-bener magis!"). HINDARI BAHASA ROBOTIK/FORMAL SKRIPSI!
-- Sertakan jeda napas [pause] dan emosi [warm], [excited], [curious], [whisper], [confident].
+    const systemPrompt = `Anda adalah Master Creative Video Director & Prompt Architect kelas dunia.
+Tugas: Hasilkan rancangan video UGC terstruktur yang siap pakai tanpa koreksi untuk format durasi ${targetDuration} (${sceneCount} scene).
+Target Engine: ${isLlmNative ? `Prompt LLM Langsung (${llmModel.toUpperCase()})` : "Google Flow (Veo 2) Multi-Shot"}
 
-ATURAN STRUKTUR PROMPTING GOOGLE FLOW:
-1. CHARACTER BOARD PROMPT (@host_anchor): Master Prompt anatomi ultra-realistis (visible pores, micro-details, 85mm portrait, zero AI plastic skin, anti-hallucination) dengan tag konsistensi @host_anchor.
-2. OBJECT / ENVIRONMENT BOARD PROMPT (@setting_anchor / @hero_object): Konsistensi arsitektur, lanskap, material, pencahayaan sesuai klarifikasi user. Jika user memilih NONE untuk hero object, jelaskan bahwa adegan bebas berganti-ganti.
-3. PER-SCENE STORYBOARD DIRECTIVE (${sceneCount} scenes):
-   Tiap scene wajib menyertakan:
-   - Durasi & Timing (misal Scene 1: 00:00 - 00:${durPerScene < 10 ? "0" + durPerScene : durPerScene})
-   - Voiceover Script (Bahasa Indonesia hidup & antusias)
-   - Flow Command & Camera Operator: Gunakan sintaks slash command resmi Google Flow (/camera, /lens, /motion, /lighting, @host_anchor, @hero_object). IMPLEMENTASIKAN SUDUT KAMERA & MANUVER YANG DIPILIH USER DI KLARIFIKASI SECARA DETAIL!
-   - Master Visual Prompt (English untuk Veo 2 / Imagen 3) dengan kualitas 8K, cinematic lighting, photorealism.
-   - Soundscape & Foley Prompt.
-   - Negative Constraints.
-5. STEP-BY-STEP FLOW OPERATOR GUIDE: Panduan copy-paste ke Google Flow / Gemini.
+ATURAN NASKAH & PENGETAHUAN LOKASI:
+- Jika topik menyebut tempat/produk/hotel nyata: masukkan fakta asli lokasi tersebut secara natural dan meyakinkan.
+- Gaya bahasa: Alami, mengalir, penuh antusiasme kreator UGC sejati. Hindari bahasa kaku/skripsi formal.
+- Berikan penanda intonasi dan jeda napas: [excited], [warm], [curious], [whisper], [pause].
 
-Keluarkan dalam format JSON:
+STRUKTUR OUTPUT JSON:
 {
   "projectTitle": "string",
   "overview": "string",
   "totalDuration": "${targetDuration}",
+  "engineTarget": "${engineTarget}",
+  "llmModel": "${llmModel}",
   "hostProfile": {
     "name": "${hostName}",
     "anchorTag": "@host_anchor",
-    "masterCharacterPrompt": "string (ultra photorealistic English prompt for Imagen/Veo)",
+    "masterCharacterPrompt": "string (deskripsi visual detail subjek)",
     "negativePrompt": "string"
   },
   "environmentProfile": {
-    "name": "Setting & Landscape Anchor",
+    "name": "Setting & Ambience Anchor",
     "anchorTag": "@setting_anchor",
     "masterSettingPrompt": "string",
     "negativePrompt": "string"
   },
   "objectProfile": {
-    "name": "Hero Architecture / Product Object",
+    "name": "Hero Object / Product Detail",
     "anchorTag": "@hero_object",
     "masterObjectPrompt": "string"
   },
@@ -102,30 +115,32 @@ Keluarkan dalam format JSON:
     {
       "sceneNumber": 1,
       "timeRange": "string",
-      "stageName": "HOOK",
-      "voiceoverScriptId": "string (bahasa indonesia lengkap dengan intonasi)",
-      "cameraDirective": "string (/camera command dll)",
-      "flowVisualPrompt": "string (English ready to paste to Google Flow)",
+      "stageName": "string",
+      "voiceoverScriptId": "string (naskah bahasa indonesia hidup)",
+      "cameraDirective": "string (/camera command atau instruksi framing)",
+      "flowVisualPrompt": "string (Prompt visual terstruktur siap pakai)",
       "audioSoundscapePrompt": "string",
       "keyVisualBeat": "string"
     }
   ],
-  "googleFlowOperatorGuide": [
+  "llmDirectPrompt": "string (Prompt siap copy-paste langsung ke ${llmModel.toUpperCase()} bila ingin generate langsung)",
+  "operatorGuide": [
     "Langkah 1: ...",
     "Langkah 2: ...",
     "Langkah 3: ..."
   ]
 }`;
 
-    const userPromptContent = `TOPIC: "${topic}"
+    const userPromptContent = `TOPIK: "${topic}"
 DURASI: ${targetDuration}
+ENGINE TARGET: ${engineTarget} (${llmModel})
 GENRE: ${styleGenre}
 HOST: ${hostType} (${hostVisualPrompt})
 
-HASIL KLARIFIKASI & PILIHAN KAMERA USER:
+PILIHAN KLARIFIKASI KREATOR:
 ${clarificationSummary}
 
-Hasilkan JSON produksi utuh sekarang juga.`;
+Hasilkan JSON produksi utuh sekarang.`;
 
     if (apiKey) {
       try {
@@ -146,14 +161,16 @@ Hasilkan JSON produksi utuh sekarang juga.`;
           return NextResponse.json({ success: true, data: parsed, engine: "gemini-3.5-flash-lite" });
         }
       } catch (geminiErr) {
-        console.warn("Gemini live generation failed, fallback to offline director template:", geminiErr);
+        console.warn("Gemini dynamic generate notice, switching to internal builder:", geminiErr);
       }
     }
 
-    // High-End Hardened Offline Template
-    const fallbackData = generateGoldenMasterFallback({
+    // High-End Clean Fallback
+    const fallbackData = generateCleanStudioFallback({
       topic,
       targetDuration,
+      engineTarget,
+      llmModel,
       styleGenre,
       hostName,
       hostVisualPrompt,
@@ -162,16 +179,18 @@ Hasilkan JSON produksi utuh sekarang juga.`;
       clarificationAnswers,
     });
 
-    return NextResponse.json({ success: true, data: fallbackData, engine: "director-golden-base" });
+    return NextResponse.json({ success: true, data: fallbackData, engine: "director-clean-base" });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
 
-function generateGoldenMasterFallback(params: any) {
+function generateCleanStudioFallback(params: any) {
   const {
     topic,
     targetDuration,
+    engineTarget,
+    llmModel,
     styleGenre,
     hostName,
     hostVisualPrompt,
@@ -183,121 +202,145 @@ function generateGoldenMasterFallback(params: any) {
   const chosenCam = clarificationAnswers.cameraManeuver || "";
   const isBirdEye = chosenCam.toLowerCase().includes("bird-eye") || chosenCam.toLowerCase().includes("drone");
   const isLowAngle = chosenCam.toLowerCase().includes("low-angle") || chosenCam.toLowerCase().includes("pedestal");
-  const isOrbit = chosenCam.toLowerCase().includes("360 orbit");
-  const isDutch = chosenCam.toLowerCase().includes("dutch angle");
-  const isPOV = chosenCam.toLowerCase().includes("pov");
+  const isOrbit = chosenCam.toLowerCase().includes("orbit");
+  const isDutch = chosenCam.toLowerCase().includes("dutch");
+  const isSelfie = chosenCam.toLowerCase().includes("selfie") || chosenCam.toLowerCase().includes("close-up");
 
-  const lensLighting =
-    clarificationAnswers.visualLensAndLighting ||
-    "Golden Hour Rim-Light + 85mm Prime Bokeh";
-  const heroLandmark =
-    clarificationAnswers.heroObjectOrFeature ||
-    "Kompleks bangunan & infinity pool menghadap laut lepas";
-  const voiceTone =
-    clarificationAnswers.paceAndVoiceTone ||
-    "Prestisius & Berwibawa [warm authoritative]";
+  const lensLighting = clarificationAnswers.visualLensAndLighting || "Natural Warm Daylight";
+  const heroObject = clarificationAnswers.heroObjectOrFeature || "NONE: Tidak Ada Objek Terkunci (Bebas Berganti)";
+  const isNoneObject = heroObject.includes("NONE");
+  const isLlmNative = engineTarget === "llm-native" || targetDuration === "<=10s";
 
   const scenes = [];
-  const stages = [
-    { name: "HOOK & SIGNATURE MANEUVER", desc: "Membuka adegan dengan manuver kamera sinematik utama" },
-    { name: "PROBLEM / THE VISION GAP", desc: "Presenter berjalan menjelaskan nilai eksklusif" },
-    { name: "ARCHITECTURAL HERO REVEAL", desc: "Kamera mengeksplorasi hero object & panorama" },
-    { name: "INTERIOR LUXURY & DETAIL", desc: "Transisi ke dalam ruangan dengan pencahayaan halus" },
-    { name: "PRIVATE AMENITIES & LIFESTYLE", desc: "Fasilitas premium dan lanskap lingkungan" },
-    { name: "AUTHORITATIVE CTA & CLOSING", desc: "Presenter di titik terbaik mengundang tindakan eksklusif" },
-  ];
 
-  for (let i = 0; i < sceneCount; i++) {
-    const stage = stages[i % stages.length];
-    const sStart = i * durPerScene;
-    const sEnd = (i + 1) * durPerScene;
-    const timeRange = `00:${sStart < 10 ? "0" + sStart : sStart} - 00:${sEnd < 10 ? "0" + sEnd : sEnd}`;
-
-    let camCmd = `/camera push-in 50mm smooth dolly | /motion natural walking | /lighting golden-hour rim-light`;
-    let promptDetail = "";
-    let voText = "";
-
-    if (i === 0) {
-      if (isLowAngle) {
-        camCmd = `/camera low-angle knee-height pedestal-up 24mm wide /tilt +25-deg looking up at @host_anchor /lighting dramatic rim-light`;
-        promptDetail = `Dramatic low-angle cinematic pedestal shot looking up from terrace level toward @host_anchor who stands tall against the monumental seaside architecture. Blue skies and sweeping ocean backdrop create a towering sense of prestige, 8K documentary realism.`;
-      } else if (isOrbit) {
-        camCmd = `/camera 360-orbit continuous fluid arc 35mm /radius 3m /elevation eye-level /motion presenter turning smoothly`;
-        promptDetail = `Seamless 360-degree rotating arc shot circling @host_anchor who gestures gracefully as panoramic sea cliff view and infinity pool rotate smoothly in background, true-to-life reflections, ultra-high fidelity.`;
-      } else if (isDutch) {
-        camCmd = `/camera dutch-angle 15-deg tilt 35mm handheld tracking /shutter 1/120s high kinetic tension`;
-        promptDetail = `Dynamic 15-degree Dutch angle tracking shot capturing @host_anchor striding confidently across modern cantilevered deck, dramatic angled horizon line, intense cinematic visual energy.`;
-      } else if (isPOV) {
-        camCmd = `/camera first-person POV 28mm forward walking /motion subtle organic breathing sway /interact presenter turns to greet`;
-        promptDetail = `Immersive first-person POV shot stepping out through open glass doors onto sunset terrace, @host_anchor turns around to greet the viewer directly with a warm welcoming smile.`;
-      } else {
-        // Default: Bird-Eye Drone Descent
-        camCmd = `/camera drone 150m high bird-eye descent -> continuous seamless crane tilt-down to eye-level 35mm /speed 1.2x to 0.8x deceleration`;
-        promptDetail = `Extreme wide aerial drone shot descending rapidly from 150m above ocean waves over rocky sea cliff down to the front courtyard of modern seaside luxury resort, decelerating smoothly to eye-level medium-shot in front of @host_anchor who turns to camera with engaging confident expression. Golden hour sunlight reflecting off glass facades, natural ocean spray mist, ultra-realistic architectural render, 8K, documentary fidelity.`;
-      }
-      voText = `Pernahkah Anda membayangkan sebuah mahakarya yang menentang batas antara arsitektur dan alam liar? [pause] Selamat datang di babak baru seaside luxury.`;
-    } else if (i === 1) {
-      camCmd = `/camera tracking medium-shot 50mm walking backward with presenter /lighting warm soft fill 5600K`;
-      promptDetail = `Medium-shot continuous tracking backward as @host_anchor walks gracefully along cantilevered teak wood terrace of @setting_anchor. In the background, panoramic infinity pool blends seamlessly with ocean horizon. Realistic cloth simulation, subtle sea breeze moving hair, true-to-life skin texture, visible pores, Leica Summilux lens bokeh.`;
-      voText = `Bukan sekadar resor biasa, [curious] tapi sebuah konsep yang dirancang untuk mereka yang menolak standar rata-rata.`;
-    } else if (i === 2) {
-      camCmd = `/camera 360-orbit slow arc 35mm /elevation 15-degrees /lighting amber specular glint`;
-      promptDetail = `Cinematic slow arc orbit shot showcasing @hero_object and multi-tier cascading infinity pool, crystal clear water with realistic caustics, modern brutalist stone and teak architecture, palm trees swaying gently, authentic sunset hues across tropical sky, National Geographic architectural standard.`;
-      voText = `Setiap inci memperhitungkan arah datangnya cahaya alami, ketahanan material terhadap garam laut, dan privasi tanpa cela.`;
-    } else if (i === 3) {
-      camCmd = `/camera indoor glide through glass slider 24mm to 50mm transition /lighting interior ambient mood`;
-      promptDetail = `Smooth indoor camera glide entering presidential villa suite, revealing custom Italian marble surfaces, floor-to-ceiling retractable glass doors opening to private sea terrace. @host_anchor lightly gestures toward the horizon view, natural fabric draping, hyper-detailed ambient shadows.`;
-      voText = `Interior dirancang mengalir tanpa sekat. Ketika kaca panoramik digeser, ruang tamu dan cakrawala samudra menyatu sempurna.`;
-    } else if (i === 4) {
-      camCmd = `/camera low-angle pedestal rise 35mm /atmosphere ocean mist haze /lens anamorphic flare`;
-      promptDetail = `Low-angle cinematic pedestal shot of cliffside private pier and sunset lounge. Gentle turquoise waves crashing against rocky shoreline below with realistic water physics and white foam spray. Luxury yacht anchored in the calm bay, photorealistic commercial masterpiece, 4K 24fps.`;
-      voText = `Dermaga privat, helipad akses cepat, dan sunset lounge yang hanya bisa diakses oleh mereka yang memiliki kunci eksklusif ini.`;
-    } else {
-      camCmd = `/camera slow push-in close-up 85mm portrait /lighting golden hour rim highlight /depth shallow DOF`;
-      promptDetail = `Intimate cinematic 85mm portrait shot of @host_anchor standing on oceanfront viewpoint with warm sunset glow on face and hair. Looking directly into lens with authoritative inviting smile. Perfect eye catchlights, micro skin wrinkles, physically accurate anatomy, elegant seaside background softly blurred.`;
-      voText = `Unit tahap perdana ini hanya tersedia bagi sepuluh pemilik pertama. Hubungi tim kami hari ini untuk mengamankan private viewing Anda.`;
-    }
-
+  if (targetDuration === "<=10s") {
+    // 1 SCENE ULTRA-PUNCHY 10 DETIK
     scenes.push({
-      sceneNumber: i + 1,
-      timeRange,
-      stageName: stage.name,
-      voiceoverScriptId: voText,
-      cameraDirective: camCmd,
-      flowVisualPrompt: promptDetail,
-      audioSoundscapePrompt: `Ambient sound of rhythmic ocean swells, gentle coastal wind breeze, crisp footsteps on teak wood, distant seagull cries, subtle cinematic warm string cello swell.`,
-      keyVisualBeat: stage.desc,
+      sceneNumber: 1,
+      timeRange: "00:00 - 00:10",
+      stageName: "10-SECOND VIRAL HOOK",
+      voiceoverScriptId: `[excited] Kalau kalian lagi cari ${topic || "rekomendasi terbaik"}, [pause] jujur ini bener-bener gak boleh kalian lewatin! [warm] Cek detail lengkapnya sekarang juga!`,
+      cameraDirective: isSelfie
+        ? `/camera handheld selfie close-up 28mm /motion dynamic head-nod & gestures /lighting natural soft daylight`
+        : `/camera dynamic push-in 35mm /motion smooth walking /lighting golden-hour rim-light`,
+      flowVisualPrompt: `Authentic UGC video clip of @host_anchor talking enthusiastically directly to phone camera in a naturally lit setting, lively facial expression, visible skin micro-texture, 4K social media organic quality, zero plastic look.`,
+      audioSoundscapePrompt: `Crisp clean vocal, subtle warm room ambience, light modern acoustic guitar chord swell.`,
+      keyVisualBeat: "Klip singkat 10 detik langsung memikat dengan ekspresi autentik.",
     });
+  } else {
+    const stages = [
+      { name: "PEMBUKA / HOOK", desc: "Menyapa audiens dengan hook memikat" },
+      { name: "REVEAL MASALAH & NILAI", desc: "Menjelaskan mengapa ini spesial" },
+      { name: "EKSPLORASI DETAIL UTAMA", desc: "Menunjukkan detail visual produk atau tempat" },
+      { name: "PENGALAMAN & AMBIENCE", desc: "Menghadirkan suasana nyata dan emosi" },
+      { name: "FITUR UNGGULAN LAINNYA", desc: "Kelebihan yang membedakan dari lainnya" },
+      { name: "AJAKAN / CALL TO ACTION", desc: "Menutup dengan ajakan bertindak yang jelas" },
+    ];
+
+    for (let i = 0; i < sceneCount; i++) {
+      const stage = stages[i % stages.length];
+      const sStart = i * durPerScene;
+      const sEnd = (i + 1) * durPerScene;
+      const timeRange = `00:${sStart < 10 ? "0" + sStart : sStart} - 00:${sEnd < 10 ? "0" + sEnd : sEnd}`;
+
+      let camCmd = `/camera push-in 50mm smooth dolly | /motion natural walking`;
+      let promptDetail = "";
+      let voText = "";
+
+      if (i === 0) {
+        if (isBirdEye) {
+          camCmd = `/camera drone bird-eye descent -> seamless crane to eye-level 35mm /speed decelerating`;
+          promptDetail = `Sweeping bird-eye aerial shot descending gracefully down to eye-level medium shot in front of @host_anchor, lively engaging smile, natural sunlight, documentary realism.`;
+        } else if (isLowAngle) {
+          camCmd = `/camera low-angle pedestal-up 28mm wide looking up at @host_anchor /lighting dramatic natural rim-light`;
+          promptDetail = `Impressive low-angle shot framing @host_anchor standing confidently with background architecture, natural sky illumination, crisp 4K fidelity.`;
+        } else {
+          camCmd = `/camera eye-level handheld tracking 35mm /motion natural creator cadence`;
+          promptDetail = `Engaging eye-level tracking shot of @host_anchor addressing the audience warmly, organic creator movement, authentic skin texture.`;
+        }
+        voText = `[excited] Kalian bayangin... [pause] ada tempat yang bener-bener memadukan keindahan alam dan kenyamanan tanpa kompromi seperti ${topic || "ini"}!`;
+      } else if (i === 1) {
+        camCmd = `/camera medium tracking backward 50mm /lighting soft daylight`;
+        promptDetail = `Medium shot following @host_anchor walking through the location, natural gestures, true-to-life lighting.`;
+        voText = `[warm] Suasananya tuh tenang banget dan nyaman. Bener-bener pilihan tepat buat kalian yang mengutamakan kualitas.`;
+      } else if (i === 2) {
+        camCmd = `/camera slow 360-orbit arc 35mm /elevation eye-level`;
+        promptDetail = `Smooth orbiting camera showcasing the surrounding ambiance and detailed craftsmanship, realistic material textures.`;
+        voText = `[curious] Perhatiin deh setiap sudutnya. Mulai dari pemilihan material sampai pencahayaan alaminya dirancang sangat matang.`;
+      } else if (i === 3) {
+        camCmd = `/camera indoor glide 24mm /lighting warm ambient`;
+        promptDetail = `Gentle camera glide exploring the interior details, comfortable aesthetic, soft shadow roll-off.`;
+        voText = `[whisper] Begitu masuk ke area dalamnya, suasananya langsung bikin rileks seketika.`;
+      } else if (i === 4) {
+        camCmd = `/camera wide establishing pedestal 35mm`;
+        promptDetail = `Wide expansive shot capturing the complete surrounding landscape and premium facilities, true-to-life colors.`;
+        voText = `[warm] Akses mudah, fasilitas lengkap, dan pemandangan yang gak bakal kalian temuin di tempat lain.`;
+      } else {
+        camCmd = `/camera close-up portrait 85mm /depth shallow DOF`;
+        promptDetail = `Intimate 85mm portrait shot of @host_anchor looking warmly into the lens, inviting smile, soft bokeh background.`;
+        voText = `[excited] Jangan sampai kelewatan kesempatan ini. Cek info selengkapnya sekarang dan rasakan sendiri pengalamannya!`;
+      }
+
+      scenes.push({
+        sceneNumber: i + 1,
+        timeRange,
+        stageName: stage.name,
+        voiceoverScriptId: voText,
+        cameraDirective: camCmd,
+        flowVisualPrompt: promptDetail,
+        audioSoundscapePrompt: `Clear spoken dialogue, gentle ambient room or nature sound, subtle melodic backing tone.`,
+        keyVisualBeat: stage.desc,
+      });
+    }
   }
 
+  // LLM Direct Prompt for Gemini / Claude / GPT / DeepSeek / Kimi / Grok
+  const llmDirectPrompt = `PROMPT SIAP COPY-PASTE KE ${llmModel.toUpperCase()}:
+
+Anda adalah kreator UGC profesional. Buatkan naskah video ${targetDuration} tentang: "${topic}".
+Karakter Host: ${hostName} (${hostVisualPrompt})
+Gaya Kamera: ${chosenCam || "Handheld natural"}
+Pencahayaan: ${lensLighting}
+Format: Bahasa Indonesia percakapan santai, penuh energi dan ketulusan, lengkap dengan penanda emosi [excited], [warm], [pause].`;
+
   return {
-    projectTitle: `${topic} — Master Google Flow UGC Pitch Directive`,
-    overview: `Paket directive produksi lengkap 100% konsisten untuk Google Flow (Veo 2) dengan kontrol pergerakan kamera ekstrim (${chosenCam || "/camera drone descent"}), konsistensi karakter (@host_anchor), objek hero (@hero_object), dan naskah persuasi bertempo tinggi.`,
+    projectTitle: `${topic || "Proyek Video UGC"} — Panduan Produksi ${targetDuration}`,
+    overview: `Paket panduan naskah dan arahan visual ${targetDuration} (${sceneCount} adegan) dengan alur terkoordinasi dan gaya percakapan yang alami.`,
     totalDuration: targetDuration,
+    engineTarget,
+    llmModel,
     hostProfile: {
       name: hostName,
       anchorTag: "@host_anchor",
-      masterCharacterPrompt: `Master Character Reference: ${hostVisualPrompt} Master positive photorealism foundation: Real human anatomy with medically accurate proportions, natural skin texture with visible pores and subtle micro-imperfections, realistic eye iris with catchlights, individual hair strands, physically plausible pose, 85mm portrait lens, DSLR 8K fidelity, documentary National Geographic realism.`,
-      negativePrompt: `cgi appearance, 3d render look, plastic smooth skin, beauty filter, distorted face, asymmetrical eyes, missing fingers, extra limbs, unrealistic anatomy, oversaturated colors, watermark, text overlays.`,
+      masterCharacterPrompt: `Master Character Reference: ${hostVisualPrompt} Natural human anatomy, authentic facial expressions, visible skin pores, natural hair texture, documentary-grade realism, zero plastic skin.`,
+      negativePrompt: `cgi appearance, 3d render look, plastic smooth skin, distorted facial structure, artificial beauty filter, watermark, text blur.`,
     },
     environmentProfile: {
-      name: "Seaside Resort Landscape Anchor",
+      name: "Setting & Ambience Anchor",
       anchorTag: "@setting_anchor",
-      masterSettingPrompt: `Master Environment Reference: Modern high-end luxury seaside resort built on dramatic rocky ocean cliffside, cascading infinity pool, floor-to-ceiling glass pavilions, warm weathered teak decking, native tropical coastal vegetation, panoramic azure sea meeting sunset horizon, ${lensLighting}, photorealistic architectural photography.`,
-      negativePrompt: `blurry background, flat lighting, unrealistic water textures, cartoon architecture, bad perspective, jagged edges.`,
+      masterSettingPrompt: `Master Setting Reference: Beautiful aesthetic environment tailored for ${topic}, natural ${lensLighting}, true-to-life textures, cinematic architectural photography.`,
+      negativePrompt: `blurry background, flat lighting, unnatural saturation, distorted geometry.`,
     },
     objectProfile: {
-      name: "Hero Architecture & Masterplan",
+      name: isNoneObject ? "Objek Fleksibel (Bebas Berganti)" : "Hero Object / Product Focus",
       anchorTag: "@hero_object",
-      masterObjectPrompt: `Master Object Reference: ${heroLandmark}, pristine finishing, ultra-sharp focus, true-to-life reflections and refraction.`,
+      masterObjectPrompt: isNoneObject
+        ? "Visual objek dan properti bebas berganti-ganti di tiap adegan sesuai alur narasi, tidak terkunci pada satu benda saja."
+        : `Master Object Reference: ${heroObject}, pristine details, realistic lighting reflections.`,
     },
     scenes,
-    googleFlowOperatorGuide: [
-      "1. Buka Google Flow (flow.google / Veo 2 Studio).",
-      "2. Daftarkan Anchor Board: Masukkan Character Prompt ke '@host_anchor', Environment ke '@setting_anchor', dan Hero Object ke '@hero_object'.",
-      "3. Di prompt box, panggil sinematografi: Paste '/camera...' dan prompt scene yang sudah terintegrasi sudut manuver pilihan user.",
-      "4. Generate per-scene. Gunakan konsistensi tag @ untuk menjaga bentuk tidak berubah antar scene.",
-      "5. Putar preview voiceover di BuatPrompt untuk sinkronisasi audio naskah.",
-    ],
+    llmDirectPrompt,
+    operatorGuide: isLlmNative
+      ? [
+          `1. Salin prompt di tab 'Prompt LLM Langsung (${llmModel.toUpperCase()})'.`,
+          `2. Buka aplikasi ${llmModel.toUpperCase()} pilihan Anda (Gemini, Claude, ChatGPT, DeepSeek, Kimi, atau Grok).`,
+          `3. Tempelkan prompt ke chatbox untuk mendapatkan variasi naskah atau visual klip singkat seketika.`,
+        ]
+      : [
+          "1. Buka Google Flow (flow.google / Veo 2 Studio).",
+          "2. Masukkan Character Anchor ke '@host_anchor' dan Setting ke '@setting_anchor'.",
+          "3. Tempelkan arahan kamera (/camera...) dan prompt scene di kotak input per adegan.",
+          "4. Dengarkan audio naskah di BuatPrompt untuk memandu intonasi suara.",
+        ],
   };
 }

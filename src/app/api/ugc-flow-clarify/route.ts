@@ -3,7 +3,9 @@ import { GoogleGenAI } from "@google/genai";
 
 interface UgcFlowClarifyRequest {
   topic: string;
-  targetDuration: "60s" | "90s" | "120s";
+  targetDuration: "<=10s" | "<=60s" | "<=120s" | ">120s";
+  engineTarget: "llm-native" | "google-flow";
+  llmModel?: "gemini" | "claude" | "gpt" | "deepseek" | "kimi" | "grok";
   styleGenre: "hyper-real-ugc" | "cinematic-resort" | "tech-review" | "cartoon-3d-animation" | "luxury-commercial";
   hostType: "male-casual" | "female-pro" | "custom" | "none-faceless" | "cartoon-3d-animation";
   customHostDescription?: string;
@@ -15,87 +17,102 @@ export async function POST(req: NextRequest) {
     const body: UgcFlowClarifyRequest = await req.json();
     const {
       topic = "",
-      targetDuration = "60s",
-      styleGenre = "cinematic-resort",
+      targetDuration = "<=60s",
+      engineTarget = "google-flow",
+      llmModel = "gemini",
+      styleGenre = "hyper-real-ugc",
       hostType = "female-pro",
       customHostDescription = "",
       cameraArchetype = "auto",
     } = body;
 
     const apiKey = process.env.GEMINI_API_KEY;
+    const isShortClip = targetDuration === "<=10s";
 
-    // Director Default Questions (Zero Failure / Offline Robust)
+    // Director Default Questions (Zero Failure / Clean Japandi Style)
     const defaultQuestions = [
       {
         id: "cameraManeuver",
-        label: "Pilihan Sudut Kamera & Manuver Sinematik (/camera command)",
-        question: `Manuver kamera apa yang ingin difokuskan dalam video "${topic || "proyek ini"}"?`,
-        tip: "Petunjuk: Pilih sesuai gaya yang diminta reviewer. Bird-Eye Drone cocok untuk lanskap luas; Low-Angle Heroic memberi kesan megah/berwibawa; Dutch Angle memberi tensi dramatis.",
-        options: [
-          "Bird-Eye Drone to Eye-Level: Drone 150m di atas samudra/proyek meluncur turun tajam dan berhenti mulus di depan presenter",
-          "Low-Angle Heroic Pedestal: Kamera setinggi lutut mendongak ke atas menonjolkan kemewahan arsitektur dan wibawa presenter",
-          "Continuous 360 Orbit Arc: Kamera melingkari presenter & objek utama secara mulus dengan latar pemandangan berputar",
-          "First-Person POV & Whip-Pan: Kamera bergerak dinamis seperti sudut pandang orang pertama dengan transisi sapuan cepat",
-          "Dutch Angle & High-Tension Tracking: Kamera miring 15 derajat mengikuti langkah cepat presenter (gaya trailer Hollywood)",
-        ],
-        defaultChoice: "Bird-Eye Drone to Eye-Level: Drone 150m di atas samudra/proyek meluncur turun tajam dan berhenti mulus di depan presenter",
+        label: "Sudut Pandang Kamera & Pergerakan Visual",
+        question: isShortClip
+          ? `Untuk klip singkat 10 detik tentang "${topic || "topik ini"}", gaya framing kamera apa yang paling memikat?`
+          : `Gaya pergerakan kamera utama apa yang ingin difokuskan dalam video "${topic || "topik ini"}"?`,
+        tip: isShortClip
+          ? "Petunjuk: Klip 10 detik memerlukan framing instan yang langsung menonjolkan ekspresi subjek atau produk."
+          : "Petunjuk: Bird-Eye Drone cocok untuk lanskap luas; Low-Angle memberi kesan megah; Dutch Angle memberi tensi sinematik dinamis.",
+        options: isShortClip
+          ? [
+              "Selfie Close-Up UGC: Presenter berbicara langsung ke kamera HP dengan gestur tangan antusias",
+              "Dynamic Macro Reveal: Kamera maju cepat dari detail produk ke wajah presenter yang tersenyum",
+              "First-Person POV: Kamera bergerak alami seolah penonton yang memegang atau mencoba langsung",
+              "Low-Angle Heroic: Kamera sedikit dari bawah menonjolkan subjek dan latar belakang",
+            ]
+          : [
+              "Bird-Eye Drone to Eye-Level: Drone meluncur turun dari ketinggian dan melambat halus di depan presenter",
+              "Low-Angle Heroic Pedestal: Kamera setinggi lutut mendongak ke atas menonjolkan arsitektur dan wibawa subjek",
+              "Continuous 360 Orbit Arc: Kamera melingkari presenter & objek secara mulus dengan latar berputar",
+              "First-Person POV & Whip-Pan: Kamera bergerak dinamis seperti sudut pandang orang pertama",
+              "Dutch Angle & High-Tension Tracking: Kamera miring 15 derajat mengikuti langkah dinamis presenter",
+            ],
+        defaultChoice: isShortClip
+          ? "Selfie Close-Up UGC: Presenter berbicara langsung ke kamera HP dengan gestur tangan antusias"
+          : "Bird-Eye Drone to Eye-Level: Drone meluncur turun dari ketinggian dan melambat halus di depan presenter",
       },
       {
         id: "visualLensAndLighting",
-        label: "Karakteristik Lensa & Tata Cahaya (/lens & /lighting)",
-        question: "Kombinasi lensa dan pencahayaan apa yang paling diinginkan?",
-        tip: "Petunjuk: 85mm Prime memberi bokeh latar belakang sangat blur ala potret studio; Anamorphic 35mm memberi flare sinematik horizontal lebar.",
+        label: "Karakter Lensa & Tata Cahaya",
+        question: "Suasana pencahayaan dan karakter warna apa yang ingin ditampilkan?",
+        tip: "Petunjuk: Golden Hour memberi nuansa hangat bersahabat; Natural Daylight memberi kesan jujur dan autentik tanpa rekayasa.",
         options: [
-          "Golden Hour Rim-Light + 85mm Prime Bokeh (Sinar matahari senja keemasan dengan latar lembut)",
-          "Anamorphic 35mm Widescreen + High-Contrast Cyan/Amber (Gaya film bioskop Hollywood dengan flare horizontal)",
-          "Crisp High-Key 5600K Architectural (Cahaya terang siang hari, sangat jernih dan tajam menonjolkan detail material)",
-          "Moody Chiaroscuro & Soft Ambient Shadow (Kontras bayangan artistik ala majalah arsitektur Architectural Digest)",
+          "Natural Warm Daylight: Pencahayaan alami yang lembut, warna kulit segar dan autentik",
+          "Golden Hour Glow + Bokeh: Cahaya senja keemasan dengan latar belakang lembut nan estetik",
+          "Crisp High-Key Clean: Sangat jernih dan terang, menonjolkan tekstur asli material dan detail",
+          "Moody Editorial: Kontras bayangan lembut dan elegan bergaya visual majalah modern",
         ],
-        defaultChoice: "Golden Hour Rim-Light + 85mm Prime Bokeh (Sinar matahari senja keemasan dengan latar lembut)",
+        defaultChoice: "Natural Warm Daylight: Pencahayaan alami yang lembut, warna kulit segar dan autentik",
       },
       {
         id: "heroObjectOrFeature",
-        label: "Konsistensi Objek Utama & Landmark (@hero_object)",
-        question: "Elemen fisik atau detail apa yang WAJIB selalu konsisten di setiap adegan?",
-        tip: "Petunjuk: Pilih 'Tidak Ada Objek Terkunci (Bebas Berganti)' bila visual per scene berbeda-beda (misal adegan pantai lalu mobil lalu kamar), atau ketik Custom bila reviewer meminta objek khusus.",
+        label: "Konsistensi Objek & Detail Utama",
+        question: "Elemen fisik atau detail apa yang ingin difokuskan sepanjang video?",
+        tip: "Petunjuk: Pilih 'NONE' bila visual berganti-ganti di tiap adegan, atau ketik manual jika ada produk spesifik.",
         options: [
-          "Kompleks villa arsitektur tepi tebing & infinity pool cascading menghadap laut lepas",
-          "Presenter memegang tablet arsitektur / blueprint digital dengan grafik menyala",
-          "Detail material premium: lantai kayu jati (teak wood), kaca panoramik nir-bingkai, dan batu alam",
-          "Fasilitas gaya hidup eksklusif: sunset lounge terbuka, dermaga privat, dan yacht mewah",
           "NONE: Tidak Ada Objek Terkunci (Visual Tiap Adegan Bebas Berganti-ganti)",
+          "Produk / Objek di Tangan Presenter (Diperlihatkan dengan jelas ke kamera)",
+          "Latar Tempat / Arsitektur Ruangan yang Konsisten",
+          "Fasilitas & Suasana Lingkungan Sekitar",
         ],
-        defaultChoice: "Kompleks villa arsitektur tepi tebing & infinity pool cascading menghadap laut lepas",
+        defaultChoice: "NONE: Tidak Ada Objek Terkunci (Visual Tiap Adegan Bebas Berganti-ganti)",
       },
       {
         id: "paceAndVoiceTone",
-        label: "Irama Pacing Narasi & Nada Suara Presenter",
-        question: "Bagaimana nada bicara dan ritme perpindahan antar shot yang Anda inginkan?",
-        tip: "Petunjuk: Berpengaruh langsung pada timing naskah dan tag intonasi [warm], [curious], atau [authoritative].",
+        label: "Nada Bicara & Gaya Bahasa Presenter",
+        question: "Gaya penyampaian seperti apa yang paling sesuai untuk audiens Anda?",
+        tip: "Petunjuk: Gaya Percakapan Akrab sangat cocok untuk TikTok/Reels; Gaya Profesional cocok untuk profil brand dan komersial.",
         options: [
-          "Prestisius & Berwibawa: Tempo tenang teratur dengan jeda napas elegan [warm authoritative]",
-          "Dinamis & Menggugah (High-Energy Hook): Pembuka menghentak cepat lalu bertransisi ke presentasi meyakinkan",
-          "Storyteller Intim & Eksklusif: Suara dekat mikrofon seperti membocorkan rahasia destinasi tersembunyi [intimate]",
-          "Dokumenter Profesional: Gaya presenter National Geographic yang informatif, faktual, dan presisi",
+          "Percakapan Akrab & Energik: Ramah, santai, dan antusias seperti teman yang berbagi rekomendasi",
+          "Elegan & Berwibawa: Tenang, artikulatif, dengan jeda napas yang teratur dan meyakinkan",
+          "Storyteller Penasaran: Intim, memancing rasa ingin tahu audiens dari detik awal",
+          "Informatif & Ringkas: Lugas langsung ke poin inti tanpa bertele-tele",
         ],
-        defaultChoice: "Prestisius & Berwibawa: Tempo tenang teratur dengan jeda napas elegan [warm authoritative]",
+        defaultChoice: "Percakapan Akrab & Energik: Ramah, santai, dan antusias seperti teman yang berbagi rekomendasi",
       },
     ];
 
     if (apiKey) {
       try {
         const ai = new GoogleGenAI({ apiKey });
-        const systemPrompt = `Anda adalah Master Director Sinematografi & Prompt Engineer Google Flow (Veo 2).
-Tugas Anda: Buat 4 pertanyaan klarifikasi pilihan ganda yang cerdas, tajam, dan edukatif untuk memastikan parameter kamera (/camera), lensa (/lens), tata cahaya (/lighting), konsistensi objek (@hero_object), dan pacing naskah 100% pas tanpa revisi.
+        const systemPrompt = `Anda adalah Creative Video Director & Prompt Architect kelas dunia.
+Tugas: Buat 4 pertanyaan klarifikasi pilihan ganda yang cerdas, tajam, dan membantu kreator video memilih arah produksi klip ${targetDuration} untuk ${engineTarget === "llm-native" ? `LLM prompt (${llmModel})` : "Google Flow multi-shot"}.
 
-WAJIB SERTAKAN di setiap pertanyaan:
-- "label": Judul singkat aspek sinematografi
-- "question": Pertanyaan terarah
-- "tip": Petunjuk praktis yang membantu user/reviewer memilih opsi terbaik berdasarkan estetika film
-- "options": 4-5 opsi pilihan ganda yang mencakup variasi (misal: Bird-Eye Drone, Low-Angle Heroic, 360 Orbit, Dutch Angle, POV)
-- "defaultChoice": Opsi rekomendasi terbaik
+WAJIB SERTAKAN:
+- label: Judul singkat aspek video
+- question: Pertanyaan terarah
+- tip: Petunjuk ramah yang menjelaskan manfaat tiap pilihan
+- options: 4 opsi pilihan ganda
+- defaultChoice: Opsi rekomendasi terbaik
 
-Format Output JSON murni:
+Format Output JSON:
 {
   "questions": [
     {
@@ -109,13 +126,14 @@ Format Output JSON murni:
   ]
 }`;
 
-        const prompt = `Topik Proyek: "${topic}"
+        const prompt = `Topik: "${topic}"
 Durasi: ${targetDuration}
+Engine: ${engineTarget} (${llmModel})
 Genre: ${styleGenre}
 Host: ${hostType} ${customHostDescription}
-Preferensi Awal Kamera: ${cameraArchetype}
+Preferensi Kamera: ${cameraArchetype}
 
-Buatkan 4 pertanyaan klarifikasi sinematografi lengkap dengan petunjuk memilih (tip) dalam format JSON.`;
+Buatkan 4 pertanyaan klarifikasi terstruktur dalam JSON.`;
 
         const response = await ai.models.generateContent({
           model: "gemini-3.5-flash-lite",
@@ -133,7 +151,7 @@ Buatkan 4 pertanyaan klarifikasi sinematografi lengkap dengan petunjuk memilih (
           return NextResponse.json({ success: true, questions: parsed.questions, engine: "gemini-3.5-flash-lite" });
         }
       } catch (geminiErr) {
-        console.warn("Gemini dynamic clarify failed, using director default rules:", geminiErr);
+        console.warn("Gemini dynamic clarify notice, using director rules:", geminiErr);
       }
     }
 
