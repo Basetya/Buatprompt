@@ -186,6 +186,24 @@ Hasilkan JSON produksi utuh sekarang.`;
         const text = response.text || "";
         const parsed = JSON.parse(text);
         if (parsed.scenes && Array.isArray(parsed.scenes)) {
+          // Ensure engineDirectPrompt is richly populated with all dialogue & directives
+          if (!parsed.engineDirectPrompt || parsed.engineDirectPrompt.length < 80) {
+            parsed.engineDirectPrompt = isLlmNative
+              ? `=== MASTER PROMPT UGC LENGKAP SIAP PAKAI KE ${llmModel.toUpperCase()} ===\n\nTopik: ${parsed.projectTitle || topic}\nDurasi Total: ${targetDuration} (${parsed.scenes.length} Adegan)\nHost: ${parsed.hostProfile?.name || hostName}\n\nDAFTAR ADEGAN & NASKAH LENGKAP:\n` +
+                parsed.scenes
+                  .map(
+                    (s: any) =>
+                      `[Adegan ${s.sceneNumber} (${s.timeRange || ""}) - ${s.stageName || ""}]\n- Naskah Dialog: "${s.voiceoverScriptId}"\n- Arahan Kamera: ${s.cameraDirective}\n- Visual Prompt: ${s.flowVisualPrompt}\n- Soundscape: ${s.audioSoundscapePrompt}`
+                  )
+                  .join("\n\n")
+              : `=== MASTER PROMPT ${engineTarget.toUpperCase()} ===\n\nTopik: ${parsed.projectTitle || topic}\nKarakter: ${parsed.hostProfile?.name || hostName}\nDurasi Total: ${targetDuration}\n\nURUTAN ADEGAN:\n` +
+                parsed.scenes
+                  .map(
+                    (s: any) =>
+                      `[Shot ${s.sceneNumber} (${s.timeRange || ""}) - ${s.stageName || ""}]:\n- Visual Prompt: ${s.flowVisualPrompt}\n- Arahan Kamera: ${s.cameraDirective}\n- Dialog: "${s.voiceoverScriptId}"\n- Soundscape: ${s.audioSoundscapePrompt}`
+                  )
+                  .join("\n\n");
+          }
           return NextResponse.json({ success: true, data: parsed, engine: "gemini-3.5-flash-lite" });
         }
       } catch (geminiErr) {
@@ -323,19 +341,42 @@ function generateCleanStudioFallback(params: any) {
 
   // Direct prompt formatting based on chosen tool
   const engineDirectPrompt = isLlmNative
-    ? `PROMPT SIAP PAKAI KE ${llmModel.toUpperCase()}:
+    ? `=== MASTER PROMPT UGC LENGKAP SIAP PAKAI KE ${llmModel.toUpperCase()} ===
 
-Anda adalah kreator konten UGC berpengalaman. Buatkan naskah video ${targetDuration} tentang: "${topic}".
-Karakter: ${hostName} (${hostVisualPrompt})
+Topik: ${topic || "Proyek Video UGC"}
+Durasi Total: ${targetDuration} (${scenes.length} Adegan)
+Host: ${hostName} (${hostVisualPrompt})
 Gaya Kamera: ${chosenCam || "Handheld natural"}
 Pencahayaan: ${lensLighting}
-Format: Bahasa Indonesia santai dan mengalir, penuh antusiasme, sertakan penanda emosi [excited], [warm], [pause].`
-    : `MASTER PROMPT UNTUK ${engineTarget.toUpperCase()}:
+
+DAFTAR ADEGAN & NASKAH LENGKAP:
+${scenes
+  .map(
+    (s) =>
+      `[Adegan ${s.sceneNumber} (${s.timeRange}) - ${s.stageName}]
+- Naskah Dialog: "${s.voiceoverScriptId}"
+- Arahan Kamera: ${s.cameraDirective}
+- Visual Prompt: ${s.flowVisualPrompt}
+- Soundscape: ${s.audioSoundscapePrompt}`
+  )
+  .join("\n\n")}`
+    : `=== MASTER PROMPT ${engineTarget.toUpperCase()} ===
 
 Project: ${topic}
 Visual Style: Authentic UGC, ${lensLighting}, 4K photorealism, natural motion mechanics.
 Character Anchor: ${hostVisualPrompt}
-Scene Prompt Sequence: ${scenes.map((s) => `[Shot ${s.sceneNumber} (${s.timeRange})]: ${s.flowVisualPrompt}`).join(" | ")}`;
+
+URUTAN LENGKAP ADEGAN:
+${scenes
+  .map(
+    (s) =>
+      `[Shot ${s.sceneNumber} (${s.timeRange}) - ${s.stageName}]:
+- Visual Prompt: ${s.flowVisualPrompt}
+- Arahan Kamera: ${s.cameraDirective}
+- Naskah Dialog: "${s.voiceoverScriptId}"
+- Soundscape: ${s.audioSoundscapePrompt}`
+  )
+  .join("\n\n")}`;
 
   return {
     projectTitle: `${topic || "Proyek Video UGC"} — Format ${engineTarget.toUpperCase()}`,

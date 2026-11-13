@@ -219,6 +219,58 @@ export default function UgcFlowStudioPage() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  const generateFullProjectPrompt = (result: MasterDirectiveData) => {
+    const isLlm = result.engineTarget === "llm-native" || result.totalDuration === "<=10s";
+    const header = `=== PROYEK: ${result.projectTitle.toUpperCase()} ===
+Durasi Total: ${result.totalDuration} (${result.scenes.length} Adegan)
+Target Format: ${result.engineTarget.toUpperCase()}${result.llmModel ? ` (Model: ${result.llmModel.toUpperCase()})` : ""}
+
+[REFERENSI KARAKTER & HOST]:
+Tag: ${result.hostProfile.anchorTag}
+Deskripsi: ${result.hostProfile.masterCharacterPrompt}
+
+[REFERENSI SETTING & AMBIENCE]:
+Tag: ${result.environmentProfile.anchorTag}
+Deskripsi: ${result.environmentProfile.masterSettingPrompt}
+
+[REFERENSI OBJEK / HERO DETAIL]:
+Tag: ${result.objectProfile.anchorTag}
+Deskripsi: ${result.objectProfile.masterObjectPrompt}
+
+==================================================
+DAFTAR ADEGAN, NASKAH DIALOG & ARAHAN PROMPT:
+==================================================`;
+
+    const scenesText = result.scenes
+      .map(
+        (s: UgcScene) =>
+          `--- ADEGAN ${s.sceneNumber}: ${s.stageName.toUpperCase()} (${s.timeRange}) ---
+[NASKAH VOICEOVER / DIALOG]:
+"${s.voiceoverScriptId}"
+
+[ARAHAN KAMERA]:
+${s.cameraDirective}
+
+[VISUAL PROMPT]:
+${s.flowVisualPrompt}
+
+[SOUNDSCAPE]:
+${s.audioSoundscapePrompt}`
+      )
+      .join("\n\n");
+
+    return `${header}\n\n${scenesText}`;
+  };
+
+  const generateFullScriptOnly = (result: MasterDirectiveData) => {
+    return result.scenes
+      .map(
+        (s: UgcScene) =>
+          `[Adegan ${s.sceneNumber} (${s.timeRange}) - ${s.stageName}]\n"${s.voiceoverScriptId}"`
+      )
+      .join("\n\n");
+  };
+
   // Play Real TTS Voiceover for scene script
   const handlePlayVoice = async (sceneNumber: number, scriptText: string) => {
     if (playingSceneAudio === sceneNumber) {
@@ -741,6 +793,50 @@ export default function UgcFlowStudioPage() {
             {/* TAB: STORYBOARD & SCENE SCRIPT */}
             {activeBoardTab === "storyboard" && (
               <div className="space-y-4">
+                {/* Storyboard Top Quick Action Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#282624] bg-[#141518] p-3.5 sm:px-5">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-[#c29b74]" />
+                    <span className="text-xs font-mono text-[#cfc8bf]">
+                      Total {masterResult.scenes.length} Adegan Terstruktur ({masterResult.totalDuration})
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyText(generateFullScriptOnly(masterResult), "all-dialogues")
+                      }
+                      className="flex items-center gap-1.5 rounded-lg border border-[#2d2a27] bg-[#1a1b1f] px-3 py-1.5 text-xs font-mono text-[#c4bcb2] hover:text-[#f5f1eb]"
+                      title="Salin seluruh naskah kata-kata / dialog saja tanpa arahan teknis"
+                    >
+                      {copiedKey === "all-dialogues" ? (
+                        <Check className="h-3 w-3 text-[#c29b74]" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
+                      <span>{copiedKey === "all-dialogues" ? "Semua Dialog Tersalin" : "Salin Semua Dialog"}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyText(generateFullProjectPrompt(masterResult), "all-scenes-full")
+                      }
+                      className="flex items-center gap-1.5 rounded-lg bg-[#c29b74] px-3.5 py-1.5 text-xs font-mono font-semibold text-[#121315] hover:bg-[#d1aa82]"
+                      title="Salin seluruh naskah + arahan kamera + visual prompt semua adegan sekaligus"
+                    >
+                      {copiedKey === "all-scenes-full" ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                      <span>{copiedKey === "all-scenes-full" ? "Semua Adegan Tersalin!" : "Salin Seluruh Adegan (Lengkap)"}</span>
+                    </button>
+                  </div>
+                </div>
+
                 {masterResult.scenes.map((scene) => (
                   <div
                     key={scene.sceneNumber}
@@ -761,9 +857,10 @@ export default function UgcFlowStudioPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {/* Audio Voiceover Button */}
                         <button
+                          type="button"
                           onClick={() => handlePlayVoice(scene.sceneNumber, scene.voiceoverScriptId)}
                           disabled={audioLoadingScene === scene.sceneNumber}
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
@@ -788,21 +885,44 @@ export default function UgcFlowStudioPage() {
                           </span>
                         </button>
 
+                        {/* Copy Dialog Only */}
                         <button
+                          type="button"
                           onClick={() =>
                             copyText(
-                              `${scene.cameraDirective}\n\n${scene.flowVisualPrompt}`,
+                              `"${scene.voiceoverScriptId}"`,
+                              `dialog-${scene.sceneNumber}`
+                            )
+                          }
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1a1b1f] border border-[#2d2a27] text-xs font-mono text-[#c4bcb2] hover:text-[#f5f1eb]"
+                          title="Salin Naskah Dialog Saja"
+                        >
+                          {copiedKey === `dialog-${scene.sceneNumber}` ? (
+                            <Check className="h-3 w-3 text-[#c29b74]" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                          <span>{copiedKey === `dialog-${scene.sceneNumber}` ? "Dialog Tersalin" : "Salin Dialog"}</span>
+                        </button>
+
+                        {/* Copy Full Scene Prompt */}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            copyText(
+                              `[NASKAH VOICEOVER]\n"${scene.voiceoverScriptId}"\n\n[ARAHAN KAMERA]\n${scene.cameraDirective}\n\n[VISUAL PROMPT]\n${scene.flowVisualPrompt}\n\n[SOUNDSCAPE]\n${scene.audioSoundscapePrompt}`,
                               `scene-${scene.sceneNumber}`
                             )
                           }
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#1a1b1f] border border-[#2d2a27] text-xs font-mono text-[#c4bcb2] hover:text-[#f5f1eb]"
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#222328] border border-[#383531] text-xs font-mono text-[#f5f1eb] hover:bg-[#2b2c33]"
+                          title="Salin Naskah + Arahan Kamera + Prompt Visual + Soundscape"
                         >
                           {copiedKey === `scene-${scene.sceneNumber}` ? (
                             <Check className="h-3 w-3 text-[#c29b74]" />
                           ) : (
                             <Copy className="h-3 w-3" />
                           )}
-                          <span>{copiedKey === `scene-${scene.sceneNumber}` ? "Tersalin" : "Salin Prompt"}</span>
+                          <span>{copiedKey === `scene-${scene.sceneNumber}` ? "Prompt Lengkap Tersalin" : "Salin Prompt Lengkap"}</span>
                         </button>
                       </div>
                     </div>
