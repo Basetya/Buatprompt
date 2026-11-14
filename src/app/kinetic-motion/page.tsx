@@ -93,8 +93,8 @@ export const PRESENTER_POSES: Record<
     tiltDeg: 0,
     scaleMultiplier: 1.0,
     yOffset: 0,
-    badgeEmoji: "👋",
-    badgeText: "HOOK INTRO",
+    badgeEmoji: "",
+    badgeText: "",
     glowColor: "#38bdf8",
   },
   "problem-shrug": {
@@ -330,6 +330,8 @@ export default function KineticMotionPage() {
   const [humanPreset, setHumanPreset] = useState<Human2DPresetId>("tech-creator");
   const [voxelPreset, setVoxelPreset] = useState<VoxelPresetId>("beanie-striped");
   const [avatarPhotos, setAvatarPhotos] = useState<Record<number, string>>({});
+  const [avatarFraming, setAvatarFraming] = useState<"half-body" | "full-body">("half-body");
+  const [showSafeZoneGuide, setShowSafeZoneGuide] = useState<boolean>(false);
   const avatarImgElementsRef = useRef<Record<number, HTMLImageElement>>({});
   const [localGpuInfo, setLocalGpuInfo] = useState<{
     gpuAvailable: boolean;
@@ -365,6 +367,10 @@ export default function KineticMotionPage() {
   const playedSceneAudioRef = useRef<number>(-1);
   const scene0PromiseRef = useRef<Promise<void> | null>(null);
   const pausedElapsedRef = useRef<number>(0);
+  const isRecordingRef = useRef<boolean>(false);
+  const recordingSourcesRef = useRef<AudioBufferSourceNode[]>([]);
+  const renderFrameRef = useRef<(() => void) | null>(null);
+  const recordingTickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Word count & pacing calculation
   const currentAnalyzedText = creationTab === "script" ? rawScriptInput : topicIdea;
@@ -769,7 +775,8 @@ export default function KineticMotionPage() {
     }
 
     const render = () => {
-      const now = Date.now();
+      try {
+        const now = Date.now();
       if (!startTimeRef.current) startTimeRef.current = now;
       const elapsed = isPlaying
         ? (now - startTimeRef.current) / 1000
@@ -827,10 +834,11 @@ export default function KineticMotionPage() {
         }
       }
 
-      // Trigger Voiceover AudioBuffer as soon as buffer is ready AND AudioContext is running
+      // Trigger Voiceover AudioBuffer as soon as buffer is ready AND AudioContext is running (Preview Mode)
       if (
         audioEnabled &&
         isPlaying &&
+        !isRecordingRef.current &&
         sceneIndex !== playedSceneAudioRef.current &&
         audioCtxRef.current &&
         audioDestRef.current &&
@@ -1550,6 +1558,7 @@ export default function KineticMotionPage() {
             elapsed,
             accentColor,
             sceneProgress: sceneLocalProgress,
+            framing: avatarFraming,
             poseInfo: poseInfo,
           });
         } else if (avatarEngine === "human-rigged" || (avatarEngine === "photo-cutout" && !customPhotoImg)) {
@@ -1602,12 +1611,82 @@ export default function KineticMotionPage() {
         ctx.restore();
       }
 
+      // Safe-Zone Optics Guide Overlay (TikTok / Instagram Reels / YouTube Shorts)
+      if (showSafeZoneGuide && !isRecordingRef.current) {
+        ctx.save();
+
+        // 1. Top Danger / UI Zone (y: 0 to 110)
+        ctx.fillStyle = "rgba(14, 165, 233, 0.14)";
+        ctx.fillRect(0, 0, W, 110);
+        ctx.strokeStyle = "rgba(56, 189, 248, 0.85)";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(0, 0, W, 110);
+
+        ctx.fillStyle = "#38bdf8";
+        ctx.font = "bold 13px Inter, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.setLineDash([]);
+        ctx.fillText("⚠️ AREA ATAS: Search / Tab Following / Reels UI (0–110px)", W / 2, 60);
+
+        // 2. Right Action Column (x: 620 to 720, y: 480 to 1020)
+        ctx.fillStyle = "rgba(245, 158, 11, 0.14)";
+        ctx.fillRect(620, 480, 100, 540);
+        ctx.strokeStyle = "rgba(251, 191, 36, 0.85)";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(620, 480, 100, 540);
+
+        ctx.fillStyle = "#fbbf24";
+        ctx.font = "bold 11px Inter, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.setLineDash([]);
+        ctx.fillText("Like / Komen", 670, 680);
+        ctx.fillText("Share / Disc", 670, 700);
+        ctx.fillText("⚠️ SISI KANAN", 670, 730);
+
+        // 3. Bottom Danger / Caption Zone (y: 1020 to 1280)
+        ctx.fillStyle = "rgba(244, 63, 94, 0.16)";
+        ctx.fillRect(0, 1020, W, 260);
+        ctx.strokeStyle = "rgba(251, 113, 133, 0.9)";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(0, 1020, W, 260);
+
+        ctx.fillStyle = "#fb7185";
+        ctx.font = "bold 13px Inter, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.setLineDash([]);
+        ctx.fillText("⚠️ AREA BAWAH: Username, Keterangan Naskah & Audio Ticker", W / 2, 1075);
+        ctx.font = "11px Inter, system-ui, sans-serif";
+        ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.fillText("(Typography & Karakter Kinetic Motion selalu diatur aman di atas area ini)", W / 2, 1100);
+
+        // 4. Safe Center Region Boundary
+        ctx.strokeStyle = "rgba(34, 197, 94, 0.7)";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(40, 115, W - 145, 900);
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = "#4ade80";
+        ctx.font = "900 11px Inter, system-ui, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("🛡️ 100% SAFE VIEWPORT (TIKTOK / REELS / SHORTS)", 50, 138);
+
+        ctx.restore();
+      }
+    } catch (renderErr) {
+      console.error("Canvas render frame notice:", renderErr);
+    } finally {
       if (isPlaying) {
         animationFrameRef.current = requestAnimationFrame(render);
       }
-    };
+    }
+  };
 
-    render();
+  renderFrameRef.current = render;
+  render();
 
     return () => {
       if (animationFrameRef.current) {
@@ -1625,6 +1704,8 @@ export default function KineticMotionPage() {
     humanPreset,
     voxelPreset,
     avatarPhotos,
+    avatarFraming,
+    showSafeZoneGuide,
     totalDurationSec,
     isPlaying,
     showMascot,
@@ -1638,6 +1719,16 @@ export default function KineticMotionPage() {
 
   // In-Browser Native Video Recorder WITH EMBEDDED AUDIO
   const stopRecordingEarly = () => {
+    isRecordingRef.current = false;
+    if (recordingTickerRef.current) {
+      clearInterval(recordingTickerRef.current);
+      recordingTickerRef.current = null;
+    }
+    recordingSourcesRef.current.forEach((s) => {
+      try { s.stop(); s.disconnect(); } catch (_) { }
+    });
+    recordingSourcesRef.current = [];
+
     if (recordTimerRef.current) {
       clearInterval(recordTimerRef.current);
       recordTimerRef.current = null;
@@ -1666,6 +1757,7 @@ export default function KineticMotionPage() {
 
       setIsPlaying(true);
       setIsRecording(true);
+      isRecordingRef.current = true;
       setRecordProgress(0);
 
       // Initialize & resume audio engine
@@ -1675,13 +1767,11 @@ export default function KineticMotionPage() {
       }
 
       // Ensure ALL scene voiceover buffers are completely loaded before starting recording
+      const targetScenes = mode === "multi" ? scenes : [{ durationSec: singleDuration, headline: singleHeadline, subtext: singleSubtext } as StoryScene];
       if (audioEnabled) {
-        const targetScenes = mode === "multi" ? scenes : [{ headline: singleHeadline, subtext: singleSubtext }];
-        const waitStart = Date.now();
-        while (Date.now() - waitStart < 8000) {
-          const allReady = targetScenes.every((_, idx) => !!audioBuffersRef.current[idx]);
-          if (allReady) break;
-          await new Promise((r) => setTimeout(r, 150));
+        const missingBuffers = targetScenes.some((_, idx) => !audioBuffersRef.current[idx]);
+        if (missingBuffers) {
+          await prefetchTTSForScenes(scenes, voiceActor);
         }
       }
 
@@ -1703,12 +1793,47 @@ export default function KineticMotionPage() {
       lastSceneIndexRef.current = -1;
       playedSceneAudioRef.current = -1;
 
-      // Trigger initial scene audio & foley at recording start
+      // Initial Foley SFX
       if (sfxEnabled && audioDestRef.current) {
         playProceduralSFX(ctx, [ctx.destination, audioDestRef.current], "whoosh");
       }
-      if (audioEnabled) {
-        playSceneVoiceNow(0, 0);
+
+      // Precise Hardware-Scheduled Playback directly into Web Audio Destination
+      recordingSourcesRef.current.forEach((s) => {
+        try { s.stop(); s.disconnect(); } catch (_) { }
+      });
+      recordingSourcesRef.current = [];
+
+      const audioStartTime = ctx.currentTime + 0.15; // 150ms safe stream handshake
+      let sceneAccumTime = 0;
+
+      for (let i = 0; i < targetScenes.length; i++) {
+        const buf = audioBuffersRef.current[i];
+        if (buf && audioEnabled) {
+          const src = ctx.createBufferSource();
+          const gain = ctx.createGain();
+          src.buffer = buf;
+          src.connect(gain);
+          gain.connect(dest);
+          gain.connect(ctx.destination);
+          if (analyserRef.current) gain.connect(analyserRef.current);
+
+          const atTime = audioStartTime + sceneAccumTime;
+          src.start(atTime);
+          recordingSourcesRef.current.push(src);
+        }
+
+        // Schedule Foley SFX at scene boundary transitions
+        if (sfxEnabled && i > 0) {
+          const sfxDelay = sceneAccumTime;
+          setTimeout(() => {
+            if (isRecordingRef.current && audioCtxRef.current && audioDestRef.current) {
+              playProceduralSFX(audioCtxRef.current, [audioCtxRef.current.destination, audioDestRef.current], "whoosh");
+            }
+          }, sfxDelay * 1000);
+        }
+
+        sceneAccumTime += targetScenes[i].durationSec;
       }
 
       // Capture canvas visual stream at 30fps
@@ -1759,6 +1884,16 @@ export default function KineticMotionPage() {
 
       recorder.onerror = (ev: any) => {
         console.error("MediaRecorder error:", ev);
+        isRecordingRef.current = false;
+        if (recordingTickerRef.current) {
+          clearInterval(recordingTickerRef.current);
+          recordingTickerRef.current = null;
+        }
+        recordingSourcesRef.current.forEach((s) => {
+          try { s.stop(); s.disconnect(); } catch (_) { }
+        });
+        recordingSourcesRef.current = [];
+
         try {
           silentOsc.stop();
           silentOsc.disconnect();
@@ -1772,6 +1907,16 @@ export default function KineticMotionPage() {
       };
 
       recorder.onstop = () => {
+        isRecordingRef.current = false;
+        if (recordingTickerRef.current) {
+          clearInterval(recordingTickerRef.current);
+          recordingTickerRef.current = null;
+        }
+        recordingSourcesRef.current.forEach((s) => {
+          try { s.stop(); s.disconnect(); } catch (_) { }
+        });
+        recordingSourcesRef.current = [];
+
         try {
           silentOsc.stop();
           silentOsc.disconnect();
@@ -1811,6 +1956,14 @@ export default function KineticMotionPage() {
         }, 1000);
       };
 
+      // Backup render interval (30fps) to keep canvas drawing even if tab is unfocused or backgrounded
+      if (recordingTickerRef.current) clearInterval(recordingTickerRef.current);
+      recordingTickerRef.current = setInterval(() => {
+        if (renderFrameRef.current) {
+          renderFrameRef.current();
+        }
+      }, 33);
+
       // Emit timeslice chunks every 250ms for reliable, non-truncated webm output
       recorder.start(250);
 
@@ -1838,6 +1991,11 @@ export default function KineticMotionPage() {
       }, 150);
     } catch (err: any) {
       console.error("recordAndDownloadVideo exception:", err);
+      isRecordingRef.current = false;
+      if (recordingTickerRef.current) {
+        clearInterval(recordingTickerRef.current);
+        recordingTickerRef.current = null;
+      }
       setRecordError(err?.message || "Browser tidak mendukung perekaman canvas.");
       setIsRecording(false);
     }
@@ -2177,8 +2335,17 @@ export default function KineticMotionPage() {
               </select>
             )}
             {avatarEngine === "photo-cutout" && (
-              <div className="text-[11px] text-zinc-400 pt-1.5 flex items-center gap-1.5">
-                <span>Upload foto pose transparan di panel foto di bawah</span>
+              <div className="pt-1.5 flex flex-wrap items-center justify-between gap-1.5 text-[11px] text-zinc-400">
+                <span>Upload foto di panel foto di bawah</span>
+                <select
+                  value={avatarFraming}
+                  onChange={(e) => setAvatarFraming(e.target.value as "half-body" | "full-body")}
+                  className="rounded-lg border border-white/10 bg-black/80 px-2 py-1 text-[11px] text-emerald-300 focus:outline-none cursor-pointer"
+                  title="Pilih fokus cropping untuk foto full-body"
+                >
+                  <option value="half-body">👤 Setengah Badan (Fokus Wajah)</option>
+                  <option value="full-body">🧍 Seluruh Badan (Full-Body)</option>
+                </select>
               </div>
             )}
           </div>
@@ -2836,6 +3003,39 @@ export default function KineticMotionPage() {
                 </button>
               )}
 
+              {/* Framing Mode: Setengah Badan vs Seluruh Badan */}
+              <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-xl bg-white/5 border border-white/10 text-[11px] font-mono">
+                <span className="text-zinc-300 flex items-center gap-1.5">
+                  <span>📐 Format Penampilan Foto:</span>
+                </span>
+                <div className="flex items-center gap-1 bg-black/50 p-0.5 rounded-lg border border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setAvatarFraming("half-body")}
+                    className={`px-2.5 py-1 rounded-md text-[10px] transition-all cursor-pointer ${
+                      avatarFraming === "half-body"
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-bold shadow-sm"
+                        : "text-zinc-400 hover:text-white"
+                    }`}
+                    title="Foto full-body otomatis difokuskan ke tubuh bagian atas & wajah agar ekspresif di layar smartphone"
+                  >
+                    👤 Setengah Badan (Fokus Wajah)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAvatarFraming("full-body")}
+                    className={`px-2.5 py-1 rounded-md text-[10px] transition-all cursor-pointer ${
+                      avatarFraming === "full-body"
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-bold shadow-sm"
+                        : "text-zinc-400 hover:text-white"
+                    }`}
+                    title="Menampilkan proporsi utuh (berdiri/duduk) dari kepala hingga kaki"
+                  >
+                    🧍 Seluruh Badan (Full-Body)
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
                   { idx: 0, label: "Pose 1 (Utama)" },
@@ -3119,6 +3319,23 @@ export default function KineticMotionPage() {
 
         {/* Right Column: 9:16 Vertical Smartphone Viewport */}
         <div className="lg:col-span-6 flex flex-col items-center">
+          {/* Safe-Zone Guide Toggle */}
+          <div className="w-full max-w-[320px] sm:max-w-[340px] mb-2.5 flex items-center justify-between">
+            <span className="text-[11px] font-mono text-zinc-400">📱 Preview Layar 9:16</span>
+            <button
+              type="button"
+              onClick={() => setShowSafeZoneGuide((prev) => !prev)}
+              className={`text-[11px] font-mono px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                showSafeZoneGuide
+                  ? "bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-amber-500/20"
+                  : "bg-white/5 text-zinc-400 border-white/10 hover:text-white hover:bg-white/10"
+              }`}
+              title="Tampilkan garis batas zona aman TikTok, Reels, dan YouTube Shorts"
+            >
+              <span>🛡️ Safe-Zone {showSafeZoneGuide ? "Aktif" : "Overlay"}</span>
+            </button>
+          </div>
+
           <div className="relative w-full max-w-[320px] sm:max-w-[340px] aspect-[9/16] rounded-[36px] p-3 bg-[#13151c] border-2 border-white/10 shadow-2xl overflow-hidden">
             {/* Phone Speaker Notch */}
             <div className="absolute top-5 left-1/2 -translate-x-1/2 w-28 h-4 bg-black rounded-full z-20 flex items-center justify-center">

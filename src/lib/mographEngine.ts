@@ -1535,6 +1535,7 @@ export function drawHumanCutoutAvatar(
     elapsed: number;
     accentColor?: string;
     sceneProgress?: number;
+    framing?: "half-body" | "full-body";
     poseInfo?: {
       id: string;
       label: string;
@@ -1557,14 +1558,24 @@ export function drawHumanCutoutAvatar(
     elapsed,
     accentColor = "#38bdf8",
     sceneProgress = 0.5,
+    framing = "half-body",
     poseInfo,
   } = options;
 
   if (!img.complete || img.naturalWidth === 0) return;
 
-  const ratio = Math.min(maxWidth / img.naturalWidth, maxHeight / img.naturalHeight);
-  const drawW = img.naturalWidth * ratio;
-  const drawH = img.naturalHeight * ratio;
+  // Smart Framing: If user uploads full-body photo (tall aspect ratio) and half-body is selected,
+  // crop to upper 58% (torso + head) so presenter face remains large, expressive and impactful on mobile screens!
+  const isTallFullBody = img.naturalHeight / img.naturalWidth > 1.35;
+  const isCropHalfBody = framing === "half-body" && isTallFullBody;
+
+  const effectiveSourceW = img.naturalWidth;
+  const effectiveSourceH = isCropHalfBody ? img.naturalHeight * 0.58 : img.naturalHeight;
+
+  const activeMaxH = framing === "full-body" ? Math.max(maxHeight, 520) : maxHeight;
+  const ratio = Math.min(maxWidth / effectiveSourceW, activeMaxH / effectiveSourceH);
+  const drawW = effectiveSourceW * ratio;
+  const drawH = effectiveSourceH * ratio;
 
   // Natural human micro-motion: breathing + gentle sway + vocal energy micro-nod
   const breatheScale = 1 + Math.sin(elapsed * 2.2) * 0.012;
@@ -1597,11 +1608,26 @@ export function drawHumanCutoutAvatar(
   ctx.arc(0, -drawH * 0.55, drawH * 0.65, 0, Math.PI * 2);
   ctx.fill();
 
-  // Draw the actual human cutout photo
-  ctx.drawImage(img, -drawW / 2, -drawH, drawW, drawH);
+  // Draw the actual human cutout photo (with smart source framing if full body)
+  if (isCropHalfBody) {
+    ctx.drawImage(
+      img,
+      0,
+      0,
+      img.naturalWidth,
+      effectiveSourceH,
+      -drawW / 2,
+      -drawH,
+      drawW,
+      drawH
+    );
+  } else {
+    ctx.drawImage(img, -drawW / 2, -drawH, drawW, drawH);
+  }
 
-  // Contextual Gesture Prop / Floating Action Badge (Air-Gapped Visual Narrative)
-  if (poseInfo && poseInfo.badgeEmoji && sceneProgress > 0.08) {
+  // Floating Action Gesture Badge: Only show if badgeEmoji is explicitly set AND non-empty!
+  // (Prevents any technical placeholder text like "HOOK INTRO" from appearing on screen)
+  if (poseInfo && poseInfo.badgeEmoji && poseInfo.badgeEmoji.trim() !== "" && sceneProgress > 0.08) {
     const badgeFloatY = Math.sin(elapsed * 3) * 4;
     const badgeX = drawW * 0.32;
     const badgeY = -drawH * 0.88 + badgeFloatY;
@@ -1613,6 +1639,10 @@ export function drawHumanCutoutAvatar(
     const badgeScale = Math.min((sceneProgress - 0.08) * 6, 1);
     ctx.scale(badgeScale, badgeScale);
 
+    const hasText = !!poseInfo.badgeText && poseInfo.badgeText.trim() !== "";
+    const badgeWidth = hasText ? 115 : 44;
+    const badgeHeight = 34;
+
     // Pill Background
     ctx.fillStyle = "rgba(10, 15, 25, 0.88)";
     ctx.strokeStyle = activeGlowColor;
@@ -1620,20 +1650,24 @@ export function drawHumanCutoutAvatar(
     ctx.shadowColor = activeGlowColor;
     ctx.shadowBlur = 10;
 
-    const badgeWidth = 115;
-    const badgeHeight = 32;
     ctx.beginPath();
-    ctx.roundRect(-badgeWidth / 2, -badgeHeight / 2, badgeWidth, badgeHeight, 16);
+    ctx.roundRect(-badgeWidth / 2, -badgeHeight / 2, badgeWidth, badgeHeight, 17);
     ctx.fill();
     ctx.stroke();
 
     // Emoji + Text
     ctx.shadowBlur = 0;
-    ctx.font = "900 12px Inter, system-ui, sans-serif";
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`${poseInfo.badgeEmoji} ${poseInfo.badgeText}`, 0, 1);
+
+    if (hasText) {
+      ctx.font = "900 12px Inter, system-ui, sans-serif";
+      ctx.fillText(`${poseInfo.badgeEmoji} ${poseInfo.badgeText}`, 0, 1);
+    } else {
+      ctx.font = "20px system-ui, sans-serif";
+      ctx.fillText(poseInfo.badgeEmoji, 0, 1);
+    }
 
     ctx.restore();
   }
