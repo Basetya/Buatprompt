@@ -313,7 +313,7 @@ export default function KineticMotionPage() {
   const [bgmEnabled, setBgmEnabled] = useState(true);
   const [sfxEnabled, setSfxEnabled] = useState(true);
   const [characterLayout, setCharacterLayout] = useState<"single" | "duo">("single");
-  const [voiceActor, setVoiceActor] = useState<string>("gemini-aoede");
+  const [voiceActor, setVoiceActor] = useState<string>("kang-sarah");
   const [isAudioLoading, setIsAudioLoading] = useState(false);
 
   // Single mode state
@@ -2705,15 +2705,26 @@ COMPOSITION & BACKGROUND:
               }}
               className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white focus:border-emerald-400 focus:outline-none"
             >
-              <optgroup label="✨ Google Gemini Studio (Ultra-Natural)">
+              <optgroup label="👑 Koleksi Suara Kang Suara (100% Konsisten & Bebas Kuota)">
+                <option value="kang-sarah">👩‍💼 Sarah (Host Profesional & Jelas)</option>
+                <option value="kang-dimas">👨‍🏫 Mas Dimas (Otoritatif & Tenang / Video Essay)</option>
+                <option value="kang-bams">⚡ Bang Bams (UGC Hook Cepat, Nyolot & Energik)</option>
+                <option value="kang-senja">🌙 Nada Senja (Storytelling Halus, Meditatif)</option>
+                <option value="kang-bimo">📱 Bimo (Reviewer Santai & Gaul / Gadget)</option>
+                <option value="kang-keisha">✨ Keisha (Gen-Z Aesthetic / Lifestyle / Skincare)</option>
+                <option value="kang-reno">🎮 Reno (Anak Muda Hype / Gamer Dinamis)</option>
+                <option value="kang-hartono">👴 Pak Hartono (Bapak Bijak / Bisnis)</option>
+                <option value="kang-ratna">🧕 Ibu Ratna (Keibuan, Hangat & Mengayomi)</option>
+                <option value="kang-arka">👶 Arka (Anak Cowok Penasaran & Lincah)</option>
+                <option value="kang-naura">👧 Naura (Anak Cewek Ceria & Imut)</option>
+                <option value="id-ID-GadisNeural">👩 Gadis (Standar Kreator Indonesia)</option>
+                <option value="id-ID-ArdiNeural">👨 Ardi (Standar Host Podcast)</option>
+              </optgroup>
+              <optgroup label="✨ Google Gemini Studio (24kHz Studio - Kuota 10/Hari)">
                 <option value="gemini-aoede">✨ Aoede (Wanita - Percakapan Alami)</option>
                 <option value="gemini-charon">✨ Charon (Pria - Edukatif Mantap)</option>
                 <option value="gemini-kore">✨ Kore (Wanita - Ceria & Energik)</option>
                 <option value="gemini-puck">✨ Puck (Pria - Santai & Santun)</option>
-              </optgroup>
-              <optgroup label="🎙️ Microsoft Neural HD (Expressive & Bebas Kuota)">
-                <option value="id-ID-GadisNeural">👩 Gadis (Wanita - Kreator Ramah & Natural)</option>
-                <option value="id-ID-ArdiNeural">👨 Ardi (Pria - Host Podcast Dinamis)</option>
               </optgroup>
             </select>
           </div>
@@ -3324,10 +3335,10 @@ COMPOSITION & BACKGROUND:
                     setAvatarEngine(eng.id as any);
                     if (eng.id === "human-rigged") {
                       const g = HUMAN_2D_PRESETS[humanPreset]?.gender;
-                      if (g) setVoiceActor(g === "female" ? "gemini-aoede" : "gemini-charon");
+                      if (g) setVoiceActor(g === "female" ? "kang-sarah" : "kang-dimas");
                     } else if (eng.id === "voxel") {
                       const g = VOXEL_3D_PRESETS[voxelPreset]?.gender;
-                      if (g) setVoiceActor(g === "female" ? "gemini-aoede" : "gemini-charon");
+                      if (g) setVoiceActor(g === "female" ? "kang-sarah" : "kang-dimas");
                     }
                   }}
                   className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${avatarEngine === eng.id
@@ -3354,7 +3365,7 @@ COMPOSITION & BACKGROUND:
                       type="button"
                       onClick={() => {
                         setHumanPreset(char.id);
-                        setVoiceActor(char.gender === "female" ? "gemini-aoede" : "gemini-charon");
+                        setVoiceActor(char.gender === "female" ? "kang-sarah" : "kang-dimas");
                       }}
                       className={`p-2 rounded-xl border text-left font-mono transition-all cursor-pointer ${humanPreset === char.id
                         ? "border-emerald-400 bg-emerald-500/15 text-white"
@@ -3393,7 +3404,7 @@ COMPOSITION & BACKGROUND:
                       type="button"
                       onClick={() => {
                         setVoxelPreset(vox.id);
-                        setVoiceActor(vox.gender === "female" ? "gemini-aoede" : "gemini-charon");
+                        setVoiceActor(vox.gender === "female" ? "kang-sarah" : "kang-dimas");
                       }}
                       className={`p-2 rounded-xl border text-left font-mono transition-all cursor-pointer ${voxelPreset === vox.id
                         ? "border-emerald-400 bg-emerald-500/15 text-white"

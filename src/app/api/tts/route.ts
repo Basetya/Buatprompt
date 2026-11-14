@@ -125,6 +125,135 @@ function normalizeIndonesianEnglishTTS(input: string): string {
 }
 
 /**
+ * 100% Cost-Free Kang Suara Authentic Indonesian Voice Personas
+ * Curated from Kang Suara Master Edition (D:\Projects\Canvas\Kang Suara Master.html).
+ * Each persona has calibrated pitch and rate parameters matching Indonesian speech nuances.
+ */
+export interface KangSuaraPersona {
+  id: string;
+  name: string;
+  gender: "male" | "female";
+  roleDesc: string;
+  azureVoice: "id-ID-ArdiNeural" | "id-ID-GadisNeural";
+  rate: string;
+  pitch: string;
+  cast: string;
+}
+
+export const KANG_SUARA_PERSONAS: Record<string, KangSuaraPersona> = {
+  "kang-sarah": {
+    id: "kang-sarah",
+    name: "Sarah",
+    gender: "female",
+    roleDesc: "Host Profesional & Edukatif",
+    azureVoice: "id-ID-GadisNeural",
+    rate: "+2%",
+    pitch: "+0Hz",
+    cast: "Aoede",
+  },
+  "kang-dimas": {
+    id: "kang-dimas",
+    name: "Mas Dimas",
+    gender: "male",
+    roleDesc: "Otoritatif & Tenang / Video Essay",
+    azureVoice: "id-ID-ArdiNeural",
+    rate: "-3%",
+    pitch: "-2Hz",
+    cast: "Charon",
+  },
+  "kang-bams": {
+    id: "kang-bams",
+    name: "Bang Bams",
+    gender: "male",
+    roleDesc: "UGC Hook Cepat, Nyolot & Energik",
+    azureVoice: "id-ID-ArdiNeural",
+    rate: "+12%",
+    pitch: "+2Hz",
+    cast: "Puck",
+  },
+  "kang-senja": {
+    id: "kang-senja",
+    name: "Nada Senja",
+    gender: "female",
+    roleDesc: "Storytelling Halus, Meditatif & Reflektif",
+    azureVoice: "id-ID-GadisNeural",
+    rate: "-15%",
+    pitch: "-2Hz",
+    cast: "Aoede",
+  },
+  "kang-bimo": {
+    id: "kang-bimo",
+    name: "Bimo",
+    gender: "male",
+    roleDesc: "Reviewer Santai & Gaul / Gadget",
+    azureVoice: "id-ID-ArdiNeural",
+    rate: "+6%",
+    pitch: "+0Hz",
+    cast: "Charon",
+  },
+  "kang-keisha": {
+    id: "kang-keisha",
+    name: "Keisha",
+    gender: "female",
+    roleDesc: "Gen-Z Aesthetic / Lifestyle / Skincare",
+    azureVoice: "id-ID-GadisNeural",
+    rate: "+4%",
+    pitch: "+1Hz",
+    cast: "Kore",
+  },
+  "kang-reno": {
+    id: "kang-reno",
+    name: "Reno",
+    gender: "male",
+    roleDesc: "Anak Muda Hype / Gamer Dinamis",
+    azureVoice: "id-ID-ArdiNeural",
+    rate: "+10%",
+    pitch: "+2Hz",
+    cast: "Puck",
+  },
+  "kang-hartono": {
+    id: "kang-hartono",
+    name: "Pak Hartono",
+    gender: "male",
+    roleDesc: "Bapak Bijak / Bisnis & Finansial",
+    azureVoice: "id-ID-ArdiNeural",
+    rate: "-3%",
+    pitch: "-2Hz",
+    cast: "Charon",
+  },
+  "kang-ratna": {
+    id: "kang-ratna",
+    name: "Ibu Ratna",
+    gender: "female",
+    roleDesc: "Keibuan, Hangat & Mengayomi",
+    azureVoice: "id-ID-GadisNeural",
+    rate: "-10%",
+    pitch: "-2Hz",
+    cast: "Aoede",
+  },
+  "kang-arka": {
+    id: "kang-arka",
+    name: "Arka",
+    gender: "male",
+    roleDesc: "Anak Cowok Penasaran & Lincah",
+    azureVoice: "id-ID-ArdiNeural",
+    rate: "+6%",
+    pitch: "+1Hz",
+    cast: "Puck",
+  },
+  "kang-naura": {
+    id: "kang-naura",
+    name: "Naura",
+    gender: "female",
+    roleDesc: "Anak Cewek Ceria & Imut",
+    azureVoice: "id-ID-GadisNeural",
+    rate: "+4%",
+    pitch: "+2Hz",
+    cast: "Kore",
+  },
+};
+
+/**
  * Generate Microsoft Azure / Edge Neural TTS with natural Indonesian prosody,
  * emotional inflection, and breathing pauses.
  */
@@ -201,8 +330,12 @@ function pcmToWav(pcmBuffer: Buffer, sampleRate: number = 24000, numChannels: nu
  * Automatically respects quota cooldowns to prevent 8-second request hangs.
  */
 async function generateGeminiTTS(text: string, voiceName: string = "Aoede"): Promise<Buffer> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
+  const rawApiKey = process.env.GEMINI_API_KEY || "";
+  const apiKeys = rawApiKey
+    .split(",")
+    .map((k) => k.trim())
+    .filter((k) => k.length > 20);
+  if (apiKeys.length === 0) throw new Error("GEMINI_API_KEY is not configured");
 
   if (Date.now() < geminiQuotaExhaustedUntil) {
     throw new Error("Gemini daily TTS quota currently in cooldown, skipping to instant Neural fallback");
@@ -227,56 +360,71 @@ async function generateGeminiTTS(text: string, voiceName: string = "Aoede"): Pro
   ];
 
   let lastErr = null;
-  for (const modelName of ttsCandidateModels) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: clean }] }],
-          generationConfig: {
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: { voiceName }
+  let allKeysExhausted = true;
+
+  for (let k = 0; k < apiKeys.length; k++) {
+    const currentKey = apiKeys[k];
+    let keyHitQuota = false;
+
+    for (const modelName of ttsCandidateModels) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${currentKey}`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: clean }] }],
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName }
+                }
               }
             }
+          })
+        });
+
+        if (!res.ok) {
+          if (res.status === 429) {
+            keyHitQuota = true;
+            break; // Skip to next API key if this key exceeded quota
           }
-        })
-      });
-
-      if (!res.ok) {
-        if (res.status === 429) {
-          // Track 10-minute cooldown so subsequent scene requests don't lag
-          geminiQuotaExhaustedUntil = Date.now() + 10 * 60 * 1000;
+          const errText = await res.text();
+          lastErr = new Error(`Gemini TTS API (${modelName}) error ${res.status}: ${errText}`);
+          continue;
         }
-        const errText = await res.text();
-        lastErr = new Error(`Gemini TTS API (${modelName}) error ${res.status}: ${errText}`);
-        continue;
-      }
 
-      const data = await res.json();
-      const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-      const base64Audio = inlineData?.data;
-      if (!base64Audio) {
-        lastErr = new Error(`No audio inlineData returned by ${modelName}`);
-        continue;
-      }
+        const data = await res.json();
+        const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+        const base64Audio = inlineData?.data;
+        if (!base64Audio) {
+          lastErr = new Error(`No audio inlineData returned by ${modelName}`);
+          continue;
+        }
 
-      const mime = inlineData?.mimeType || "";
-      const rawBuf = Buffer.from(base64Audio, "base64");
-      const wav = mime.includes("wav") ? rawBuf : pcmToWav(rawBuf, 24000, 1);
+        const mime = inlineData?.mimeType || "";
+        const rawBuf = Buffer.from(base64Audio, "base64");
+        const wav = mime.includes("wav") ? rawBuf : pcmToWav(rawBuf, 24000, 1);
 
-      if (ttsMemoryCache.size >= MAX_TTS_CACHE) {
-        const firstKey = ttsMemoryCache.keys().next().value;
-        if (firstKey) ttsMemoryCache.delete(firstKey);
+        if (ttsMemoryCache.size >= MAX_TTS_CACHE) {
+          const firstKey = ttsMemoryCache.keys().next().value;
+          if (firstKey) ttsMemoryCache.delete(firstKey);
+        }
+        ttsMemoryCache.set(cacheKey, wav);
+        return wav;
+      } catch (e) {
+        lastErr = e;
       }
-      ttsMemoryCache.set(cacheKey, wav);
-      return wav;
-    } catch (e) {
-      lastErr = e;
     }
+
+    if (!keyHitQuota) {
+      allKeysExhausted = false;
+    }
+  }
+
+  if (allKeysExhausted) {
+    geminiQuotaExhaustedUntil = Date.now() + 10 * 60 * 1000;
   }
 
   throw lastErr || new Error("All Gemini TTS models failed");
@@ -411,7 +559,33 @@ export async function POST(req: NextRequest) {
 
     const formattedText = formatNaturalSpeechProsody(text.trim());
 
-    // 1. Primary: Google Gemini Ultra-Natural Studio Voice Multi-Model Cascade
+    // 1. Kang Suara Authentic Indonesian Personas (100% Cost-Free & Consistent via Azure Neural)
+    const kangPersona = KANG_SUARA_PERSONAS[voice.toLowerCase()];
+    if (kangPersona) {
+      const targetRate = customRate || kangPersona.rate;
+      const targetPitch = customPitch || kangPersona.pitch;
+      try {
+        const neuralBuffer = await generateMicrosoftNeuralTTS(
+          formattedText,
+          kangPersona.azureVoice,
+          targetRate,
+          targetPitch
+        );
+        return new NextResponse(new Uint8Array(neuralBuffer), {
+          status: 200,
+          headers: {
+            "Content-Type": "audio/mpeg",
+            "Content-Length": neuralBuffer.length.toString(),
+            "X-TTS-Engine": `Kang-Suara-${kangPersona.name}`,
+            "Cache-Control": "public, max-age=86400",
+          },
+        });
+      } catch (kangErr) {
+        console.warn(`Kang Suara (${kangPersona.name}) generation fallback notice:`, kangErr);
+      }
+    }
+
+    // 2. Google Gemini Ultra-Natural Studio Voice Multi-Model Cascade
     const geminiVoiceMap: Record<string, string> = {
       "gemini-aoede": "Aoede",
       "aoede": "Aoede",
@@ -520,6 +694,23 @@ export async function GET(req: NextRequest) {
   }
 
   const formattedText = formatNaturalSpeechProsody(text.trim());
+
+  const kangPersona = KANG_SUARA_PERSONAS[voice.toLowerCase()];
+  if (kangPersona) {
+    try {
+      const neuralBuffer = await generateMicrosoftNeuralTTS(formattedText, kangPersona.azureVoice, kangPersona.rate, kangPersona.pitch);
+      return new NextResponse(new Uint8Array(neuralBuffer), {
+        status: 200,
+        headers: {
+          "Content-Type": "audio/mpeg",
+          "Content-Length": neuralBuffer.length.toString(),
+          "X-TTS-Engine": `Kang-Suara-${kangPersona.name}`,
+          "Cache-Control": "public, max-age=86400",
+        },
+      });
+    } catch (_) {}
+  }
+
   const targetVoice = voice.toLowerCase().includes("gadis") ? "id-ID-GadisNeural" : "id-ID-ArdiNeural";
   const { rate, pitch } = getVoiceProsody(targetVoice, emotion);
 
