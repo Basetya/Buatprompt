@@ -3043,12 +3043,12 @@ COMPOSITION & BACKGROUND:
                       {isGeneratingStory ? (
                         <>
                           <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                          <span>MENYUSUN 4 SCENE LENGKAP...</span>
+                          <span>{seriesCount > 1 ? `AI MENYUSUN ${seriesCount} SERIAL NASKAH LENGKAP...` : "AI MENYUSUN 4 SCENE LENGKAP..."}</span>
                         </>
                       ) : (
                         <>
                           <Wand2 className="h-3.5 w-3.5" />
-                          <span>🪄 BUAT NASKAH LENGKAP & SUSUN 4 SCENE OTOMATIS</span>
+                          <span>{seriesCount > 1 ? `🪄 BUAT ${seriesCount} SERIAL NASKAH & SUSUN OTOMATIS` : "🪄 BUAT NASKAH LENGKAP & SUSUN 4 SCENE OTOMATIS"}</span>
                         </>
                       )}
                     </button>

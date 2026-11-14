@@ -40,7 +40,12 @@ export async function POST(req: NextRequest) {
       ...extraParams
     } = body;
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const rawApiKey = process.env.GEMINI_API_KEY || "";
+    const apiKeys = rawApiKey
+      .split(",")
+      .map((k) => k.trim())
+      .filter((k) => k.length > 20);
+    const apiKey = apiKeys[0] || "";
 
     // 1. Live LLM Inference if API key is present
     if (apiKey) {
@@ -317,39 +322,56 @@ KEMBALIKAN HANYA JSON MURNI VALID (tanpa markdown code fences, tanpa kata pengan
 }`;
           }
 
-          // Try Gemini API models via direct v1beta endpoint
-          const candidateModels = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-flash-latest", "gemini-3-flash-preview"];
-          for (const modelName of candidateModels) {
-            try {
-              const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-              const res = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  contents: [{ parts: [{ text: systemPrompt }] }],
-                  generationConfig: { responseMimeType: "application/json" }
-                })
-              });
-              if (res.ok) {
-                const data = await res.json();
-                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (text) {
-                  const cleanedJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
-                  const parsed = JSON.parse(cleanedJson);
-                  if (parsed) {
-                    if (Array.isArray(parsed.episodes) && parsed.episodes.length > 0) {
-                      if (!parsed.scenes && parsed.episodes[0]?.scenes) {
-                        parsed.scenes = parsed.episodes[0].scenes;
+          // Try Gemini API models via direct v1beta endpoint with multi-key rotation
+          const candidateModels = [
+            "gemini-3.5-flash",
+            "gemini-3.1-flash-lite-preview",
+            "gemini-flash-latest",
+          ];
+          for (let kIdx = 0; kIdx < apiKeys.length; kIdx++) {
+            const currentKey = apiKeys[kIdx];
+            for (const modelName of candidateModels) {
+              try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${currentKey}`;
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 50000);
+                const res = await fetch(url, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    contents: [{ parts: [{ text: systemPrompt }] }],
+                    generationConfig: { responseMimeType: "application/json" },
+                  }),
+                  signal: controller.signal,
+                });
+                clearTimeout(timeoutId);
+
+                if (res.ok) {
+                  const data = await res.json();
+                  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                  if (text) {
+                    const cleanedJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
+                    const parsed = JSON.parse(cleanedJson);
+                    if (parsed) {
+                      if (Array.isArray(parsed.episodes) && parsed.episodes.length > 0) {
+                        if (!parsed.scenes && parsed.episodes[0]?.scenes) {
+                          parsed.scenes = parsed.episodes[0].scenes;
+                        }
+                        return NextResponse.json(parsed);
                       }
-                      return NextResponse.json(parsed);
-                    }
-                    if (Array.isArray(parsed.scenes) && parsed.scenes.length === 4) {
-                      return NextResponse.json(parsed);
+                      if (Array.isArray(parsed.scenes) && parsed.scenes.length === 4) {
+                        return NextResponse.json(parsed);
+                      }
                     }
                   }
+                } else if (res.status === 429) {
+                  console.warn(`[Gemini API] Key #${kIdx + 1} quota reached (429), rotating key...`);
+                  break; // break model loop, try next API key
                 }
+              } catch (fetchErr) {
+                console.warn(`[Gemini API] Model ${modelName} on key #${kIdx + 1} call error:`, fetchErr);
               }
-            } catch (_) {}
+            }
           }
         } catch (llmErr) {
           console.warn("Live Gemini multi-scene generation failed, falling back to autonomous synthesis engine:", llmErr);

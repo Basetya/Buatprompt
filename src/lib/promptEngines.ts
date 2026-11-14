@@ -1076,6 +1076,7 @@ export interface KineticStoryScene {
   highlightKeyword: string;
   durationSec: number;
   characterEmotion: "shocked" | "skeptical" | "celebrate" | "point-cta";
+  suggestedPose?: string;
   kineticFx: string;
   foleyCue: string;
 }
@@ -1089,10 +1090,17 @@ export interface MultiSceneStoryParams {
   durationTarget?: "55s" | "26s";
   inputTab?: "idea" | "script";
   rawScriptText?: string;
+  seriesCount?: number;
 }
 
 export interface MultiSceneStoryResult {
   topic: string;
+  seriesCount?: number;
+  episodes?: Array<{
+    partNumber: number;
+    partTitle: string;
+    scenes: KineticStoryScene[];
+  }>;
   vaultUsed?: {
     id: string;
     name: string;
@@ -1216,13 +1224,14 @@ export function buildMultiSceneStoryPrompt(params: MultiSceneStoryParams): Multi
 
   // --- IDEA-TO-SCRIPT GENERATION ENGINE (50-55s Sweet Spot or 26s Express) ---
   // Uses Studio Knowledge Bank & Combinatorial Permutation
+  const seriesTotal = Math.min(Math.max(Number(params.seriesCount) || 1, 1), 4);
   const explicitVault = params.vaultDomain && params.vaultDomain !== "auto" ? params.vaultDomain : "";
   const vault = matchDomainVault(explicitVault || topicIdea, topicIdea);
   const seed = getCombinatorialSeed(topicIdea, params.variantSeed || 0);
 
   const selectedQuote = vault.legendaryQuotes[seed % vault.legendaryQuotes.length];
   const selectedFact = vault.authorityFacts[(seed + 1) % vault.authorityFacts.length];
-  const selectedHook = vault.psychologicalHooks[(seed + 2) % vault.psychologicalHooks.length];
+  const rawHook = vault.psychologicalHooks[(seed + 2) % vault.psychologicalHooks.length];
   const selectedSolution = vault.actionSolutions[(seed + 3) % vault.actionSolutions.length];
   const selectedCta = vault.ctaLoops[(seed + 4) % vault.ctaLoops.length];
 
@@ -1235,7 +1244,167 @@ export function buildMultiSceneStoryPrompt(params: MultiSceneStoryParams): Multi
   const hookKeywords = topicIdea.toUpperCase().split(/\s+/).filter(w => w.length > 2);
   const primeKeyword = hookKeywords[0] || "RAHASIA";
 
-  const cleanTopic = topicIdea.replace(/^bagaimana\s+/i, "").replace(/\?+$/, "").trim();
+  const cleanTopic = topicIdea.replace(/^(bagaimana|mengapa|kenapa|apa)\s+/i, "").replace(/\?+$/, "").trim();
+  const shortTopic = cleanTopic.length > 24 ? cleanTopic.slice(0, 24).trim() : cleanTopic;
+
+  // Anti-Hallucination Guard: Do not use gadget hooks if the topic is not gadget-related
+  const isTopicGadget = /hp|gadget|iphone|android|smartphone|laptop|tablet|baterai|kamera/i.test(topicIdea);
+  const selectedHook = (!isTopicGadget && (rawHook.includes("HP") || rawHook.includes("GADGET") || rawHook.includes("8 JUTA")))
+    ? `FAKTA PENTING: ${shortTopic.toUpperCase()}`
+    : rawHook;
+
+  // MULTI-PART SERIES ENGINE (Fallback when live LLM is offline or for instant permutations)
+  if (seriesTotal > 1) {
+    const seriesSubtopics = [
+      {
+        partNumber: 1,
+        partTitle: "FAKTA UTAMA & HOOK",
+        s1Headline: `KENAPA PILIH ${shortTopic.slice(0, 16).toUpperCase()}?`,
+        s1Text: `Pernah mikir kenapa ${cleanTopic}? Di Part 1 ini kita bedah alasan utamanya yang jarang disadari!`,
+        s2Headline: "REALITA YANG BIKIN BINGUNG",
+        s2Text: `Banyak yang awalnya ragu dan ngira biasa aja, padahal kalau dilihat dari kebutuhan harian, potensinya besar banget.`,
+        s3Headline: "KEUNGGULAN UTAMA",
+        s3Text: `Kuncinya ada di efisiensi waktu, aksesibilitas, dan kemudahan fasilitas yang bikin hidup jauh lebih praktis.`,
+        s4Headline: "LANJUT KE PART 2",
+        s4Text: `Tapi tunggu dulu, di Part 2 besok kita bakal bedah akses transportasi dan mobilitasnya. Follow sekarang biar nggak ketinggalan!`,
+        s4CtaMetric: "FOLLOW! 🔔",
+        s4Pose: "strong-cta" as const
+      },
+      {
+        partNumber: 2,
+        partTitle: "AKSES & MOBILITAS",
+        s1Headline: "AKSES & MOBILITAS CEPAT",
+        s1Text: `Di Part 1 kemarin kita udah bahas alasannya. Nah di Part 2 ini, yuk kita cek akses mobilitas dan transportasinya!`,
+        s2Headline: "MASALAH WAKTU DI JALAN",
+        s2Text: `Musuh terbesar tinggal di kota besar tuh macet berjam-jam di jalan yang bikin energi terkuras habis setiap hari.`,
+        s3Headline: "KONEKSI KRL & STRATEGIS",
+        s3Text: `Dengan akses transportasi langsung dan stasiun terdekat dari hunian, waktu tempuh kamu bisa hemat sampai 2 jam tiap hari!`,
+        s4Headline: "LANJUT KE PART 3",
+        s4Text: `Lalu berapa ya pengeluaran sewa dan biaya bulanannya? Kita hitung tuntas di Part 3 besok. Follow dulu yuk!`,
+        s4CtaMetric: "FOLLOW! 🔔",
+        s4Pose: "strong-cta" as const
+      },
+      {
+        partNumber: 3,
+        partTitle: "BIAYA & PENGELUARAN",
+        s1Headline: "HITUNGAN BIAYA BULANAN",
+        s1Text: `Lanjut dari Part 2, sekarang di Part 3 kita bedah hitung-hitungan biaya sewa, IPL, dan biaya hidup per bulan!`,
+        s2Headline: "JEBAKAN BIAYA TERSEMBUNYI",
+        s2Text: `Jangan sampai kaget sama tagihan listrik dan biaya tak terduga kalau belum tahu cara milih paket unit yang tepat.`,
+        s3Headline: "TRIK HEMAT PENGELUARAN",
+        s3Text: `Triknya, cari unit yang efisien, manfaatkan fasilitas umum, dan pilih opsi kuliner sekitar yang ramah kantong!`,
+        s4Headline: seriesTotal === 3 ? "SIMPAN SERI INI SEKARANG" : "LANJUT KE PART 4",
+        s4Text: seriesTotal === 3 
+          ? `Simpan keseluruhan 3 seri edukasi ini sekarang juga, dan share ke temen kamu yang lagi cari tempat tinggal ya!` 
+          : `Nah di Part 4 terakhir besok, aku kasih tips memilih tower terbaik dan kesimpulan akhirnya. Wajib follow!`,
+        s4CtaMetric: seriesTotal === 3 ? "SAVE! ✨" : "FOLLOW! 🔔",
+        s4Pose: "point-cta" as const
+      },
+      {
+        partNumber: 4,
+        partTitle: "KESIMPULAN & TIPS PILIH",
+        s1Headline: "KESIMPULAN & TIPS TOWER",
+        s1Text: `Sampai di seri terakhir Part 4! Ini rangkuman lengkap plus tips memilih tower dan unit terbaik buat kamu.`,
+        s2Headline: "PROFIL YANG PALING COCOK",
+        s2Text: `Hunian ini paling pas buat pekerja komuter, profesional muda, atau mereka yang butuh efisiensi maksimal tanpa ribet.`,
+        s3Headline: "PANDUAN MEMILIH TOWER",
+        s3Text: `Periksa jarak ke gerbang keluar, pastikan ventilasi dan view bagus, dan cek kondisi perabotan sebelum deal!`,
+        s4Headline: "SIMPAN KESELURUHAN SERI",
+        s4Text: `Simpan keseluruhan 4 seri edukasi ini sekarang juga, dan share ke temen kamu yang lagi cari tempat tinggal ya!`,
+        s4CtaMetric: "SAVE! ✨",
+        s4Pose: "point-cta" as const
+      }
+    ];
+
+    const episodes = seriesSubtopics.slice(0, seriesTotal).map((ep) => {
+      const epScenes = [
+        {
+          sceneNumber: 1,
+          stageName: "THE SHOCK HOOK",
+          timeRange: `0:00 - 0:${duration1 < 10 ? "0" + duration1 : duration1}`,
+          headline: ep.s1Headline,
+          subtext: ep.s1Text,
+          metric: `SERI 0${ep.partNumber}`,
+          highlightKeyword: primeKeyword,
+          durationSec: duration1,
+          characterEmotion: "shocked" as const,
+          suggestedPose: "friendly-anchor",
+          kineticFx: "Spring Punch Scale 1.2x + Alert Aura Halo",
+          foleyCue: "0:00 Fast Whoosh + Heavy Sub-Bass Thud"
+        },
+        {
+          sceneNumber: 2,
+          stageName: "THE PAIN AGITATION",
+          timeRange: `0:${duration1 < 10 ? "0" + duration1 : duration1} - 0:${duration1 + duration2}`,
+          headline: ep.s2Headline,
+          subtext: ep.s2Text,
+          metric: "FAKTA KUNCI",
+          highlightKeyword: "PERHATIKAN",
+          durationSec: duration2,
+          characterEmotion: "skeptical" as const,
+          suggestedPose: "problem-shrug",
+          kineticFx: "Wipe Push Left + Floating Red Question Particles",
+          foleyCue: `0:${duration1} Camera Shutter Snap + Low Vinyl Scratch`
+        },
+        {
+          sceneNumber: 3,
+          stageName: "THE BREAKTHROUGH REVEAL",
+          timeRange: `0:${duration1 + duration2} - 0:${duration1 + duration2 + duration3}`,
+          headline: ep.s3Headline,
+          subtext: ep.s3Text,
+          metric: "+300% VALUE",
+          highlightKeyword: "SOLUSI",
+          durationSec: duration3,
+          characterEmotion: "celebrate" as const,
+          suggestedPose: "eureka-point",
+          kineticFx: "Dynamic Glowing SVG Curve Path + Rocket Sparkles",
+          foleyCue: `0:${duration1 + duration2} Harmonic Synth Swell + Crisp Cash Chime`
+        },
+        {
+          sceneNumber: 4,
+          stageName: ep.partNumber === seriesTotal ? "THE INFINITE LOOP CTA" : "CLIFFHANGER CTA",
+          timeRange: `0:${duration1 + duration2 + duration3} - 0:${totalDuration}`,
+          headline: ep.s4Headline,
+          subtext: ep.s4Text,
+          metric: ep.s4CtaMetric,
+          highlightKeyword: ep.partNumber === seriesTotal ? "SIMPAN" : "FOLLOW",
+          durationSec: duration4,
+          characterEmotion: "point-cta" as const,
+          suggestedPose: ep.s4Pose,
+          kineticFx: "Pulsating Bookmark Ring + Seamless Loop Match Cut",
+          foleyCue: `0:${duration1 + duration2 + duration3} Clean Glass Bell Ding + Ambient Fade Out`
+        }
+      ];
+
+      return {
+        partNumber: ep.partNumber,
+        partTitle: ep.partTitle,
+        scenes: epScenes
+      };
+    });
+
+    const fullFirstScript = episodes[0].scenes.map(s => s.subtext).join(" ");
+    const totalWords = fullFirstScript.split(/\s+/).filter(Boolean).length;
+
+    return {
+      topic: topicIdea,
+      seriesCount: seriesTotal,
+      episodes,
+      scenes: episodes[0].scenes,
+      vaultUsed: {
+        id: vault.id,
+        name: vault.name,
+        badge: vault.badge,
+        quoteSnippet: `"${selectedQuote.quote}" — ${selectedQuote.author}`,
+        authorSnippet: selectedQuote.author
+      },
+      wordCount: totalWords,
+      estimatedVoiceSeconds: Math.round(totalWords / 2.4),
+      isTooLong: false,
+      totalDurationSec: totalDuration,
+      retentionFormula: "Multi-Part Hook Sequencer + Cliffhanger Retention + Word-by-Word Highlight"
+    };
+  }
 
   if (is55s) {
     const s1Text = `Pernah nggak sih kamu penasaran gimana cara ${cleanTopic}? Sering banget kita coba berkali-kali tapi hasilnya malah melempem dan gagal!`;
