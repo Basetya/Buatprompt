@@ -1226,8 +1226,8 @@ COMPOSITION & BACKGROUND:
       const speechDur = activeAudioBuf ? Math.max(activeAudioBuf.duration * 0.96, 1.0) : currentSceneDuration * 0.92;
       const speechProgress = Math.min(Math.max(timeInScene / speechDur, 0), 1);
 
-      // Check for scene transition to trigger Foley SFX
-      if (sceneIndex !== lastSceneIndexRef.current) {
+      // Check for scene transition to trigger Foley SFX (Preview mode only, prevents duplicate SFX during recording)
+      if (!isRecordingRef.current && sceneIndex !== lastSceneIndexRef.current) {
         lastSceneIndexRef.current = sceneIndex;
         playedSceneAudioRef.current = -1;
 
@@ -2149,6 +2149,10 @@ COMPOSITION & BACKGROUND:
       } catch (_) { }
       mediaRecorderRef.current.stop();
     }
+    if (loFiBgmRef.current) {
+      try { loFiBgmRef.current.stop(); } catch (_) { }
+    }
+    handleStopPreview();
   };
 
   const recordAndDownloadVideo = async () => {
@@ -2160,10 +2164,27 @@ COMPOSITION & BACKGROUND:
 
     try {
       setRecordError(null);
+
+      // 1. Immediately halt any active preview audio and canvas RAF loop to prevent cross-stream audio contamination
+      handleStopPreview();
+
       if (recordedVideoUrl) {
         URL.revokeObjectURL(recordedVideoUrl);
         setRecordedVideoUrl(null);
       }
+
+      // 2. Extra safety: guarantee activeAudioSourceRef and previous recordingSources are completely stopped
+      if (activeAudioSourceRef.current) {
+        try {
+          activeAudioSourceRef.current.stop();
+          activeAudioSourceRef.current.disconnect();
+        } catch (_) {}
+        activeAudioSourceRef.current = null;
+      }
+      recordingSourcesRef.current.forEach((s) => {
+        try { s.stop(); s.disconnect(); } catch (_) { }
+      });
+      recordingSourcesRef.current = [];
 
       isPlayingRef.current = true;
       setIsPlaying(true);
@@ -2209,17 +2230,15 @@ COMPOSITION & BACKGROUND:
         playProceduralSFX(ctx, [ctx.destination, audioDestRef.current], "whoosh");
       }
 
-      // Precise Hardware-Scheduled Playback directly into Web Audio Destination
-      recordingSourcesRef.current.forEach((s) => {
-        try { s.stop(); s.disconnect(); } catch (_) { }
-      });
-      recordingSourcesRef.current = [];
-
       const audioStartTime = ctx.currentTime + 0.15; // 150ms safe stream handshake
       let sceneAccumTime = 0;
 
       for (let i = 0; i < targetScenes.length; i++) {
         const buf = audioBuffersRef.current[i];
+        const sceneDur = targetScenes[i].durationSec;
+        const atTime = audioStartTime + sceneAccumTime;
+        const stopTime = atTime + sceneDur;
+
         if (buf && audioEnabled) {
           const src = ctx.createBufferSource();
           const gain = ctx.createGain();
@@ -2229,8 +2248,15 @@ COMPOSITION & BACKGROUND:
           gain.connect(ctx.destination);
           if (analyserRef.current) gain.connect(analyserRef.current);
 
-          const atTime = audioStartTime + sceneAccumTime;
           src.start(atTime);
+
+          // STRICT ANTI-COLLISION: Gain envelope stops voice from bleeding into the next scene
+          const effectiveDur = Math.min(buf.duration, sceneDur);
+          const fadeOutStart = Math.max(atTime, atTime + effectiveDur - 0.12);
+          gain.gain.setValueAtTime(1.0, fadeOutStart);
+          gain.gain.linearRampToValueAtTime(0.001, stopTime);
+          src.stop(stopTime + 0.05);
+
           recordingSourcesRef.current.push(src);
         }
 
@@ -2309,6 +2335,10 @@ COMPOSITION & BACKGROUND:
           silentOsc.stop();
           silentOsc.disconnect();
         } catch (_) { }
+        if (loFiBgmRef.current) {
+          try { loFiBgmRef.current.stop(); } catch (_) { }
+        }
+        handleStopPreview();
         setRecordError("Gagal merekam stream video/audio di browser.");
         setIsRecording(false);
         if (recordTimerRef.current) {
@@ -2332,6 +2362,11 @@ COMPOSITION & BACKGROUND:
           silentOsc.stop();
           silentOsc.disconnect();
         } catch (_) { }
+
+        if (loFiBgmRef.current) {
+          try { loFiBgmRef.current.stop(); } catch (_) { }
+        }
+        handleStopPreview();
 
         if (recordTimerRef.current) {
           clearInterval(recordTimerRef.current);
