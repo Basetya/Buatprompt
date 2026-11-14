@@ -2572,16 +2572,16 @@ COMPOSITION & BACKGROUND:
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {/* Preset 1: Apple Keynote + Human 2D + Aoede */}
+          {/* Preset 1: Apple Keynote + Human 2D + Sarah */}
           <button
             type="button"
             onClick={() => {
               setMotionStyle("apple-keynote");
               setAvatarEngine("human-rigged");
               setHumanPreset("tech-creator");
-              setVoiceActor("gemini-aoede");
+              setVoiceActor("kang-sarah");
             }}
-            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${motionStyle === "apple-keynote" && avatarEngine === "human-rigged" && voiceActor === "gemini-aoede"
+            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${motionStyle === "apple-keynote" && avatarEngine === "human-rigged" && voiceActor === "kang-sarah"
                 ? "border-emerald-400 bg-emerald-500/15 text-white shadow-lg"
                 : "border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
               }`}
@@ -2590,20 +2590,20 @@ COMPOSITION & BACKGROUND:
               <span>🍏 Edukasi Elegan</span>
             </div>
             <div className="text-[10px] text-zinc-400 mt-0.5">
-              Apple Keynote • Human 2D • Suara Aoede
+              Apple Keynote • Human 2D • Suara Sarah
             </div>
           </button>
 
-          {/* Preset 2: Viral Yellow + 3D Voxel + Kore */}
+          {/* Preset 2: Viral Yellow + 3D Voxel + Bang Bams */}
           <button
             type="button"
             onClick={() => {
               setMotionStyle("viral-yellow");
               setAvatarEngine("voxel");
               setVoxelPreset("beanie-striped");
-              setVoiceActor("gemini-kore");
+              setVoiceActor("kang-bams");
             }}
-            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${motionStyle === "viral-yellow" && avatarEngine === "voxel" && voiceActor === "gemini-kore"
+            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${motionStyle === "viral-yellow" && avatarEngine === "voxel" && voiceActor === "kang-bams"
                 ? "border-amber-400 bg-amber-500/15 text-white shadow-lg"
                 : "border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
               }`}
@@ -2612,19 +2612,19 @@ COMPOSITION & BACKGROUND:
               <span>⚡ Kreator Viral Hype</span>
             </div>
             <div className="text-[10px] text-zinc-400 mt-0.5">
-              Viral Yellow • 3D Voxel • Suara Kore
+              Viral Yellow • 3D Voxel • Suara Bang Bams
             </div>
           </button>
 
-          {/* Preset 3: Glass Aurora + Photo Cutout + Charon */}
+          {/* Preset 3: Glass Aurora + Photo Cutout + Mas Dimas */}
           <button
             type="button"
             onClick={() => {
               setMotionStyle("glass-aurora");
               setAvatarEngine("photo-cutout");
-              setVoiceActor("gemini-charon");
+              setVoiceActor("kang-dimas");
             }}
-            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${motionStyle === "glass-aurora" && avatarEngine === "photo-cutout" && voiceActor === "gemini-charon"
+            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${motionStyle === "glass-aurora" && avatarEngine === "photo-cutout" && voiceActor === "kang-dimas"
                 ? "border-cyan-400 bg-cyan-500/15 text-white shadow-lg"
                 : "border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
               }`}
@@ -2633,7 +2633,7 @@ COMPOSITION & BACKGROUND:
               <span>🌌 Tech & Modern Aesthetic</span>
             </div>
             <div className="text-[10px] text-zinc-400 mt-0.5">
-              Glass Aurora • Foto Cutout • Suara Charon
+              Glass Aurora • Foto Cutout • Suara Mas Dimas
             </div>
           </button>
         </div>

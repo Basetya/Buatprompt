@@ -254,6 +254,70 @@ export const KANG_SUARA_PERSONAS: Record<string, KangSuaraPersona> = {
 };
 
 /**
+ * Authentic Kang Suara Acoustic Directives
+ * Extracted from Kang Suara Master Edition (D:\Projects\Canvas\Kang Suara Master.html).
+ * Injected as system directives into Gemini Studio Speech to elicit authentic human Indonesian
+ * phrasing, natural breath pauses, and lifelike emotional cadence.
+ */
+export const KANG_SUARA_DIRECTIVES: Record<string, { cast: string; directive: string }> = {
+  "kang-sarah": {
+    cast: "Aoede",
+    directive:
+      "[Arahan Akustik Sutradara Vokal]:\n- Target Vokal: Penutur asli bahasa Indonesia, aksen lokal tulen tanpa cengkok asing.\n- Register Suara: Wanita dewasa muda, jernih, berwibawa, hangat dan ramah.\n- Gaya Akting: Artikulasi jernih dan santai seperti host profesional, jeda nafas alami.\n- Dinamika Melodi: Nada bersahabat, percaya diri, intonasi percakapan luwes.\n\n",
+  },
+  "kang-dimas": {
+    cast: "Charon",
+    directive:
+      "[Arahan Akustik Sutradara Vokal]:\n- Target Vokal: Penutur asli bahasa Indonesia, aksen lokal tulen tanpa cengkok asing.\n- Register Suara: Pria dewasa bariton rendah, tenang dan berwibawa.\n- Gaya Akting: Tenang, edukatif, berbobot seperti narator video essay terpercaya.\n- Dinamika Melodi: Melodi tegas, artikulasi matang, intonasi meyakinkan.\n\n",
+  },
+  "kang-bams": {
+    cast: "Puck",
+    directive:
+      "[Arahan Akustik Sutradara Vokal]:\n- Target Vokal: Penutur asli bahasa Indonesia, gaya kreator TikTok/Reels masa kini.\n- Register Suara: Pria muda energik, vokal renyah.\n- Gaya Akting: Cepat, punchy, ceplas-ceplos, gaya hook contrarian nyolot yang bikin penasaran.\n- Dinamika Melodi: Ritme cepat dinamis, intonasi naik di awal kalimat.\n\n",
+  },
+  "kang-senja": {
+    cast: "Aoede",
+    directive:
+      "[Arahan Akustik Sutradara Vokal]:\n- Target Vokal: Penutur asli bahasa Indonesia, aksen lembut syahdu.\n- Register Suara: Wanita dewasa, desah nafas lembut, hangat dan menenangkan.\n- Gaya Akting: Storytelling meditatif, hipnotis, tempo teratur dengan kehangatan mendalam.\n- Dinamika Melodi: Melodi lembut mengalun perlahan, jeda nafas rileks.\n\n",
+  },
+  "kang-bimo": {
+    cast: "Charon",
+    directive:
+      "[Arahan Akustik Sutradara Vokal]:\n- Target Vokal: Penutur asli bahasa Indonesia, gaya anak muda kota.\n- Register Suara: Pria muda, santai, vokal bersahabat.\n- Gaya Akting: Reviewer gadget santai, bahasa gaul kekinian, blak-blakan jujur.\n- Dinamika Melodi: Percakapan kasual santai seperti ngobrol di cafe.\n\n",
+  },
+  "kang-keisha": {
+    cast: "Kore",
+    directive:
+      "[Arahan Akustik Sutradara Vokal]:\n- Target Vokal: Penutur asli bahasa Indonesia, gaya Gen-Z modern.\n- Register Suara: Remaja wanita ceria, vokal manis aesthetic.\n- Gaya Akting: Cerita skincare & lifestyle seru, antusias, ekspresif dan natural.\n- Dinamika Melodi: Intonasi ceria, artikulasi renyah penuh energi positif.\n\n",
+  },
+  "kang-reno": {
+    cast: "Puck",
+    directive:
+      "[Arahan Akustik Sutradara Vokal]:\n- Target Vokal: Penutur asli bahasa Indonesia, gaya gamer/streamer hype.\n- Register Suara: Remaja pria energik, vokal cepat.\n- Gaya Akting: Semangat tinggi, hype, seru, interaktif mengajak penonton.\n- Dinamika Melodi: Dinamika cepat menghentak, penuh antusiasme.\n\n",
+  },
+  "kang-hartono": {
+    cast: "Charon",
+    directive:
+      "[Arahan Akustik Sutradara Vokal]:\n- Target Vokal: Penutur asli bahasa Indonesia, aksen berwibawa.\n- Register Suara: Pria matang 50 tahun, vokal tenang dan berpengalaman.\n- Gaya Akting: Pengusaha sukses bijak, memberi nasihat karir & finansial mendalam.\n- Dinamika Melodi: Melodi stabil, tempo teratur, berwibawa.\n\n",
+  },
+  "kang-ratna": {
+    cast: "Aoede",
+    directive:
+      "[Arahan Akustik Sutradara Vokal]:\n- Target Vokal: Penutur asli bahasa Indonesia, vokal keibuan hangat.\n- Register Suara: Wanita matang 50 tahun, ramah dan tulus.\n- Gaya Akting: Mengayomi, penuh kasih sayang, mendidik dengan sabar.\n- Dinamika Melodi: Mengalun hangat, nada ramah dan tulus.\n\n",
+  },
+  "kang-arka": {
+    cast: "Puck",
+    directive:
+      "[Arahan Akustik Sutradara Vokal]:\n- Target Vokal: Penutur asli bahasa Indonesia, vokal anak-anak.\n- Register Suara: Anak cowok 8 tahun, lincah dan ceria.\n- Gaya Akting: Penuh rasa ingin tahu, polos, gembira mengeksplor hal baru.\n- Dinamika Melodi: Nada naik turun ceria khas anak-anak.\n\n",
+  },
+  "kang-naura": {
+    cast: "Kore",
+    directive:
+      "[Arahan Akustik Sutradara Vokal]:\n- Target Vokal: Penutur asli bahasa Indonesia, vokal anak-anak.\n- Register Suara: Anak cewek 8 tahun, imut dan manis.\n- Gaya Akting: Ceria, ramah, menggemaskan dan penuh senyum.\n- Dinamika Melodi: Melodi riang gembira anak-anak.\n\n",
+  },
+};
+
+/**
  * Generate Microsoft Azure / Edge Neural TTS with natural Indonesian prosody,
  * emotional inflection, and breathing pauses.
  */
@@ -559,29 +623,46 @@ export async function POST(req: NextRequest) {
 
     const formattedText = formatNaturalSpeechProsody(text.trim());
 
-    // 1. Kang Suara Authentic Indonesian Personas (100% Cost-Free & Consistent via Azure Neural)
+    // 1. Kang Suara Authentic Indonesian Personas (Powered by Studio Gemini + Acoustic Directives)
     const kangPersona = KANG_SUARA_PERSONAS[voice.toLowerCase()];
     if (kangPersona) {
-      const targetRate = customRate || kangPersona.rate;
-      const targetPitch = customPitch || kangPersona.pitch;
+      const directiveInfo = KANG_SUARA_DIRECTIVES[voice.toLowerCase()];
+      const targetCast = directiveInfo ? directiveInfo.cast : kangPersona.cast;
+      const directivePrefix = directiveInfo ? directiveInfo.directive : "";
+      const promptText = `${directivePrefix}${formattedText}`;
+
+      // Try Studio Gemini Speech with Kang Suara's authentic voice cast & acoustic directive
       try {
-        const neuralBuffer = await generateMicrosoftNeuralTTS(
-          formattedText,
-          kangPersona.azureVoice,
-          targetRate,
-          targetPitch
-        );
-        return new NextResponse(new Uint8Array(neuralBuffer), {
+        const geminiWav = await generateGeminiTTS(promptText, targetCast);
+        return new NextResponse(new Uint8Array(geminiWav), {
           status: 200,
           headers: {
-            "Content-Type": "audio/mpeg",
-            "Content-Length": neuralBuffer.length.toString(),
-            "X-TTS-Engine": `Kang-Suara-${kangPersona.name}`,
+            "Content-Type": "audio/wav",
+            "Content-Length": geminiWav.length.toString(),
+            "X-TTS-Engine": `Kang-Suara-Studio-${kangPersona.name}`,
             "Cache-Control": "public, max-age=86400",
           },
         });
-      } catch (kangErr) {
-        console.warn(`Kang Suara (${kangPersona.name}) generation fallback notice:`, kangErr);
+      } catch (geminiErr) {
+        console.warn(`Kang Suara Studio (${kangPersona.name}) quota exhausted, falling back to Azure Neural:`, (geminiErr as any)?.message || geminiErr);
+        // Fallback to Azure Neural with calibrated prosody
+        try {
+          const neuralBuffer = await generateMicrosoftNeuralTTS(
+            formattedText,
+            kangPersona.azureVoice,
+            customRate || kangPersona.rate,
+            customPitch || kangPersona.pitch
+          );
+          return new NextResponse(new Uint8Array(neuralBuffer), {
+            status: 200,
+            headers: {
+              "Content-Type": "audio/mpeg",
+              "Content-Length": neuralBuffer.length.toString(),
+              "X-TTS-Engine": `Kang-Suara-NeuralFallback-${kangPersona.name}`,
+              "Cache-Control": "public, max-age=86400",
+            },
+          });
+        } catch (_) {}
       }
     }
 
