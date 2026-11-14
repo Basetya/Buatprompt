@@ -313,7 +313,7 @@ export default function KineticMotionPage() {
   const [bgmEnabled, setBgmEnabled] = useState(true);
   const [sfxEnabled, setSfxEnabled] = useState(true);
   const [characterLayout, setCharacterLayout] = useState<"single" | "duo">("single");
-  const [voiceActor, setVoiceActor] = useState<string>("kang-sarah");
+  const [voiceActor, setVoiceActor] = useState<string>("edge-sarah");
   const [isAudioLoading, setIsAudioLoading] = useState(false);
 
   // Single mode state
@@ -472,7 +472,8 @@ export default function KineticMotionPage() {
         const { ctx } = getOrCreateAudioEngine();
 
         const fetchOne = async (s: StoryScene, i: number) => {
-          const spokenText = `${s.headline}. ${s.subtext}`;
+          // Strictly speak the natural conversational subtext (never read the all-caps visual headline as speech)
+          const spokenText = s.subtext && s.subtext.trim() ? s.subtext.trim() : s.headline.trim();
           const buf = await fetchAndDecodeTTS(ctx, spokenText, {
             voice,
             emotion: s.characterEmotion || "normal",
@@ -2579,9 +2580,9 @@ COMPOSITION & BACKGROUND:
               setMotionStyle("apple-keynote");
               setAvatarEngine("human-rigged");
               setHumanPreset("tech-creator");
-              setVoiceActor("kang-sarah");
+              setVoiceActor("edge-sarah");
             }}
-            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${motionStyle === "apple-keynote" && avatarEngine === "human-rigged" && voiceActor === "kang-sarah"
+            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${motionStyle === "apple-keynote" && avatarEngine === "human-rigged" && voiceActor === "edge-sarah"
                 ? "border-emerald-400 bg-emerald-500/15 text-white shadow-lg"
                 : "border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
               }`}
@@ -2590,7 +2591,7 @@ COMPOSITION & BACKGROUND:
               <span>🍏 Edukasi Elegan</span>
             </div>
             <div className="text-[10px] text-zinc-400 mt-0.5">
-              Apple Keynote • Human 2D • Suara Sarah
+              Apple Keynote • Human 2D • Suara Sarah (Gadis)
             </div>
           </button>
 
@@ -2601,9 +2602,9 @@ COMPOSITION & BACKGROUND:
               setMotionStyle("viral-yellow");
               setAvatarEngine("voxel");
               setVoxelPreset("beanie-striped");
-              setVoiceActor("kang-bams");
+              setVoiceActor("edge-bams");
             }}
-            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${motionStyle === "viral-yellow" && avatarEngine === "voxel" && voiceActor === "kang-bams"
+            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${motionStyle === "viral-yellow" && avatarEngine === "voxel" && voiceActor === "edge-bams"
                 ? "border-amber-400 bg-amber-500/15 text-white shadow-lg"
                 : "border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
               }`}
@@ -2612,7 +2613,7 @@ COMPOSITION & BACKGROUND:
               <span>⚡ Kreator Viral Hype</span>
             </div>
             <div className="text-[10px] text-zinc-400 mt-0.5">
-              Viral Yellow • 3D Voxel • Suara Bang Bams
+              Viral Yellow • 3D Voxel • Suara Bang Bams (Ardi)
             </div>
           </button>
 
@@ -2622,9 +2623,9 @@ COMPOSITION & BACKGROUND:
             onClick={() => {
               setMotionStyle("glass-aurora");
               setAvatarEngine("photo-cutout");
-              setVoiceActor("kang-dimas");
+              setVoiceActor("edge-dimas");
             }}
-            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${motionStyle === "glass-aurora" && avatarEngine === "photo-cutout" && voiceActor === "kang-dimas"
+            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${motionStyle === "glass-aurora" && avatarEngine === "photo-cutout" && voiceActor === "edge-dimas"
                 ? "border-cyan-400 bg-cyan-500/15 text-white shadow-lg"
                 : "border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
               }`}
@@ -2633,7 +2634,7 @@ COMPOSITION & BACKGROUND:
               <span>🌌 Tech & Modern Aesthetic</span>
             </div>
             <div className="text-[10px] text-zinc-400 mt-0.5">
-              Glass Aurora • Foto Cutout • Suara Mas Dimas
+              Glass Aurora • Foto Cutout • Suara Mas Dimas (Ardi)
             </div>
           </button>
         </div>
@@ -2705,28 +2706,24 @@ COMPOSITION & BACKGROUND:
               }}
               className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white focus:border-emerald-400 focus:outline-none"
             >
-              <optgroup label="👑 Kang Suara Studio (Google Gemini 24kHz - Alami & Bernapas)">
-                <option value="kang-sarah">👩‍💼 Sarah (Host Profesional & Jelas)</option>
-                <option value="kang-dimas">👨‍🏫 Mas Dimas (Otoritatif & Tenang / Video Essay)</option>
-                <option value="kang-bams">⚡ Bang Bams (UGC Hook Cepat, Nyolot & Energik)</option>
-                <option value="kang-senja">🌙 Nada Senja (Storytelling Halus & Meditatif)</option>
-                <option value="kang-bimo">📱 Bimo (Reviewer Santai & Gaul / Gadget)</option>
-                <option value="kang-keisha">✨ Keisha (Gen-Z Aesthetic / Lifestyle)</option>
-                <option value="kang-reno">🎮 Reno (Anak Muda Hype / Gamer Dinamis)</option>
-                <option value="kang-hartono">👴 Pak Hartono (Bapak Bijak / Bisnis)</option>
-                <option value="kang-ratna">🧕 Ibu Ratna (Keibuan, Hangat & Mengayomi)</option>
-                <option value="gemini-aoede">✨ Aoede (Studio Ultra Wanita)</option>
-                <option value="gemini-charon">✨ Charon (Studio Ultra Pria)</option>
-              </optgroup>
-              <optgroup label="⚡ Kang Suara Edge Neural (Ardi & Gadis - 100% Bebas Kuota / 0 Biaya)">
-                <option value="edge-bams">⚡ Bang Bams (Ardi +12% Lincah & Energik)</option>
-                <option value="edge-dimas">👨‍🏫 Mas Dimas (Ardi -3% / -2Hz Tenang & Berwibawa)</option>
-                <option value="edge-bimo">📱 Bimo (Ardi +6% Reviewer Kasual)</option>
-                <option value="edge-sarah">👩‍💼 Sarah (Gadis +2% Artikulasi Jelas)</option>
-                <option value="edge-senja">🌙 Nada Senja (Gadis -25% / -2Hz Syahdu & Lembut)</option>
-                <option value="edge-keisha">✨ Keisha (Gadis +4% Gen-Z Ceria)</option>
+              <optgroup label="⚡ Kang Suara Bebas Kuota (100% Konsisten, Zero Cost - Ardi & Gadis)">
+                <option value="edge-sarah">👩‍💼 Sarah (Gadis +2% - Host Edukatif & Jelas)</option>
+                <option value="edge-dimas">👨‍🏫 Mas Dimas (Ardi -3% / -2Hz - Otoritatif & Tenang)</option>
+                <option value="edge-bams">⚡ Bang Bams (Ardi +12% / +2Hz - Hook Cepat & Nyolot)</option>
+                <option value="edge-bimo">📱 Bimo (Ardi +6% - Reviewer Santai & Gaul)</option>
+                <option value="edge-senja">🌙 Nada Senja (Gadis -25% / -2Hz - Storytelling Lembut)</option>
+                <option value="edge-keisha">✨ Keisha (Gadis +4% / +1Hz - Gen-Z Ceria)</option>
                 <option value="id-ID-ArdiNeural">👨 Ardi Standar (+2% Podcast)</option>
                 <option value="id-ID-GadisNeural">👩 Gadis Standar (+1% Kreator)</option>
+              </optgroup>
+              <optgroup label="👑 Kang Suara Studio (Google Gemini 24kHz - Kuota Terbatas)">
+                <option value="kang-sarah">👩‍💼 Studio Sarah (Gemini Aoede 24kHz)</option>
+                <option value="kang-dimas">👨‍🏫 Studio Mas Dimas (Gemini Charon 24kHz)</option>
+                <option value="kang-bams">⚡ Studio Bang Bams (Gemini Puck 24kHz)</option>
+                <option value="kang-senja">🌙 Studio Nada Senja (Gemini Aoede 24kHz)</option>
+                <option value="kang-keisha">✨ Studio Keisha (Gemini Kore 24kHz)</option>
+                <option value="gemini-aoede">✨ Aoede (Studio Ultra Wanita)</option>
+                <option value="gemini-charon">✨ Charon (Studio Ultra Pria)</option>
               </optgroup>
             </select>
           </div>

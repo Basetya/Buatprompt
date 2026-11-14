@@ -476,11 +476,11 @@ async function generateGeminiTTS(text: string, voiceName: string = "Aoede"): Pro
   if (cached) return cached;
 
   const ttsCandidateModels = [
-    "gemini-3.8-flash-lite-tts",
     "gemini-2.5-flash-preview-tts",
+    "gemini-2.5-pro-preview-tts",
     "gemini-3.1-flash-tts-preview",
     "gemini-3.8-flash-tts",
-    "gemini-2.5-pro-preview-tts"
+    "gemini-3.8-flash-lite-tts",
   ];
 
   let lastErr = null;
@@ -596,22 +596,49 @@ async function generatePiperLocalTTS(text: string): Promise<Buffer> {
  * - Cleans up multiple punctuation to avoid robotic stutter
  */
 function formatNaturalSpeechProsody(input: string): string {
-  // Lowercase ALL-CAPS words (>2 chars) except common acronyms (HP, AI, CV, HRD, UMKM, BBM, KPR, ATS, STAR)
-  const acronyms = new Set(["HP", "AI", "CV", "HRD", "UMKM", "BBM", "KPR", "ATS", "STAR", "HD", "SD", "SMP", "SMA"]);
-  let out = input.replace(/\b[A-Z]{3,}\b/g, (w) => (acronyms.has(w) ? w : w.toLowerCase()));
+  // Expanded phonetics & acronyms for natural human Indonesian speech
+  const acronyms: Record<string, string> = {
+    KRL: "K R L",
+    IPL: "I P L",
+    CTA: "C T A",
+    KPR: "K P R",
+    KTP: "K T P",
+    BBM: "B B M",
+    UMKM: "U M K M",
+    HRD: "H R D",
+    FYP: "F Y P",
+    AI: "A I",
+    HP: "hape",
+  };
+
+  let out = input;
+  for (const [acr, exp] of Object.entries(acronyms)) {
+    const reg = new RegExp(`\\b${acr}\\b`, "g");
+    out = out.replace(reg, exp);
+  }
+
+  // Lowercase all-caps words (>1 char) so Microsoft Neural doesn't spell them out mechanically
+  out = out.replace(/\b[A-Z]{2,}\b/g, (w) => w.toLowerCase());
 
   // Capitalize sentence beginnings
   out = out.replace(/(^\s*|[.!?]\s+)([a-z])/g, (_, p1, p2) => p1 + p2.toUpperCase());
 
-  // Insert natural breathing pause before conjunctions if no punctuation precedes them
+  // Insert natural breathing pauses before Indonesian conjunctions & discourse transitions
   out = out.replace(
-    /([a-zA-Z0-9])\s+(tapi|tetapi|namun|karena|sehingga|supaya|agar|sedangkan|padahal)\b/gi,
+    /([a-zA-Z0-9])\s+(tapi|tetapi|namun|karena|sehingga|supaya|agar|sedangkan|padahal|makanya|ternyata|bahkan|apalagi|jadinya)\b/gi,
     "$1, $2"
   );
 
-  // Normalize punctuation: avoid "..." which glitches Microsoft Neural TTS into mechanical pauses
+  // Insert gentle breathing pause after Indonesian conversational opener words
+  out = out.replace(
+    /(^|[.!?]\s+)(Nah|Jujur|Bayangin|Coba deh|Ternyata|Faktanya|Menariknya|Kuncinya)\s+([a-zA-Z])/gi,
+    "$1$2, $3"
+  );
+
+  // Normalize punctuation: avoid "..." which glitches Microsoft Neural TTS into robotic pauses
   out = out.replace(/\.{2,}/g, ", ");
   out = out.replace(/([?!])\s+/g, "$1 ");
+  out = out.replace(/\s+/g, " ").trim();
   return out;
 }
 
