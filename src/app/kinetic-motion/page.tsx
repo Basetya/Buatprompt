@@ -525,13 +525,13 @@ export default function KineticMotionPage() {
       try {
         activeAudioSourceRef.current.stop();
         activeAudioSourceRef.current.disconnect();
-      } catch (_) {}
+      } catch (_) { }
       activeAudioSourceRef.current = null;
     }
     if (loFiBgmRef.current) {
       try {
         loFiBgmRef.current.stop();
-      } catch (_) {}
+      } catch (_) { }
     }
 
     // Paint static frame 0.00s without restarting RAF loop
@@ -557,13 +557,13 @@ export default function KineticMotionPage() {
       try {
         activeAudioSourceRef.current.stop();
         activeAudioSourceRef.current.disconnect();
-      } catch (_) {}
+      } catch (_) { }
       activeAudioSourceRef.current = null;
     }
     if (loFiBgmRef.current) {
       try {
         loFiBgmRef.current.stop();
-      } catch (_) {}
+      } catch (_) { }
     }
     playedSceneAudioRef.current = -1;
 
@@ -607,7 +607,7 @@ export default function KineticMotionPage() {
       try {
         activeAudioSourceRef.current.stop();
         activeAudioSourceRef.current.disconnect();
-      } catch (_) {}
+      } catch (_) { }
       activeAudioSourceRef.current = null;
     }
     if (animationFrameRef.current) {
@@ -1187,912 +1187,912 @@ COMPOSITION & BACKGROUND:
           return;
         }
 
-      const loopTime = elapsed % Math.max(totalDurationSec, 1);
-      const globalProgress = loopTime / Math.max(totalDurationSec, 1);
+        const loopTime = elapsed % Math.max(totalDurationSec, 1);
+        const globalProgress = loopTime / Math.max(totalDurationSec, 1);
 
-      // Determine active scene
-      let sceneIndex = 0;
-      let currentHeadline = singleHeadline;
-      let currentSubtext = singleSubtext;
-      let currentMetric = singleMetric;
-      let currentHighlight = "";
-      let currentSceneDuration = singleDuration;
-      let timeInScene = loopTime;
-      let sceneLocalProgress = globalProgress;
-      let currentEmotion: "shocked" | "skeptical" | "celebrate" | "point-cta" = "shocked";
+        // Determine active scene
+        let sceneIndex = 0;
+        let currentHeadline = singleHeadline;
+        let currentSubtext = singleSubtext;
+        let currentMetric = singleMetric;
+        let currentHighlight = "";
+        let currentSceneDuration = singleDuration;
+        let timeInScene = loopTime;
+        let sceneLocalProgress = globalProgress;
+        let currentEmotion: "shocked" | "skeptical" | "celebrate" | "point-cta" = "shocked";
 
-      if (mode === "multi") {
-        let accumulatedTime = 0;
-        for (let i = 0; i < scenes.length; i++) {
-          const s = scenes[i];
-          if (loopTime >= accumulatedTime && loopTime < accumulatedTime + s.durationSec) {
-            sceneIndex = i;
-            currentHeadline = s.headline;
-            currentSubtext = s.subtext;
-            currentMetric = s.metric;
-            currentHighlight = s.highlightKeyword;
-            currentEmotion = s.characterEmotion || "shocked";
-            currentSceneDuration = s.durationSec;
-            timeInScene = loopTime - accumulatedTime;
-            sceneLocalProgress = timeInScene / s.durationSec;
-            break;
+        if (mode === "multi") {
+          let accumulatedTime = 0;
+          for (let i = 0; i < scenes.length; i++) {
+            const s = scenes[i];
+            if (loopTime >= accumulatedTime && loopTime < accumulatedTime + s.durationSec) {
+              sceneIndex = i;
+              currentHeadline = s.headline;
+              currentSubtext = s.subtext;
+              currentMetric = s.metric;
+              currentHighlight = s.highlightKeyword;
+              currentEmotion = s.characterEmotion || "shocked";
+              currentSceneDuration = s.durationSec;
+              timeInScene = loopTime - accumulatedTime;
+              sceneLocalProgress = timeInScene / s.durationSec;
+              break;
+            }
+            accumulatedTime += s.durationSec;
           }
-          accumulatedTime += s.durationSec;
         }
-      }
 
-      // Sync caption progression directly to actual TTS AudioBuffer duration so words NEVER lag after voice ends
-      const activeAudioBuf = audioBuffersRef.current[sceneIndex];
-      const speechDur = activeAudioBuf ? Math.max(activeAudioBuf.duration * 0.96, 1.0) : currentSceneDuration * 0.92;
-      const speechProgress = Math.min(Math.max(timeInScene / speechDur, 0), 1);
+        // Sync caption progression directly to actual TTS AudioBuffer duration so words NEVER lag after voice ends
+        const activeAudioBuf = audioBuffersRef.current[sceneIndex];
+        const speechDur = activeAudioBuf ? Math.max(activeAudioBuf.duration * 0.96, 1.0) : currentSceneDuration * 0.92;
+        const speechProgress = Math.min(Math.max(timeInScene / speechDur, 0), 1);
 
-      // Check for scene transition to trigger Foley SFX (Preview mode only, prevents duplicate SFX during recording)
-      if (!isRecordingRef.current && sceneIndex !== lastSceneIndexRef.current) {
-        lastSceneIndexRef.current = sceneIndex;
-        playedSceneAudioRef.current = -1;
+        // Check for scene transition to trigger Foley SFX (Preview mode only, prevents duplicate SFX during recording)
+        if (!isRecordingRef.current && sceneIndex !== lastSceneIndexRef.current) {
+          lastSceneIndexRef.current = sceneIndex;
+          playedSceneAudioRef.current = -1;
 
-        if (sfxEnabled && audioCtxRef.current && audioDestRef.current && audioCtxRef.current.state === "running") {
-          playProceduralSFX(
-            audioCtxRef.current,
-            [audioCtxRef.current.destination, audioDestRef.current],
-            "whoosh"
-          );
-        }
-      }
-
-      // Trigger Voiceover AudioBuffer as soon as buffer is ready AND AudioContext is running (Preview Mode)
-      if (
-        audioEnabled &&
-        isPlayingRef.current &&
-        !isRecordingRef.current &&
-        sceneIndex !== playedSceneAudioRef.current &&
-        audioCtxRef.current &&
-        audioDestRef.current &&
-        audioCtxRef.current.state === "running"
-      ) {
-        const buf = audioBuffersRef.current[sceneIndex];
-        if (buf) {
-          if (activeAudioSourceRef.current && activeAudioGainRef.current) {
-            try {
-              const t = audioCtxRef.current.currentTime;
-              activeAudioGainRef.current.gain.setValueAtTime(activeAudioGainRef.current.gain.value, t);
-              activeAudioGainRef.current.gain.linearRampToValueAtTime(0.001, t + 0.06);
-              const oldSrc = activeAudioSourceRef.current;
-              setTimeout(() => {
-                try { oldSrc.stop(); oldSrc.disconnect(); } catch (_) { }
-              }, 70);
-            } catch (_) { }
+          if (sfxEnabled && audioCtxRef.current && audioDestRef.current && audioCtxRef.current.state === "running") {
+            playProceduralSFX(
+              audioCtxRef.current,
+              [audioCtxRef.current.destination, audioDestRef.current],
+              "whoosh"
+            );
           }
-          if (timeInScene < buf.duration - 0.1) {
-            try {
-              const src = audioCtxRef.current.createBufferSource();
-              const gain = audioCtxRef.current.createGain();
-              src.buffer = buf;
-              src.connect(gain);
-              if (analyserRef.current) {
-                gain.connect(analyserRef.current);
+        }
+
+        // Trigger Voiceover AudioBuffer as soon as buffer is ready AND AudioContext is running (Preview Mode)
+        if (
+          audioEnabled &&
+          isPlayingRef.current &&
+          !isRecordingRef.current &&
+          sceneIndex !== playedSceneAudioRef.current &&
+          audioCtxRef.current &&
+          audioDestRef.current &&
+          audioCtxRef.current.state === "running"
+        ) {
+          const buf = audioBuffersRef.current[sceneIndex];
+          if (buf) {
+            if (activeAudioSourceRef.current && activeAudioGainRef.current) {
+              try {
+                const t = audioCtxRef.current.currentTime;
+                activeAudioGainRef.current.gain.setValueAtTime(activeAudioGainRef.current.gain.value, t);
+                activeAudioGainRef.current.gain.linearRampToValueAtTime(0.001, t + 0.06);
+                const oldSrc = activeAudioSourceRef.current;
+                setTimeout(() => {
+                  try { oldSrc.stop(); oldSrc.disconnect(); } catch (_) { }
+                }, 70);
+              } catch (_) { }
+            }
+            if (timeInScene < buf.duration - 0.1) {
+              try {
+                const src = audioCtxRef.current.createBufferSource();
+                const gain = audioCtxRef.current.createGain();
+                src.buffer = buf;
+                src.connect(gain);
+                if (analyserRef.current) {
+                  gain.connect(analyserRef.current);
+                }
+                gain.connect(audioCtxRef.current.destination);
+                gain.connect(audioDestRef.current);
+                src.start(0, Math.max(0, timeInScene));
+                activeAudioSourceRef.current = src;
+                activeAudioGainRef.current = gain;
+              } catch (err) {
+                console.warn("Buffer playback notice:", err);
               }
-              gain.connect(audioCtxRef.current.destination);
-              gain.connect(audioDestRef.current);
-              src.start(0, Math.max(0, timeInScene));
-              activeAudioSourceRef.current = src;
-              activeAudioGainRef.current = gain;
-            } catch (err) {
-              console.warn("Buffer playback notice:", err);
+            }
+            playedSceneAudioRef.current = sceneIndex;
+          }
+        }
+
+        // Real-time acoustic vocal volume for natural lip-sync (closed when silent)
+        let currentVocalVolume = 0;
+        if (analyserRef.current) {
+          const freqData = new Uint8Array(analyserRef.current.frequencyBinCount);
+          analyserRef.current.getByteFrequencyData(freqData);
+          let sum = 0;
+          const speechBins = Math.min(freqData.length, 32);
+          for (let i = 2; i < speechBins; i++) {
+            sum += freqData[i];
+          }
+          currentVocalVolume = sum / Math.max(speechBins - 2, 1);
+        }
+
+        // Spring physics calculation
+        const springT = Math.min(sceneLocalProgress * 3.5, 1);
+        const springBounce = 0.88 + Math.sin(springT * Math.PI) * 0.14 * Math.exp(-springT * 2);
+        const enterEase = Math.min(sceneLocalProgress / 0.14, 1);
+        const exitEase = sceneLocalProgress > 0.88 ? (1 - sceneLocalProgress) / 0.12 : 1;
+        const transitionScale = 0.95 + springBounce * 0.05 * exitEase;
+        const transitionAlpha = Math.min(enterEase * exitEase * 1.5, 1);
+
+        const theme = MOTION_PALETTES[motionStyle] || MOTION_PALETTES["apple-keynote"];
+        const accentColor = theme.accentColor;
+
+        // 1. BACKGROUND RENDERING BASED ON ARCHETYPE (12 Hype & Editorial Styles)
+        ctx.fillStyle = theme.bgColor;
+        ctx.fillRect(0, 0, W, H);
+
+        if (motionStyle === "apple-keynote" || motionStyle === "viral-yellow") {
+          const radial = ctx.createRadialGradient(W / 2, H * 0.28, 20, W / 2, H * 0.28, W * 0.75);
+          radial.addColorStop(0, `${accentColor}1A`);
+          radial.addColorStop(1, "rgba(0, 0, 0, 0)");
+          ctx.fillStyle = radial;
+          ctx.fillRect(0, 0, W, H);
+        } else if (motionStyle === "glass-aurora") {
+          const ox1 = W * 0.3 + Math.sin(elapsed * 0.7) * 90;
+          const oy1 = H * 0.25 + Math.cos(elapsed * 0.5) * 60;
+          const g1 = ctx.createRadialGradient(ox1, oy1, 20, ox1, oy1, 320);
+          g1.addColorStop(0, "rgba(139, 92, 246, 0.35)");
+          g1.addColorStop(1, "rgba(0,0,0,0)");
+          ctx.fillStyle = g1;
+          ctx.fillRect(0, 0, W, H);
+
+          const ox2 = W * 0.75 + Math.cos(elapsed * 0.6) * 80;
+          const oy2 = H * 0.7 + Math.sin(elapsed * 0.8) * 60;
+          const g2 = ctx.createRadialGradient(ox2, oy2, 20, ox2, oy2, 300);
+          g2.addColorStop(0, "rgba(34, 211, 238, 0.28)");
+          g2.addColorStop(1, "rgba(0,0,0,0)");
+          ctx.fillStyle = g2;
+          ctx.fillRect(0, 0, W, H);
+        } else if (motionStyle === "editorial-light" || motionStyle === "notion-clean") {
+          // Subtle editorial paper grid
+          ctx.strokeStyle = "rgba(15, 23, 42, 0.045)";
+          ctx.lineWidth = 1;
+          for (let x = 0; x < W; x += 48) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, H);
+            ctx.stroke();
+          }
+          for (let y = 0; y < H; y += 48) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(W, y);
+            ctx.stroke();
+          }
+        } else if (motionStyle === "neo-brutalism") {
+          // Bold polka/grid dots
+          ctx.fillStyle = "rgba(9, 9, 11, 0.08)";
+          for (let x = 24; x < W; x += 36) {
+            for (let y = 24; y < H; y += 36) {
+              ctx.beginPath();
+              ctx.arc(x, y, 2, 0, Math.PI * 2);
+              ctx.fill();
             }
           }
-          playedSceneAudioRef.current = sceneIndex;
-        }
-      }
-
-      // Real-time acoustic vocal volume for natural lip-sync (closed when silent)
-      let currentVocalVolume = 0;
-      if (analyserRef.current) {
-        const freqData = new Uint8Array(analyserRef.current.frequencyBinCount);
-        analyserRef.current.getByteFrequencyData(freqData);
-        let sum = 0;
-        const speechBins = Math.min(freqData.length, 32);
-        for (let i = 2; i < speechBins; i++) {
-          sum += freqData[i];
-        }
-        currentVocalVolume = sum / Math.max(speechBins - 2, 1);
-      }
-
-      // Spring physics calculation
-      const springT = Math.min(sceneLocalProgress * 3.5, 1);
-      const springBounce = 0.88 + Math.sin(springT * Math.PI) * 0.14 * Math.exp(-springT * 2);
-      const enterEase = Math.min(sceneLocalProgress / 0.14, 1);
-      const exitEase = sceneLocalProgress > 0.88 ? (1 - sceneLocalProgress) / 0.12 : 1;
-      const transitionScale = 0.95 + springBounce * 0.05 * exitEase;
-      const transitionAlpha = Math.min(enterEase * exitEase * 1.5, 1);
-
-      const theme = MOTION_PALETTES[motionStyle] || MOTION_PALETTES["apple-keynote"];
-      const accentColor = theme.accentColor;
-
-      // 1. BACKGROUND RENDERING BASED ON ARCHETYPE (12 Hype & Editorial Styles)
-      ctx.fillStyle = theme.bgColor;
-      ctx.fillRect(0, 0, W, H);
-
-      if (motionStyle === "apple-keynote" || motionStyle === "viral-yellow") {
-        const radial = ctx.createRadialGradient(W / 2, H * 0.28, 20, W / 2, H * 0.28, W * 0.75);
-        radial.addColorStop(0, `${accentColor}1A`);
-        radial.addColorStop(1, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = radial;
-        ctx.fillRect(0, 0, W, H);
-      } else if (motionStyle === "glass-aurora") {
-        const ox1 = W * 0.3 + Math.sin(elapsed * 0.7) * 90;
-        const oy1 = H * 0.25 + Math.cos(elapsed * 0.5) * 60;
-        const g1 = ctx.createRadialGradient(ox1, oy1, 20, ox1, oy1, 320);
-        g1.addColorStop(0, "rgba(139, 92, 246, 0.35)");
-        g1.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = g1;
-        ctx.fillRect(0, 0, W, H);
-
-        const ox2 = W * 0.75 + Math.cos(elapsed * 0.6) * 80;
-        const oy2 = H * 0.7 + Math.sin(elapsed * 0.8) * 60;
-        const g2 = ctx.createRadialGradient(ox2, oy2, 20, ox2, oy2, 300);
-        g2.addColorStop(0, "rgba(34, 211, 238, 0.28)");
-        g2.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = g2;
-        ctx.fillRect(0, 0, W, H);
-      } else if (motionStyle === "editorial-light" || motionStyle === "notion-clean") {
-        // Subtle editorial paper grid
-        ctx.strokeStyle = "rgba(15, 23, 42, 0.045)";
-        ctx.lineWidth = 1;
-        for (let x = 0; x < W; x += 48) {
-          ctx.beginPath();
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, H);
-          ctx.stroke();
-        }
-        for (let y = 0; y < H; y += 48) {
-          ctx.beginPath();
-          ctx.moveTo(0, y);
-          ctx.lineTo(W, y);
-          ctx.stroke();
-        }
-      } else if (motionStyle === "neo-brutalism") {
-        // Bold polka/grid dots
-        ctx.fillStyle = "rgba(9, 9, 11, 0.08)";
-        for (let x = 24; x < W; x += 36) {
-          for (let y = 24; y < H; y += 36) {
+        } else if (motionStyle === "fintech-alpha" || motionStyle === "midnight-slate") {
+          ctx.strokeStyle = `${accentColor}14`;
+          ctx.lineWidth = 1;
+          for (let x = 0; x < W; x += 40) {
             ctx.beginPath();
-            ctx.arc(x, y, 2, 0, Math.PI * 2);
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, H);
+            ctx.stroke();
+          }
+          for (let y = 0; y < H; y += 40) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(W, y);
+            ctx.stroke();
+          }
+        } else if (motionStyle === "cyber-hud") {
+          ctx.fillStyle = "rgba(6, 182, 212, 0.03)";
+          for (let y = 0; y < H; y += 4) {
+            ctx.fillRect(0, y, W, 2);
+          }
+        } else if (motionStyle === "stoic-gold") {
+          particles.forEach((p) => {
+            p.y -= p.speed;
+            if (p.y < 0) p.y = H;
+            ctx.fillStyle = `rgba(245, 158, 11, ${p.opacity * (1 - p.y / H)})`;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        } else if (motionStyle === "swiss-minimalist") {
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.035)";
+          ctx.lineWidth = 1;
+          for (let x = 60; x < W; x += 60) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, H);
+            ctx.stroke();
+          }
+          for (let y = 60; y < H; y += 60) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(W, y);
+            ctx.stroke();
+          }
+          ctx.strokeStyle = "#ef4444";
+          ctx.lineWidth = 2;
+          const cross = (cx: number, cy: number) => {
+            ctx.beginPath();
+            ctx.moveTo(cx - 8, cy);
+            ctx.lineTo(cx + 8, cy);
+            ctx.moveTo(cx, cy - 8);
+            ctx.lineTo(cx, cy + 8);
+            ctx.stroke();
+          };
+          cross(50, 110);
+          cross(W - 50, 110);
+          cross(50, H - 70);
+          cross(W - 50, H - 70);
+        } else if (motionStyle === "retro-arcade") {
+          const horizonY = H * 0.72;
+          ctx.strokeStyle = "rgba(236, 72, 153, 0.18)";
+          ctx.lineWidth = 1.5;
+          for (let x = -W; x <= W * 2; x += 70) {
+            ctx.beginPath();
+            ctx.moveTo(W / 2, horizonY);
+            ctx.lineTo(x, H);
+            ctx.stroke();
+          }
+          const gridOffset = (elapsed * 35) % 25;
+          for (let y = horizonY; y < H; y += 25) {
+            const actualY = y + gridOffset;
+            if (actualY <= H) {
+              ctx.beginPath();
+              ctx.moveTo(0, actualY);
+              ctx.lineTo(W, actualY);
+              ctx.stroke();
+            }
+          }
+        }
+
+        // 1B. ANIMATED PIXEL BLOCK GRID OVERLAY (Editorial Motion Texture)
+        ctx.save();
+        pixelBlocks.forEach((b) => {
+          const pulseAlpha = (Math.sin(elapsed * b.speed + b.phase) * 0.5 + 0.5) * 0.055;
+          ctx.fillStyle = theme.isLight
+            ? `rgba(15, 23, 42, ${pulseAlpha.toFixed(3)})`
+            : `rgba(255, 255, 255, ${pulseAlpha.toFixed(3)})`;
+          ctx.fillRect(b.col * blockSize, b.row * blockSize, blockSize - 2, blockSize - 2);
+        });
+        ctx.restore();
+
+        // 2. TOP HEADER BAR & 4-SEGMENT PILL PROGRESS INDICATOR
+        ctx.save();
+        ctx.fillStyle = theme.textColor;
+        ctx.font = "800 16px sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("BUATPROMPT", 60, 62);
+
+        // Serial Educational Badge on Canvas (e.g. SERI 01 / 03)
+        if (seriesCount > 1 || seriesEpisodes.length > 1) {
+          ctx.save();
+          ctx.fillStyle = `${accentColor}26`;
+          ctx.strokeStyle = `${accentColor}88`;
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.roundRect(185, 48, 105, 22, 11);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.font = "800 11px sans-serif";
+          ctx.fillStyle = accentColor;
+          ctx.textAlign = "center";
+          const currentPartDisplay = activeSeriesPart || 1;
+          const totalPartsDisplay = seriesEpisodes.length > 0 ? seriesEpisodes.length : seriesCount;
+          ctx.fillText(`SERI 0${currentPartDisplay} / 0${totalPartsDisplay}`, 237, 63);
+          ctx.restore();
+        }
+
+        // 4-Segment Horizontal Progress Pills (Top Right)
+        const segCount = mode === "multi" ? scenes.length : 1;
+        const segW = 32;
+        const segGap = 8;
+        const totalSegW = segCount * segW + (segCount - 1) * segGap;
+        const segStartX = W - 60 - totalSegW;
+
+        for (let i = 0; i < segCount; i++) {
+          const sx = segStartX + i * (segW + segGap);
+          const sy = 53;
+          ctx.fillStyle = theme.isLight ? "rgba(15, 23, 42, 0.14)" : "rgba(255, 255, 255, 0.16)";
+          ctx.beginPath();
+          ctx.roundRect(sx, sy, segW, 6, 3);
+          ctx.fill();
+
+          let fillRatio = 0;
+          if (i < sceneIndex) fillRatio = 1;
+          else if (i === sceneIndex) fillRatio = Math.min(Math.max(sceneLocalProgress, 0.05), 1);
+
+          if (fillRatio > 0) {
+            ctx.fillStyle = accentColor;
+            ctx.beginPath();
+            ctx.roundRect(sx, sy, segW * fillRatio, 6, 3);
             ctx.fill();
           }
         }
-      } else if (motionStyle === "fintech-alpha" || motionStyle === "midnight-slate") {
-        ctx.strokeStyle = `${accentColor}14`;
-        ctx.lineWidth = 1;
-        for (let x = 0; x < W; x += 40) {
-          ctx.beginPath();
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, H);
-          ctx.stroke();
-        }
-        for (let y = 0; y < H; y += 40) {
-          ctx.beginPath();
-          ctx.moveTo(0, y);
-          ctx.lineTo(W, y);
-          ctx.stroke();
-        }
-      } else if (motionStyle === "cyber-hud") {
-        ctx.fillStyle = "rgba(6, 182, 212, 0.03)";
-        for (let y = 0; y < H; y += 4) {
-          ctx.fillRect(0, y, W, 2);
-        }
-      } else if (motionStyle === "stoic-gold") {
-        particles.forEach((p) => {
-          p.y -= p.speed;
-          if (p.y < 0) p.y = H;
-          ctx.fillStyle = `rgba(245, 158, 11, ${p.opacity * (1 - p.y / H)})`;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-          ctx.fill();
-        });
-      } else if (motionStyle === "swiss-minimalist") {
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.035)";
-        ctx.lineWidth = 1;
-        for (let x = 60; x < W; x += 60) {
-          ctx.beginPath();
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, H);
-          ctx.stroke();
-        }
-        for (let y = 60; y < H; y += 60) {
-          ctx.beginPath();
-          ctx.moveTo(0, y);
-          ctx.lineTo(W, y);
-          ctx.stroke();
-        }
-        ctx.strokeStyle = "#ef4444";
-        ctx.lineWidth = 2;
-        const cross = (cx: number, cy: number) => {
-          ctx.beginPath();
-          ctx.moveTo(cx - 8, cy);
-          ctx.lineTo(cx + 8, cy);
-          ctx.moveTo(cx, cy - 8);
-          ctx.lineTo(cx, cy + 8);
-          ctx.stroke();
+        ctx.restore();
+
+        // Helper: smart wrap into N lines without breaking decimal numbers or word order
+        const wrapTextLines = (txt: string, maxCharsPerLine: number, maxLines: number): string[] => {
+          const clean = txt.replace(/\s+/g, " ").trim();
+          const tokens = clean.split(" ");
+          const lines: string[] = [];
+          let cur = "";
+          for (const t of tokens) {
+            const next = cur ? `${cur} ${t}` : t;
+            if (next.length <= maxCharsPerLine) {
+              cur = next;
+            } else {
+              if (cur) lines.push(cur);
+              cur = t;
+              if (lines.length >= maxLines) break;
+            }
+          }
+          if (cur && lines.length < maxLines) lines.push(cur);
+          if (lines.length === maxLines && tokens.join(" ").length > lines.join(" ").length) {
+            lines[maxLines - 1] = lines[maxLines - 1].replace(/[.,!?]*$/, "") + "…";
+          }
+          return lines;
         };
-        cross(50, 110);
-        cross(W - 50, 110);
-        cross(50, H - 70);
-        cross(W - 50, H - 70);
-      } else if (motionStyle === "retro-arcade") {
-        const horizonY = H * 0.72;
-        ctx.strokeStyle = "rgba(236, 72, 153, 0.18)";
-        ctx.lineWidth = 1.5;
-        for (let x = -W; x <= W * 2; x += 70) {
-          ctx.beginPath();
-          ctx.moveTo(W / 2, horizonY);
-          ctx.lineTo(x, H);
-          ctx.stroke();
-        }
-        const gridOffset = (elapsed * 35) % 25;
-        for (let y = horizonY; y < H; y += 25) {
-          const actualY = y + gridOffset;
-          if (actualY <= H) {
+
+        // Smart sentence splitter that ignores decimal points like "1.5"
+        const splitSentences = (txt: string): string[] =>
+          txt
+            .split(/(?<!\d)[.!?]+(?!\d)/)
+            .map((s) => s.trim())
+            .filter(Boolean);
+
+        // 3. ZONE 1: MOBILE-FIRST EDITORIAL SHOWCASE STAGE (4 Distinct Choreographies, Large 18-26px Type)
+        if (showUpperCard) {
+          ctx.save();
+          ctx.globalAlpha = transitionAlpha;
+          const cardY = 92;
+          const cardW = W - 100; // 620px wide
+          const cardH = 310;
+          const cardX = 50;
+
+          if (motionStyle === "neo-brutalism") {
+            ctx.fillStyle = "#09090b";
             ctx.beginPath();
-            ctx.moveTo(0, actualY);
-            ctx.lineTo(W, actualY);
-            ctx.stroke();
+            ctx.roundRect(cardX + 8, cardY + 8, cardW, cardH, 24);
+            ctx.fill();
           }
-        }
-      }
 
-      // 1B. ANIMATED PIXEL BLOCK GRID OVERLAY (Editorial Motion Texture)
-      ctx.save();
-      pixelBlocks.forEach((b) => {
-        const pulseAlpha = (Math.sin(elapsed * b.speed + b.phase) * 0.5 + 0.5) * 0.055;
-        ctx.fillStyle = theme.isLight
-          ? `rgba(15, 23, 42, ${pulseAlpha.toFixed(3)})`
-          : `rgba(255, 255, 255, ${pulseAlpha.toFixed(3)})`;
-        ctx.fillRect(b.col * blockSize, b.row * blockSize, blockSize - 2, blockSize - 2);
-      });
-      ctx.restore();
-
-      // 2. TOP HEADER BAR & 4-SEGMENT PILL PROGRESS INDICATOR
-      ctx.save();
-      ctx.fillStyle = theme.textColor;
-      ctx.font = "800 16px sans-serif";
-      ctx.textAlign = "left";
-      ctx.fillText("BUATPROMPT", 60, 62);
-
-      // Serial Educational Badge on Canvas (e.g. SERI 01 / 03)
-      if (seriesCount > 1 || seriesEpisodes.length > 1) {
-        ctx.save();
-        ctx.fillStyle = `${accentColor}26`;
-        ctx.strokeStyle = `${accentColor}88`;
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.roundRect(185, 48, 105, 22, 11);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.font = "800 11px sans-serif";
-        ctx.fillStyle = accentColor;
-        ctx.textAlign = "center";
-        const currentPartDisplay = activeSeriesPart || 1;
-        const totalPartsDisplay = seriesEpisodes.length > 0 ? seriesEpisodes.length : seriesCount;
-        ctx.fillText(`SERI 0${currentPartDisplay} / 0${totalPartsDisplay}`, 237, 63);
-        ctx.restore();
-      }
-
-      // 4-Segment Horizontal Progress Pills (Top Right)
-      const segCount = mode === "multi" ? scenes.length : 1;
-      const segW = 32;
-      const segGap = 8;
-      const totalSegW = segCount * segW + (segCount - 1) * segGap;
-      const segStartX = W - 60 - totalSegW;
-
-      for (let i = 0; i < segCount; i++) {
-        const sx = segStartX + i * (segW + segGap);
-        const sy = 53;
-        ctx.fillStyle = theme.isLight ? "rgba(15, 23, 42, 0.14)" : "rgba(255, 255, 255, 0.16)";
-        ctx.beginPath();
-        ctx.roundRect(sx, sy, segW, 6, 3);
-        ctx.fill();
-
-        let fillRatio = 0;
-        if (i < sceneIndex) fillRatio = 1;
-        else if (i === sceneIndex) fillRatio = Math.min(Math.max(sceneLocalProgress, 0.05), 1);
-
-        if (fillRatio > 0) {
-          ctx.fillStyle = accentColor;
+          ctx.fillStyle = theme.cardBg;
+          ctx.strokeStyle = theme.cardBorder;
+          ctx.lineWidth = motionStyle === "neo-brutalism" ? 3 : 1.5;
           ctx.beginPath();
-          ctx.roundRect(sx, sy, segW * fillRatio, 6, 3);
-          ctx.fill();
-        }
-      }
-      ctx.restore();
-
-      // Helper: smart wrap into N lines without breaking decimal numbers or word order
-      const wrapTextLines = (txt: string, maxCharsPerLine: number, maxLines: number): string[] => {
-        const clean = txt.replace(/\s+/g, " ").trim();
-        const tokens = clean.split(" ");
-        const lines: string[] = [];
-        let cur = "";
-        for (const t of tokens) {
-          const next = cur ? `${cur} ${t}` : t;
-          if (next.length <= maxCharsPerLine) {
-            cur = next;
-          } else {
-            if (cur) lines.push(cur);
-            cur = t;
-            if (lines.length >= maxLines) break;
-          }
-        }
-        if (cur && lines.length < maxLines) lines.push(cur);
-        if (lines.length === maxLines && tokens.join(" ").length > lines.join(" ").length) {
-          lines[maxLines - 1] = lines[maxLines - 1].replace(/[.,!?]*$/, "") + "…";
-        }
-        return lines;
-      };
-
-      // Smart sentence splitter that ignores decimal points like "1.5"
-      const splitSentences = (txt: string): string[] =>
-        txt
-          .split(/(?<!\d)[.!?]+(?!\d)/)
-          .map((s) => s.trim())
-          .filter(Boolean);
-
-      // 3. ZONE 1: MOBILE-FIRST EDITORIAL SHOWCASE STAGE (4 Distinct Choreographies, Large 18-26px Type)
-      if (showUpperCard) {
-        ctx.save();
-        ctx.globalAlpha = transitionAlpha;
-        const cardY = 92;
-        const cardW = W - 100; // 620px wide
-        const cardH = 310;
-        const cardX = 50;
-
-        if (motionStyle === "neo-brutalism") {
-          ctx.fillStyle = "#09090b";
-          ctx.beginPath();
-          ctx.roundRect(cardX + 8, cardY + 8, cardW, cardH, 24);
-          ctx.fill();
-        }
-
-        ctx.fillStyle = theme.cardBg;
-        ctx.strokeStyle = theme.cardBorder;
-        ctx.lineWidth = motionStyle === "neo-brutalism" ? 3 : 1.5;
-        ctx.beginPath();
-        ctx.roundRect(cardX, cardY, cardW, cardH, 24);
-        ctx.fill();
-        ctx.stroke();
-
-        if (sceneIndex === 0) {
-          // SCENE 1: Big "01" Number + Large Topic Title + Tilted White Sticker Callout
-          ctx.font = "900 46px sans-serif";
-          ctx.fillStyle = accentColor;
-          ctx.textAlign = "left";
-          ctx.fillText("01", cardX + 28, cardY + 62);
-
-          // Pill badge next to 01
-          ctx.fillStyle = `${accentColor}22`;
-          ctx.strokeStyle = `${accentColor}88`;
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.roundRect(cardX + 98, cardY + 28, 155, 34, 17);
+          ctx.roundRect(cardX, cardY, cardW, cardH, 24);
           ctx.fill();
           ctx.stroke();
-
-          ctx.font = "800 15px sans-serif";
-          ctx.fillStyle = theme.cardText;
-          ctx.textAlign = "center";
-          ctx.fillText("TOPIK UTAMA", cardX + 175, cardY + 50);
-
-          // Large mobile-readable topic (25px bold)
-          ctx.textAlign = "left";
-          ctx.fillStyle = theme.cardText;
-          ctx.font = "800 25px sans-serif";
-          const displayTopic = topicIdea.trim() || currentHeadline;
-          const topicLines = wrapTextLines(displayTopic, 29, 3);
-          topicLines.forEach((ln, idx) => {
-            const prefix = idx === 0 ? "“" : "";
-            const suffix = idx === topicLines.length - 1 ? "”" : "";
-            ctx.fillText(`${prefix}${ln}${suffix}`, cardX + 28, cardY + 112 + idx * 34);
-          });
-
-          // Tilted White Sticker Callout
-          ctx.save();
-          const stickerSpring = Math.min(sceneLocalProgress * 4, 1);
-          const stickerScale = 0.85 + Math.sin(stickerSpring * Math.PI * 0.5) * 0.15;
-          ctx.translate(cardX + cardW - 145, cardY + 258);
-          ctx.rotate(-0.045); // -2.6 deg tilt
-          ctx.scale(stickerScale, stickerScale);
-
-          ctx.fillStyle = "#ffffff";
-          ctx.shadowColor = "rgba(0,0,0,0.45)";
-          ctx.shadowBlur = 16;
-          ctx.beginPath();
-          ctx.roundRect(-125, -24, 250, 48, 24);
-          ctx.fill();
-          ctx.shadowBlur = 0;
-
-          ctx.font = "800 17px sans-serif";
-          ctx.fillStyle = "#0f172a";
-          ctx.textAlign = "center";
-          ctx.fillText(currentMetric || "WAJIB TAHU!", 0, 6);
-          ctx.restore();
-        } else if (sceneIndex === 1) {
-          // SCENE 2: Big "02" + Large Problem Headline + Big High-Contrast Insight Box (Readable on Phone!)
-          ctx.font = "900 44px sans-serif";
-          ctx.fillStyle = "#ef4444";
-          ctx.textAlign = "left";
-          ctx.fillText("02", cardX + 28, cardY + 58);
-
-          ctx.fillStyle = "rgba(239, 68, 68, 0.2)";
-          ctx.strokeStyle = "rgba(239, 68, 68, 0.6)";
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.roundRect(cardX + 98, cardY + 26, 175, 34, 17);
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.font = "800 15px sans-serif";
-          ctx.fillStyle = theme.isLight ? "#dc2626" : "#fca5a5";
-          ctx.textAlign = "center";
-          ctx.fillText("MASALAH UTAMA", cardX + 185, cardY + 48);
-
-          // Headline (22px bold, 2 lines)
-          ctx.textAlign = "left";
-          ctx.font = "800 22px sans-serif";
-          ctx.fillStyle = theme.cardText;
-          const hLines = wrapTextLines(currentHeadline, 31, 2);
-          hLines.forEach((ln, idx) => {
-            ctx.fillText(ln, cardX + 28, cardY + 104 + idx * 30);
-          });
-
-          // Large readable fact box (19px!)
-          const subSentences = splitSentences(currentSubtext);
-          const factText = subSentences[0] || currentSubtext;
-          const factLines = wrapTextLines(factText, 34, 3);
-
-          ctx.fillStyle = "rgba(239, 68, 68, 0.12)";
-          ctx.strokeStyle = "rgba(239, 68, 68, 0.38)";
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.roundRect(cardX + 24, cardY + 168, cardW - 48, 118, 16);
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.font = "600 19px sans-serif";
-          ctx.fillStyle = theme.cardText;
-          factLines.forEach((ln, idx) => {
-            ctx.fillText(ln, cardX + 42, cardY + 204 + idx * 28);
-          });
-        } else if (sceneIndex === 2) {
-          // SCENE 3: Big "03" + Animated Metric Progress Bar + Large Solution Card
-          ctx.font = "900 44px sans-serif";
-          ctx.fillStyle = "#10b981";
-          ctx.textAlign = "left";
-          ctx.fillText("03", cardX + 28, cardY + 58);
-
-          ctx.fillStyle = "rgba(16, 185, 129, 0.2)";
-          ctx.strokeStyle = "rgba(16, 185, 129, 0.6)";
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.roundRect(cardX + 98, cardY + 26, 165, 34, 17);
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.font = "800 15px sans-serif";
-          ctx.fillStyle = theme.isLight ? "#047857" : "#6ee7b7";
-          ctx.textAlign = "center";
-          ctx.fillText("SOLUSI TERUJI", cardX + 180, cardY + 48);
-
-          // Big Metric Pill on Top Right
-          ctx.textAlign = "right";
-          ctx.font = "900 22px monospace";
-          ctx.fillStyle = "#10b981";
-          ctx.fillText(currentMetric || "+300%", cardX + cardW - 28, cardY + 50);
-
-          // Headline (22px bold)
-          ctx.textAlign = "left";
-          ctx.font = "800 22px sans-serif";
-          ctx.fillStyle = theme.cardText;
-          const hLines = wrapTextLines(currentHeadline, 31, 2);
-          hLines.forEach((ln, idx) => {
-            ctx.fillText(ln, cardX + 28, cardY + 104 + idx * 30);
-          });
-
-          // Animated Progress Bar inside Card
-          const barW = cardW - 56;
-          const fillPct = Math.min(sceneLocalProgress * 1.4, 1);
-          ctx.fillStyle = theme.isLight ? "rgba(15, 23, 42, 0.1)" : "rgba(255, 255, 255, 0.1)";
-          ctx.beginPath();
-          ctx.roundRect(cardX + 28, cardY + 162, barW, 12, 6);
-          ctx.fill();
-
-          ctx.fillStyle = "#10b981";
-          ctx.beginPath();
-          ctx.roundRect(cardX + 28, cardY + 162, barW * fillPct, 12, 6);
-          ctx.fill();
-
-          // Large readable solution detail (19px!)
-          const subSentences = splitSentences(currentSubtext);
-          const solText = subSentences[0] || currentSubtext;
-          const solLines = wrapTextLines(solText, 34, 3);
-          ctx.font = "600 19px sans-serif";
-          ctx.fillStyle = theme.cardSubText;
-          solLines.forEach((ln, idx) => {
-            ctx.fillText(ln, cardX + 28, cardY + 206 + idx * 28);
-          });
-        } else {
-          // SCENE 4: Big "04" + Clear Mobile-Readable CTA + Pulsing Action Button
-          ctx.font = "900 44px sans-serif";
-          ctx.fillStyle = accentColor;
-          ctx.textAlign = "left";
-          ctx.fillText("04", cardX + 28, cardY + 58);
-
-          ctx.fillStyle = `${accentColor}22`;
-          ctx.strokeStyle = `${accentColor}88`;
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.roundRect(cardX + 98, cardY + 26, 170, 34, 17);
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.font = "800 15px sans-serif";
-          ctx.fillStyle = theme.cardText;
-          ctx.textAlign = "center";
-          ctx.fillText("LANGKAH AKSI", cardX + 183, cardY + 48);
-
-          // Big Headline
-          ctx.textAlign = "left";
-          ctx.font = "800 23px sans-serif";
-          ctx.fillStyle = theme.cardText;
-          const hLines = wrapTextLines(currentHeadline, 30, 2);
-          hLines.forEach((ln, idx) => {
-            ctx.fillText(ln, cardX + 28, cardY + 106 + idx * 32);
-          });
-
-          // Subtext (19px readable)
-          const subSentences = splitSentences(currentSubtext);
-          const ctaLines = wrapTextLines(subSentences[0] || currentSubtext, 34, 2);
-          ctx.font = "500 18px sans-serif";
-          ctx.fillStyle = theme.cardSubText;
-          ctaLines.forEach((ln, idx) => {
-            ctx.fillText(ln, cardX + 28, cardY + 178 + idx * 26);
-          });
-
-          // Big Pulsing Action Button
-          const btnY = cardY + 236;
-          const btnPulse = 1 + Math.sin(elapsed * 5) * 0.025;
-          ctx.save();
-          ctx.translate(cardX + cardW / 2, btnY + 26);
-          ctx.scale(btnPulse, btnPulse);
-          ctx.fillStyle = "#10b981";
-          ctx.beginPath();
-          ctx.roundRect(-(cardW - 56) / 2, -26, cardW - 56, 52, 14);
-          ctx.fill();
-
-          ctx.font = "900 18px sans-serif";
-          ctx.fillStyle = "#06281e";
-          ctx.textAlign = "center";
-          ctx.fillText(`✓ ${currentMetric || "SIMPAN & PRAKTIKKAN"}`, 0, 6);
-          ctx.restore();
-          ctx.textAlign = "left";
-        }
-        ctx.restore();
-      }
-
-      // 4. ZONE 2: MULTI-STYLE DYNAMIC KARAOKE TYPOGRAPHY (4 Visual Choreographies)
-      ctx.save();
-      ctx.globalAlpha = transitionAlpha;
-      const timedPhrases = extractTimedPhrases(
-        currentHeadline,
-        currentSubtext,
-        currentHighlight,
-        currentMetric
-      );
-
-      // Drive phrase selection from speechProgress so captions NEVER lag after voice stops
-      const activePhrase =
-        timedPhrases.find((p) => speechProgress >= p.startPct && speechProgress < p.endPct) ||
-        timedPhrases[timedPhrases.length - 1];
-
-      const phraseDuration = Math.max(activePhrase.endPct - activePhrase.startPct, 0.05);
-      const phraseProgress = Math.min(Math.max((speechProgress - activePhrase.startPct) / phraseDuration, 0), 1);
-
-      // Centered between the upper card and the presenter avatar for perfect zero-collision hierarchy
-      const phraseCenterY = showUpperCard ? 560 : 500;
-
-      // Render Metric Badge above the beat if present
-      if (activePhrase.badge) {
-        ctx.font = "800 18px monospace";
-        ctx.fillStyle = accentColor;
-        ctx.textAlign = "center";
-        ctx.fillText(`[ ${activePhrase.badge} ]`, W / 2, phraseCenterY - 88);
-      }
-
-      const fontFamily = theme.fontFamily;
-
-      const words = activePhrase.words && activePhrase.words.length > 0
-        ? activePhrase.words
-        : activePhrase.phraseText.split(" ");
-
-      // Larger mobile-friendly font size (52px base, min 32px)
-      const maxLineWidth = W - 120; // 600px max
-      let fontSize = 52;
-      const buildLines = (fSize: number) => {
-        ctx.font = `900 ${fSize}px ${fontFamily}`;
-        const spaceW = ctx.measureText(" ").width * 1.15;
-        const lines: Array<Array<{ word: string; w: number; idx: number }>> = [[]];
-        let curW = 0;
-
-        words.forEach((word, idx) => {
-          const w = ctx.measureText(word).width;
-          if (lines[lines.length - 1].length > 0 && curW + spaceW + w > maxLineWidth) {
-            lines.push([{ word, w, idx }]);
-            curW = w;
-          } else {
-            lines[lines.length - 1].push({ word, w, idx });
-            curW += (lines[lines.length - 1].length > 1 ? spaceW : 0) + w;
-          }
-        });
-        return { lines, spaceW };
-      };
-
-      let layout = buildLines(fontSize);
-      while (layout.lines.length > 2 && fontSize > 32) {
-        fontSize -= 2;
-        layout = buildLines(fontSize);
-      }
-
-      const activeWordFloat = phraseProgress * words.length;
-      const activeWordIdx = Math.min(Math.floor(activeWordFloat), words.length - 1);
-      const lineHeight = fontSize * 1.32;
-      const startY = phraseCenterY - ((layout.lines.length - 1) * lineHeight) / 2;
-
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-
-      layout.lines.forEach((line, lineIdx) => {
-        const lineW =
-          line.reduce((acc, item) => acc + item.w, 0) +
-          Math.max(0, line.length - 1) * layout.spaceW;
-        let cursorX = W / 2 - lineW / 2;
-        const lineY = startY + lineIdx * lineHeight;
-
-        line.forEach((item) => {
-          const isSpoken = item.idx <= activeWordIdx;
-          const isCurrentWord = item.idx === activeWordIdx;
-          const isKeyword =
-            activePhrase.highlightWord &&
-            item.word.includes(activePhrase.highlightWord);
-
-          const wordProgress = isCurrentWord ? activeWordFloat - activeWordIdx : 1;
-
-          // Distinct per-scene choreography!
-          let wordScale = 1;
-          let wordOffsetY = 0;
-          let wordRot = 0;
 
           if (sceneIndex === 0) {
-            // Scene 1: High-Energy Spring Pop
-            wordScale = isCurrentWord ? 1 + Math.sin(Math.min(wordProgress * 2.5, 1) * Math.PI) * 0.14 : 1;
-          } else if (sceneIndex === 1) {
-            // Scene 2: Slide-Up Masked Reveal
-            wordOffsetY = isCurrentWord ? (1 - Math.min(wordProgress * 3, 1)) * 16 : 0;
-            wordScale = isCurrentWord ? 1.06 : 1;
-          } else if (sceneIndex === 2) {
-            // Scene 3: Editorial Emphasis + Sweep Underline
-            wordScale = isCurrentWord ? 1.08 : 1;
-          } else {
-            // Scene 4: Spotlight Tilt Pop
-            wordScale = isCurrentWord ? 1.1 : 1;
-            wordRot = isKeyword && isSpoken ? -0.03 : 0;
-          }
+            // SCENE 1: Big "01" Number + Large Topic Title + Tilted White Sticker Callout
+            ctx.font = "900 46px sans-serif";
+            ctx.fillStyle = accentColor;
+            ctx.textAlign = "left";
+            ctx.fillText("01", cardX + 28, cardY + 62);
 
-          ctx.save();
-          ctx.translate(cursorX + item.w / 2, lineY + wordOffsetY);
-          ctx.rotate(wordRot);
-          ctx.scale(wordScale, wordScale);
-          ctx.font = `900 ${fontSize}px ${fontFamily}`;
-
-          if (isKeyword && isSpoken) {
-            const padX = 14;
-            const padY = 8;
-            ctx.fillStyle = `${accentColor}30`;
-            ctx.strokeStyle = accentColor;
-            ctx.lineWidth = 2.5;
+            // Pill badge next to 01
+            ctx.fillStyle = `${accentColor}22`;
+            ctx.strokeStyle = `${accentColor}88`;
+            ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.roundRect(-item.w / 2 - padX, -fontSize / 2 - padY / 2, item.w + padX * 2, fontSize + padY, 14);
+            ctx.roundRect(cardX + 98, cardY + 28, 155, 34, 17);
             ctx.fill();
             ctx.stroke();
 
-            ctx.fillStyle = accentColor;
-            ctx.shadowColor = accentColor;
+            ctx.font = "800 15px sans-serif";
+            ctx.fillStyle = theme.cardText;
+            ctx.textAlign = "center";
+            ctx.fillText("TOPIK UTAMA", cardX + 175, cardY + 50);
+
+            // Large mobile-readable topic (25px bold)
+            ctx.textAlign = "left";
+            ctx.fillStyle = theme.cardText;
+            ctx.font = "800 25px sans-serif";
+            const displayTopic = topicIdea.trim() || currentHeadline;
+            const topicLines = wrapTextLines(displayTopic, 29, 3);
+            topicLines.forEach((ln, idx) => {
+              const prefix = idx === 0 ? "“" : "";
+              const suffix = idx === topicLines.length - 1 ? "”" : "";
+              ctx.fillText(`${prefix}${ln}${suffix}`, cardX + 28, cardY + 112 + idx * 34);
+            });
+
+            // Tilted White Sticker Callout
+            ctx.save();
+            const stickerSpring = Math.min(sceneLocalProgress * 4, 1);
+            const stickerScale = 0.85 + Math.sin(stickerSpring * Math.PI * 0.5) * 0.15;
+            ctx.translate(cardX + cardW - 145, cardY + 258);
+            ctx.rotate(-0.045); // -2.6 deg tilt
+            ctx.scale(stickerScale, stickerScale);
+
+            ctx.fillStyle = "#ffffff";
+            ctx.shadowColor = "rgba(0,0,0,0.45)";
             ctx.shadowBlur = 16;
-          } else if (isCurrentWord) {
-            ctx.fillStyle = sceneIndex === 1 ? "#f87171" : accentColor;
-            ctx.shadowColor = sceneIndex === 1 ? "#ef4444" : accentColor;
-            ctx.shadowBlur = 12;
-
-            // Scene 3: Animated sweep underline under current word
-            if (sceneIndex === 2) {
-              const ulW = item.w * Math.min(wordProgress * 2.2, 1);
-              ctx.fillRect(-item.w / 2, fontSize / 2 + 4, ulW, 5);
-            }
-          } else if (isSpoken) {
-            ctx.fillStyle = theme.textColor;
+            ctx.beginPath();
+            ctx.roundRect(-125, -24, 250, 48, 24);
+            ctx.fill();
             ctx.shadowBlur = 0;
+
+            ctx.font = "800 17px sans-serif";
+            ctx.fillStyle = "#0f172a";
+            ctx.textAlign = "center";
+            ctx.fillText(currentMetric || "WAJIB TAHU!", 0, 6);
+            ctx.restore();
+          } else if (sceneIndex === 1) {
+            // SCENE 2: Big "02" + Large Problem Headline + Big High-Contrast Insight Box (Readable on Phone!)
+            ctx.font = "900 44px sans-serif";
+            ctx.fillStyle = "#ef4444";
+            ctx.textAlign = "left";
+            ctx.fillText("02", cardX + 28, cardY + 58);
+
+            ctx.fillStyle = "rgba(239, 68, 68, 0.2)";
+            ctx.strokeStyle = "rgba(239, 68, 68, 0.6)";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(cardX + 98, cardY + 26, 175, 34, 17);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.font = "800 15px sans-serif";
+            ctx.fillStyle = theme.isLight ? "#dc2626" : "#fca5a5";
+            ctx.textAlign = "center";
+            ctx.fillText("MASALAH UTAMA", cardX + 185, cardY + 48);
+
+            // Headline (22px bold, 2 lines)
+            ctx.textAlign = "left";
+            ctx.font = "800 22px sans-serif";
+            ctx.fillStyle = theme.cardText;
+            const hLines = wrapTextLines(currentHeadline, 31, 2);
+            hLines.forEach((ln, idx) => {
+              ctx.fillText(ln, cardX + 28, cardY + 104 + idx * 30);
+            });
+
+            // Large readable fact box (19px!)
+            const subSentences = splitSentences(currentSubtext);
+            const factText = subSentences[0] || currentSubtext;
+            const factLines = wrapTextLines(factText, 34, 3);
+
+            ctx.fillStyle = "rgba(239, 68, 68, 0.12)";
+            ctx.strokeStyle = "rgba(239, 68, 68, 0.38)";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(cardX + 24, cardY + 168, cardW - 48, 118, 16);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.font = "600 19px sans-serif";
+            ctx.fillStyle = theme.cardText;
+            factLines.forEach((ln, idx) => {
+              ctx.fillText(ln, cardX + 42, cardY + 204 + idx * 28);
+            });
+          } else if (sceneIndex === 2) {
+            // SCENE 3: Big "03" + Animated Metric Progress Bar + Large Solution Card
+            ctx.font = "900 44px sans-serif";
+            ctx.fillStyle = "#10b981";
+            ctx.textAlign = "left";
+            ctx.fillText("03", cardX + 28, cardY + 58);
+
+            ctx.fillStyle = "rgba(16, 185, 129, 0.2)";
+            ctx.strokeStyle = "rgba(16, 185, 129, 0.6)";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(cardX + 98, cardY + 26, 165, 34, 17);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.font = "800 15px sans-serif";
+            ctx.fillStyle = theme.isLight ? "#047857" : "#6ee7b7";
+            ctx.textAlign = "center";
+            ctx.fillText("SOLUSI TERUJI", cardX + 180, cardY + 48);
+
+            // Big Metric Pill on Top Right
+            ctx.textAlign = "right";
+            ctx.font = "900 22px monospace";
+            ctx.fillStyle = "#10b981";
+            ctx.fillText(currentMetric || "+300%", cardX + cardW - 28, cardY + 50);
+
+            // Headline (22px bold)
+            ctx.textAlign = "left";
+            ctx.font = "800 22px sans-serif";
+            ctx.fillStyle = theme.cardText;
+            const hLines = wrapTextLines(currentHeadline, 31, 2);
+            hLines.forEach((ln, idx) => {
+              ctx.fillText(ln, cardX + 28, cardY + 104 + idx * 30);
+            });
+
+            // Animated Progress Bar inside Card
+            const barW = cardW - 56;
+            const fillPct = Math.min(sceneLocalProgress * 1.4, 1);
+            ctx.fillStyle = theme.isLight ? "rgba(15, 23, 42, 0.1)" : "rgba(255, 255, 255, 0.1)";
+            ctx.beginPath();
+            ctx.roundRect(cardX + 28, cardY + 162, barW, 12, 6);
+            ctx.fill();
+
+            ctx.fillStyle = "#10b981";
+            ctx.beginPath();
+            ctx.roundRect(cardX + 28, cardY + 162, barW * fillPct, 12, 6);
+            ctx.fill();
+
+            // Large readable solution detail (19px!)
+            const subSentences = splitSentences(currentSubtext);
+            const solText = subSentences[0] || currentSubtext;
+            const solLines = wrapTextLines(solText, 34, 3);
+            ctx.font = "600 19px sans-serif";
+            ctx.fillStyle = theme.cardSubText;
+            solLines.forEach((ln, idx) => {
+              ctx.fillText(ln, cardX + 28, cardY + 206 + idx * 28);
+            });
           } else {
-            ctx.fillStyle = theme.mutedTextColor;
-            ctx.shadowBlur = 0;
+            // SCENE 4: Big "04" + Clear Mobile-Readable CTA + Pulsing Action Button
+            ctx.font = "900 44px sans-serif";
+            ctx.fillStyle = accentColor;
+            ctx.textAlign = "left";
+            ctx.fillText("04", cardX + 28, cardY + 58);
+
+            ctx.fillStyle = `${accentColor}22`;
+            ctx.strokeStyle = `${accentColor}88`;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(cardX + 98, cardY + 26, 170, 34, 17);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.font = "800 15px sans-serif";
+            ctx.fillStyle = theme.cardText;
+            ctx.textAlign = "center";
+            ctx.fillText("LANGKAH AKSI", cardX + 183, cardY + 48);
+
+            // Big Headline
+            ctx.textAlign = "left";
+            ctx.font = "800 23px sans-serif";
+            ctx.fillStyle = theme.cardText;
+            const hLines = wrapTextLines(currentHeadline, 30, 2);
+            hLines.forEach((ln, idx) => {
+              ctx.fillText(ln, cardX + 28, cardY + 106 + idx * 32);
+            });
+
+            // Subtext (19px readable)
+            const subSentences = splitSentences(currentSubtext);
+            const ctaLines = wrapTextLines(subSentences[0] || currentSubtext, 34, 2);
+            ctx.font = "500 18px sans-serif";
+            ctx.fillStyle = theme.cardSubText;
+            ctaLines.forEach((ln, idx) => {
+              ctx.fillText(ln, cardX + 28, cardY + 178 + idx * 26);
+            });
+
+            // Big Pulsing Action Button
+            const btnY = cardY + 236;
+            const btnPulse = 1 + Math.sin(elapsed * 5) * 0.025;
+            ctx.save();
+            ctx.translate(cardX + cardW / 2, btnY + 26);
+            ctx.scale(btnPulse, btnPulse);
+            ctx.fillStyle = "#10b981";
+            ctx.beginPath();
+            ctx.roundRect(-(cardW - 56) / 2, -26, cardW - 56, 52, 14);
+            ctx.fill();
+
+            ctx.font = "900 18px sans-serif";
+            ctx.fillStyle = "#06281e";
+            ctx.textAlign = "center";
+            ctx.fillText(`✓ ${currentMetric || "SIMPAN & PRAKTIKKAN"}`, 0, 6);
+            ctx.restore();
+            ctx.textAlign = "left";
           }
-
-          ctx.fillText(item.word, -item.w / 2, 0);
           ctx.restore();
+        }
 
-          cursorX += item.w + layout.spaceW;
-        });
-      });
-
-      ctx.restore();
-
-      // 5. ZONE 3: LIVING AVATAR ENGINE (Custom Human Photo Cutout / 2D Rigged Human / 3D Voxel)
-      if (showMascot) {
+        // 4. ZONE 2: MULTI-STYLE DYNAMIC KARAOKE TYPOGRAPHY (4 Visual Choreographies)
         ctx.save();
         ctx.globalAlpha = transitionAlpha;
-
-        const isTalking =
-          isPlayingRef.current && speechProgress < 0.99 && sceneLocalProgress > 0.01;
-
-        const customPhotoImg =
-          avatarImgElementsRef.current[sceneIndex] || avatarImgElementsRef.current[0];
-
-        const currentScene = scenes[sceneIndex];
-        const activePoseId: PresenterPoseId = currentScene?.suggestedPose || (
-          sceneIndex === 0 ? "friendly-anchor" :
-          sceneIndex === 1 ? "problem-shrug" :
-          sceneIndex === 2 ? "eureka-point" : "strong-cta"
+        const timedPhrases = extractTimedPhrases(
+          currentHeadline,
+          currentSubtext,
+          currentHighlight,
+          currentMetric
         );
-        const poseInfo = PRESENTER_POSES[activePoseId] || PRESENTER_POSES["friendly-anchor"];
 
-        if (avatarEngine === "photo-cutout" && customPhotoImg) {
-          // Multi-Pose Human Photo Cutout with Contextual Dynamic Poses (Air-Gapped)
-          drawHumanCutoutAvatar(ctx, {
-            img: customPhotoImg,
-            cx: W / 2,
-            bottomY: H,
-            maxHeight: 360,
-            maxWidth: 420,
-            vocalVolume: isTalking ? currentVocalVolume : 0,
-            elapsed,
-            accentColor,
-            sceneProgress: sceneLocalProgress,
-            framing: avatarFraming,
-            poseInfo: poseInfo,
-          });
-        } else if (avatarEngine === "human-rigged" || (avatarEngine === "photo-cutout" && !customPhotoImg)) {
-          // 2D Rigged Human Creator Host (6-Phoneme Lip-Sync + Expressive Hands)
-          drawRiggedHumanHost(ctx, {
-            cx: W / 2,
-            cy: 1125,
-            scale: 0.86,
-            emotion: currentEmotion,
-            isTalking,
-            vocalVolume: currentVocalVolume,
-            elapsed,
-            accentColor,
-            presetId: humanPreset,
-          });
-        } else if (characterLayout === "single") {
-          drawVoxelAvatar(ctx, {
-            cx: W / 2,
-            cy: 1140,
-            scale: 0.74,
-            emotion: currentEmotion,
-            isTalking,
-            vocalVolume: currentVocalVolume,
-            elapsed,
-            outfit: voxelPreset,
-          });
-        } else {
-          drawVoxelAvatar(ctx, {
-            cx: W * 0.30,
-            cy: 1140,
-            scale: 0.64,
-            emotion: currentEmotion,
-            isTalking: isTalking && sceneLocalProgress < 0.5,
-            vocalVolume: sceneLocalProgress < 0.5 ? currentVocalVolume : 0,
-            elapsed,
-            outfit: voxelPreset,
-          });
+        // Drive phrase selection from speechProgress so captions NEVER lag after voice stops
+        const activePhrase =
+          timedPhrases.find((p) => speechProgress >= p.startPct && speechProgress < p.endPct) ||
+          timedPhrases[timedPhrases.length - 1];
 
-          drawVoxelAvatar(ctx, {
-            cx: W * 0.70,
-            cy: 1140,
-            scale: 0.64,
-            emotion: currentEmotion === "shocked" ? "skeptical" : currentEmotion,
-            isTalking: isTalking && sceneLocalProgress >= 0.5,
-            vocalVolume: sceneLocalProgress >= 0.5 ? currentVocalVolume : 0,
-            elapsed,
-            outfit: voxelPreset === "hoodie-glasses" ? "beanie-striped" : "hoodie-glasses",
-          });
+        const phraseDuration = Math.max(activePhrase.endPct - activePhrase.startPct, 0.05);
+        const phraseProgress = Math.min(Math.max((speechProgress - activePhrase.startPct) / phraseDuration, 0), 1);
+
+        // Centered between the upper card and the presenter avatar for perfect zero-collision hierarchy
+        const phraseCenterY = showUpperCard ? 560 : 500;
+
+        // Render Metric Badge above the beat if present
+        if (activePhrase.badge) {
+          ctx.font = "800 18px monospace";
+          ctx.fillStyle = accentColor;
+          ctx.textAlign = "center";
+          ctx.fillText(`[ ${activePhrase.badge} ]`, W / 2, phraseCenterY - 88);
         }
-        ctx.restore();
-      }
 
-      // Safe-Zone Optics Guide Overlay (TikTok / Instagram Reels / YouTube Shorts)
-      if (showSafeZoneGuide && !isRecordingRef.current) {
-        ctx.save();
+        const fontFamily = theme.fontFamily;
 
-        // 1. Top Danger / UI Zone (y: 0 to 110)
-        ctx.fillStyle = "rgba(14, 165, 233, 0.14)";
-        ctx.fillRect(0, 0, W, 110);
-        ctx.strokeStyle = "rgba(56, 189, 248, 0.85)";
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([6, 4]);
-        ctx.strokeRect(0, 0, W, 110);
+        const words = activePhrase.words && activePhrase.words.length > 0
+          ? activePhrase.words
+          : activePhrase.phraseText.split(" ");
 
-        ctx.fillStyle = "#38bdf8";
-        ctx.font = "bold 13px Inter, system-ui, sans-serif";
-        ctx.textAlign = "center";
-        ctx.setLineDash([]);
-        ctx.fillText("⚠️ AREA ATAS: Search / Tab Following / Reels UI (0–110px)", W / 2, 60);
+        // Larger mobile-friendly font size (52px base, min 32px)
+        const maxLineWidth = W - 120; // 600px max
+        let fontSize = 52;
+        const buildLines = (fSize: number) => {
+          ctx.font = `900 ${fSize}px ${fontFamily}`;
+          const spaceW = ctx.measureText(" ").width * 1.15;
+          const lines: Array<Array<{ word: string; w: number; idx: number }>> = [[]];
+          let curW = 0;
 
-        // 2. Right Action Column (x: 620 to 720, y: 480 to 1020)
-        ctx.fillStyle = "rgba(245, 158, 11, 0.14)";
-        ctx.fillRect(620, 480, 100, 540);
-        ctx.strokeStyle = "rgba(251, 191, 36, 0.85)";
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([6, 4]);
-        ctx.strokeRect(620, 480, 100, 540);
+          words.forEach((word, idx) => {
+            const w = ctx.measureText(word).width;
+            if (lines[lines.length - 1].length > 0 && curW + spaceW + w > maxLineWidth) {
+              lines.push([{ word, w, idx }]);
+              curW = w;
+            } else {
+              lines[lines.length - 1].push({ word, w, idx });
+              curW += (lines[lines.length - 1].length > 1 ? spaceW : 0) + w;
+            }
+          });
+          return { lines, spaceW };
+        };
 
-        ctx.fillStyle = "#fbbf24";
-        ctx.font = "bold 11px Inter, system-ui, sans-serif";
-        ctx.textAlign = "center";
-        ctx.setLineDash([]);
-        ctx.fillText("Like / Komen", 670, 680);
-        ctx.fillText("Share / Disc", 670, 700);
-        ctx.fillText("⚠️ SISI KANAN", 670, 730);
+        let layout = buildLines(fontSize);
+        while (layout.lines.length > 2 && fontSize > 32) {
+          fontSize -= 2;
+          layout = buildLines(fontSize);
+        }
 
-        // 3. Bottom Danger / Caption Zone (y: 1020 to 1280)
-        ctx.fillStyle = "rgba(244, 63, 94, 0.16)";
-        ctx.fillRect(0, 1020, W, 260);
-        ctx.strokeStyle = "rgba(251, 113, 133, 0.9)";
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([6, 4]);
-        ctx.strokeRect(0, 1020, W, 260);
+        const activeWordFloat = phraseProgress * words.length;
+        const activeWordIdx = Math.min(Math.floor(activeWordFloat), words.length - 1);
+        const lineHeight = fontSize * 1.32;
+        const startY = phraseCenterY - ((layout.lines.length - 1) * lineHeight) / 2;
 
-        ctx.fillStyle = "#fb7185";
-        ctx.font = "bold 13px Inter, system-ui, sans-serif";
-        ctx.textAlign = "center";
-        ctx.setLineDash([]);
-        ctx.fillText("⚠️ AREA BAWAH: Username, Keterangan Naskah & Audio Ticker", W / 2, 1075);
-        ctx.font = "11px Inter, system-ui, sans-serif";
-        ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-        ctx.fillText("(Typography & Karakter Kinetic Motion selalu diatur aman di atas area ini)", W / 2, 1100);
-
-        // 4. Safe Center Region Boundary
-        ctx.strokeStyle = "rgba(34, 197, 94, 0.7)";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        ctx.strokeRect(40, 115, W - 145, 900);
-        ctx.setLineDash([]);
-
-        ctx.fillStyle = "#4ade80";
-        ctx.font = "900 11px Inter, system-ui, sans-serif";
         ctx.textAlign = "left";
-        ctx.fillText("🛡️ 100% SAFE VIEWPORT (TIKTOK / REELS / SHORTS)", 50, 138);
+        ctx.textBaseline = "middle";
+
+        layout.lines.forEach((line, lineIdx) => {
+          const lineW =
+            line.reduce((acc, item) => acc + item.w, 0) +
+            Math.max(0, line.length - 1) * layout.spaceW;
+          let cursorX = W / 2 - lineW / 2;
+          const lineY = startY + lineIdx * lineHeight;
+
+          line.forEach((item) => {
+            const isSpoken = item.idx <= activeWordIdx;
+            const isCurrentWord = item.idx === activeWordIdx;
+            const isKeyword =
+              activePhrase.highlightWord &&
+              item.word.includes(activePhrase.highlightWord);
+
+            const wordProgress = isCurrentWord ? activeWordFloat - activeWordIdx : 1;
+
+            // Distinct per-scene choreography!
+            let wordScale = 1;
+            let wordOffsetY = 0;
+            let wordRot = 0;
+
+            if (sceneIndex === 0) {
+              // Scene 1: High-Energy Spring Pop
+              wordScale = isCurrentWord ? 1 + Math.sin(Math.min(wordProgress * 2.5, 1) * Math.PI) * 0.14 : 1;
+            } else if (sceneIndex === 1) {
+              // Scene 2: Slide-Up Masked Reveal
+              wordOffsetY = isCurrentWord ? (1 - Math.min(wordProgress * 3, 1)) * 16 : 0;
+              wordScale = isCurrentWord ? 1.06 : 1;
+            } else if (sceneIndex === 2) {
+              // Scene 3: Editorial Emphasis + Sweep Underline
+              wordScale = isCurrentWord ? 1.08 : 1;
+            } else {
+              // Scene 4: Spotlight Tilt Pop
+              wordScale = isCurrentWord ? 1.1 : 1;
+              wordRot = isKeyword && isSpoken ? -0.03 : 0;
+            }
+
+            ctx.save();
+            ctx.translate(cursorX + item.w / 2, lineY + wordOffsetY);
+            ctx.rotate(wordRot);
+            ctx.scale(wordScale, wordScale);
+            ctx.font = `900 ${fontSize}px ${fontFamily}`;
+
+            if (isKeyword && isSpoken) {
+              const padX = 14;
+              const padY = 8;
+              ctx.fillStyle = `${accentColor}30`;
+              ctx.strokeStyle = accentColor;
+              ctx.lineWidth = 2.5;
+              ctx.beginPath();
+              ctx.roundRect(-item.w / 2 - padX, -fontSize / 2 - padY / 2, item.w + padX * 2, fontSize + padY, 14);
+              ctx.fill();
+              ctx.stroke();
+
+              ctx.fillStyle = accentColor;
+              ctx.shadowColor = accentColor;
+              ctx.shadowBlur = 16;
+            } else if (isCurrentWord) {
+              ctx.fillStyle = sceneIndex === 1 ? "#f87171" : accentColor;
+              ctx.shadowColor = sceneIndex === 1 ? "#ef4444" : accentColor;
+              ctx.shadowBlur = 12;
+
+              // Scene 3: Animated sweep underline under current word
+              if (sceneIndex === 2) {
+                const ulW = item.w * Math.min(wordProgress * 2.2, 1);
+                ctx.fillRect(-item.w / 2, fontSize / 2 + 4, ulW, 5);
+              }
+            } else if (isSpoken) {
+              ctx.fillStyle = theme.textColor;
+              ctx.shadowBlur = 0;
+            } else {
+              ctx.fillStyle = theme.mutedTextColor;
+              ctx.shadowBlur = 0;
+            }
+
+            ctx.fillText(item.word, -item.w / 2, 0);
+            ctx.restore();
+
+            cursorX += item.w + layout.spaceW;
+          });
+        });
 
         ctx.restore();
-      }
-    } catch (renderErr) {
-      console.error("Canvas render frame notice:", renderErr);
-    } finally {
-      if (isPlayingRef.current) {
-        animationFrameRef.current = requestAnimationFrame(render);
-      }
-    }
-  };
 
-  renderFrameRef.current = render;
-  render();
+        // 5. ZONE 3: LIVING AVATAR ENGINE (Custom Human Photo Cutout / 2D Rigged Human / 3D Voxel)
+        if (showMascot) {
+          ctx.save();
+          ctx.globalAlpha = transitionAlpha;
+
+          const isTalking =
+            isPlayingRef.current && speechProgress < 0.99 && sceneLocalProgress > 0.01;
+
+          const customPhotoImg =
+            avatarImgElementsRef.current[sceneIndex] || avatarImgElementsRef.current[0];
+
+          const currentScene = scenes[sceneIndex];
+          const activePoseId: PresenterPoseId = currentScene?.suggestedPose || (
+            sceneIndex === 0 ? "friendly-anchor" :
+              sceneIndex === 1 ? "problem-shrug" :
+                sceneIndex === 2 ? "eureka-point" : "strong-cta"
+          );
+          const poseInfo = PRESENTER_POSES[activePoseId] || PRESENTER_POSES["friendly-anchor"];
+
+          if (avatarEngine === "photo-cutout" && customPhotoImg) {
+            // Multi-Pose Human Photo Cutout with Contextual Dynamic Poses (Air-Gapped)
+            drawHumanCutoutAvatar(ctx, {
+              img: customPhotoImg,
+              cx: W / 2,
+              bottomY: H,
+              maxHeight: 360,
+              maxWidth: 420,
+              vocalVolume: isTalking ? currentVocalVolume : 0,
+              elapsed,
+              accentColor,
+              sceneProgress: sceneLocalProgress,
+              framing: avatarFraming,
+              poseInfo: poseInfo,
+            });
+          } else if (avatarEngine === "human-rigged" || (avatarEngine === "photo-cutout" && !customPhotoImg)) {
+            // 2D Rigged Human Creator Host (6-Phoneme Lip-Sync + Expressive Hands)
+            drawRiggedHumanHost(ctx, {
+              cx: W / 2,
+              cy: 1125,
+              scale: 0.86,
+              emotion: currentEmotion,
+              isTalking,
+              vocalVolume: currentVocalVolume,
+              elapsed,
+              accentColor,
+              presetId: humanPreset,
+            });
+          } else if (characterLayout === "single") {
+            drawVoxelAvatar(ctx, {
+              cx: W / 2,
+              cy: 1140,
+              scale: 0.74,
+              emotion: currentEmotion,
+              isTalking,
+              vocalVolume: currentVocalVolume,
+              elapsed,
+              outfit: voxelPreset,
+            });
+          } else {
+            drawVoxelAvatar(ctx, {
+              cx: W * 0.30,
+              cy: 1140,
+              scale: 0.64,
+              emotion: currentEmotion,
+              isTalking: isTalking && sceneLocalProgress < 0.5,
+              vocalVolume: sceneLocalProgress < 0.5 ? currentVocalVolume : 0,
+              elapsed,
+              outfit: voxelPreset,
+            });
+
+            drawVoxelAvatar(ctx, {
+              cx: W * 0.70,
+              cy: 1140,
+              scale: 0.64,
+              emotion: currentEmotion === "shocked" ? "skeptical" : currentEmotion,
+              isTalking: isTalking && sceneLocalProgress >= 0.5,
+              vocalVolume: sceneLocalProgress >= 0.5 ? currentVocalVolume : 0,
+              elapsed,
+              outfit: voxelPreset === "hoodie-glasses" ? "beanie-striped" : "hoodie-glasses",
+            });
+          }
+          ctx.restore();
+        }
+
+        // Safe-Zone Optics Guide Overlay (TikTok / Instagram Reels / YouTube Shorts)
+        if (showSafeZoneGuide && !isRecordingRef.current) {
+          ctx.save();
+
+          // 1. Top Danger / UI Zone (y: 0 to 110)
+          ctx.fillStyle = "rgba(14, 165, 233, 0.14)";
+          ctx.fillRect(0, 0, W, 110);
+          ctx.strokeStyle = "rgba(56, 189, 248, 0.85)";
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([6, 4]);
+          ctx.strokeRect(0, 0, W, 110);
+
+          ctx.fillStyle = "#38bdf8";
+          ctx.font = "bold 13px Inter, system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.setLineDash([]);
+          ctx.fillText("⚠️ AREA ATAS: Search / Tab Following / Reels UI (0–110px)", W / 2, 60);
+
+          // 2. Right Action Column (x: 620 to 720, y: 480 to 1020)
+          ctx.fillStyle = "rgba(245, 158, 11, 0.14)";
+          ctx.fillRect(620, 480, 100, 540);
+          ctx.strokeStyle = "rgba(251, 191, 36, 0.85)";
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([6, 4]);
+          ctx.strokeRect(620, 480, 100, 540);
+
+          ctx.fillStyle = "#fbbf24";
+          ctx.font = "bold 11px Inter, system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.setLineDash([]);
+          ctx.fillText("Like / Komen", 670, 680);
+          ctx.fillText("Share / Disc", 670, 700);
+          ctx.fillText("⚠️ SISI KANAN", 670, 730);
+
+          // 3. Bottom Danger / Caption Zone (y: 1020 to 1280)
+          ctx.fillStyle = "rgba(244, 63, 94, 0.16)";
+          ctx.fillRect(0, 1020, W, 260);
+          ctx.strokeStyle = "rgba(251, 113, 133, 0.9)";
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([6, 4]);
+          ctx.strokeRect(0, 1020, W, 260);
+
+          ctx.fillStyle = "#fb7185";
+          ctx.font = "bold 13px Inter, system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.setLineDash([]);
+          ctx.fillText("⚠️ AREA BAWAH: Username, Keterangan Naskah & Audio Ticker", W / 2, 1075);
+          ctx.font = "11px Inter, system-ui, sans-serif";
+          ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+          ctx.fillText("(Typography & Karakter Kinetic Motion selalu diatur aman di atas area ini)", W / 2, 1100);
+
+          // 4. Safe Center Region Boundary
+          ctx.strokeStyle = "rgba(34, 197, 94, 0.7)";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+          ctx.strokeRect(40, 115, W - 145, 900);
+          ctx.setLineDash([]);
+
+          ctx.fillStyle = "#4ade80";
+          ctx.font = "900 11px Inter, system-ui, sans-serif";
+          ctx.textAlign = "left";
+          ctx.fillText("🛡️ 100% SAFE VIEWPORT (TIKTOK / REELS / SHORTS)", 50, 138);
+
+          ctx.restore();
+        }
+      } catch (renderErr) {
+        console.error("Canvas render frame notice:", renderErr);
+      } finally {
+        if (isPlayingRef.current) {
+          animationFrameRef.current = requestAnimationFrame(render);
+        }
+      }
+    };
+
+    renderFrameRef.current = render;
+    render();
 
     return () => {
       if (animationFrameRef.current) {
@@ -2178,7 +2178,7 @@ COMPOSITION & BACKGROUND:
         try {
           activeAudioSourceRef.current.stop();
           activeAudioSourceRef.current.disconnect();
-        } catch (_) {}
+        } catch (_) { }
         activeAudioSourceRef.current = null;
       }
       recordingSourcesRef.current.forEach((s) => {
@@ -2482,11 +2482,10 @@ COMPOSITION & BACKGROUND:
           <button
             type="button"
             onClick={() => setMode("multi")}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
-              mode === "multi"
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${mode === "multi"
                 ? "bg-white text-black shadow-lg"
                 : "bg-white/5 border border-white/10 text-zinc-400 hover:text-white"
-            }`}
+              }`}
           >
             <Layers className="h-4 w-4" />
             <span>FULL 4-SCENE MOVIE ({totalDurationSec}s)</span>
@@ -2498,11 +2497,10 @@ COMPOSITION & BACKGROUND:
           <button
             type="button"
             onClick={() => setMode("single")}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
-              mode === "single"
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${mode === "single"
                 ? "bg-white text-black shadow-lg"
                 : "bg-white/5 border border-white/10 text-zinc-400 hover:text-white"
-            }`}
+              }`}
           >
             <Play className="h-4 w-4 fill-current" />
             <span>SINGLE HOOK CLIP (6s)</span>
@@ -2517,9 +2515,8 @@ COMPOSITION & BACKGROUND:
               getOrCreateAudioEngine();
               setAudioEnabled(!audioEnabled);
             }}
-            className={`px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
-              audioEnabled ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-300" : "border-white/10 text-zinc-500"
-            }`}
+            className={`px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${audioEnabled ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-300" : "border-white/10 text-zinc-500"
+              }`}
           >
             {audioEnabled ? "🎙️ Voice: ON" : "🎙️ Voice: MUTE"}
           </button>
@@ -2530,9 +2527,8 @@ COMPOSITION & BACKGROUND:
               getOrCreateAudioEngine();
               setBgmEnabled(!bgmEnabled);
             }}
-            className={`px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
-              bgmEnabled ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-white/10 text-zinc-500"
-            }`}
+            className={`px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${bgmEnabled ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-white/10 text-zinc-500"
+              }`}
           >
             {bgmEnabled ? "🎵 BGM: ON" : "🎵 BGM: OFF"}
           </button>
@@ -2540,9 +2536,8 @@ COMPOSITION & BACKGROUND:
           <button
             type="button"
             onClick={() => setSfxEnabled(!sfxEnabled)}
-            className={`px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
-              sfxEnabled ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-300" : "border-white/10 text-zinc-500"
-            }`}
+            className={`px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${sfxEnabled ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-300" : "border-white/10 text-zinc-500"
+              }`}
           >
             {sfxEnabled ? "🔊 SFX: ON" : "🔊 SFX: OFF"}
           </button>
@@ -2550,9 +2545,8 @@ COMPOSITION & BACKGROUND:
           <button
             type="button"
             onClick={() => setShowMascot(!showMascot)}
-            className={`px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
-              showMascot ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-white/10 text-zinc-500"
-            }`}
+            className={`px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${showMascot ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-white/10 text-zinc-500"
+              }`}
           >
             {showMascot ? "🧑 Maskot: ON" : "🧑 Maskot: OFF"}
           </button>
@@ -2560,9 +2554,8 @@ COMPOSITION & BACKGROUND:
           <button
             type="button"
             onClick={() => setShowUpperCard(!showUpperCard)}
-            className={`px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
-              showUpperCard ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-white/10 text-zinc-500"
-            }`}
+            className={`px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${showUpperCard ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-white/10 text-zinc-500"
+              }`}
           >
             {showUpperCard ? "📋 Card: ON" : "📋 Card: OFF"}
           </button>
@@ -2588,11 +2581,10 @@ COMPOSITION & BACKGROUND:
               setHumanPreset("tech-creator");
               setVoiceActor("gemini-aoede");
             }}
-            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${
-              motionStyle === "apple-keynote" && avatarEngine === "human-rigged" && voiceActor === "gemini-aoede"
+            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${motionStyle === "apple-keynote" && avatarEngine === "human-rigged" && voiceActor === "gemini-aoede"
                 ? "border-emerald-400 bg-emerald-500/15 text-white shadow-lg"
                 : "border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
-            }`}
+              }`}
           >
             <div className="text-xs font-bold text-white flex items-center gap-1">
               <span>🍏 Edukasi Elegan</span>
@@ -2611,11 +2603,10 @@ COMPOSITION & BACKGROUND:
               setVoxelPreset("beanie-striped");
               setVoiceActor("gemini-kore");
             }}
-            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${
-              motionStyle === "viral-yellow" && avatarEngine === "voxel" && voiceActor === "gemini-kore"
+            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${motionStyle === "viral-yellow" && avatarEngine === "voxel" && voiceActor === "gemini-kore"
                 ? "border-amber-400 bg-amber-500/15 text-white shadow-lg"
                 : "border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
-            }`}
+              }`}
           >
             <div className="text-xs font-bold text-white flex items-center gap-1">
               <span>⚡ Kreator Viral Hype</span>
@@ -2633,11 +2624,10 @@ COMPOSITION & BACKGROUND:
               setAvatarEngine("photo-cutout");
               setVoiceActor("gemini-charon");
             }}
-            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${
-              motionStyle === "glass-aurora" && avatarEngine === "photo-cutout" && voiceActor === "gemini-charon"
+            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${motionStyle === "glass-aurora" && avatarEngine === "photo-cutout" && voiceActor === "gemini-charon"
                 ? "border-cyan-400 bg-cyan-500/15 text-white shadow-lg"
                 : "border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
-            }`}
+              }`}
           >
             <div className="text-xs font-bold text-white flex items-center gap-1">
               <span>🌌 Tech & Modern Aesthetic</span>
@@ -2716,14 +2706,14 @@ COMPOSITION & BACKGROUND:
               className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white focus:border-emerald-400 focus:outline-none"
             >
               <optgroup label="✨ Google Gemini Studio (Ultra-Natural)">
-                <option value="gemini-aoede">✨ Aoede (Wanita - Alami & Percakapan)</option>
-                <option value="gemini-charon">✨ Charon (Pria - Otoritatif & Edukatif)</option>
+                <option value="gemini-aoede">✨ Aoede (Wanita - Percakapan Alami)</option>
+                <option value="gemini-charon">✨ Charon (Pria - Edukatif Mantap)</option>
                 <option value="gemini-kore">✨ Kore (Wanita - Ceria & Energik)</option>
-                <option value="gemini-puck">✨ Puck (Pria - Santai & Lifestyle)</option>
+                <option value="gemini-puck">✨ Puck (Pria - Santai & Santun)</option>
               </optgroup>
-              <optgroup label="🛡️ Microsoft Neural HD (Cloud Fallback)">
-                <option value="id-ID-GadisNeural">🛡️ Gadis (Wanita - Cloud Fallback)</option>
-                <option value="id-ID-ArdiNeural">🛡️ Ardi (Pria - Cloud Fallback)</option>
+              <optgroup label="🎙️ Microsoft Neural HD (Expressive & Bebas Kuota)">
+                <option value="id-ID-GadisNeural">👩 Gadis (Wanita - Kreator Ramah & Natural)</option>
+                <option value="id-ID-ArdiNeural">👨 Ardi (Pria - Host Podcast Dinamis)</option>
               </optgroup>
             </select>
           </div>
@@ -2751,8 +2741,8 @@ COMPOSITION & BACKGROUND:
               {avatarEngine === "human-rigged"
                 ? "Karakter Human 2D:"
                 : avatarEngine === "voxel"
-                ? "Outfit 3D Voxel:"
-                : "Pose Foto Manusia:"}
+                  ? "Outfit 3D Voxel:"
+                  : "Pose Foto Manusia:"}
             </label>
             {avatarEngine === "human-rigged" && (
               <select
@@ -2815,11 +2805,10 @@ COMPOSITION & BACKGROUND:
                   key={ep.partNumber}
                   type="button"
                   onClick={() => selectSeriesPart(ep.partNumber)}
-                  className={`px-3 py-2 rounded-xl border text-left transition-all cursor-pointer ${
-                    isSelected
+                  className={`px-3 py-2 rounded-xl border text-left transition-all cursor-pointer ${isSelected
                       ? "border-emerald-400 bg-emerald-500/20 text-white font-bold shadow-md shadow-emerald-500/10"
                       : "border-white/10 bg-black/40 text-zinc-400 hover:text-white"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-300 font-bold">
@@ -2921,8 +2910,8 @@ COMPOSITION & BACKGROUND:
                   type="button"
                   onClick={() => setCreationTab("idea")}
                   className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg font-mono text-xs font-bold transition-all cursor-pointer ${creationTab === "idea"
-                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
-                      : "text-zinc-400 hover:text-white"
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
+                    : "text-zinc-400 hover:text-white"
                     }`}
                 >
                   <Lightbulb className="h-3.5 w-3.5" />
@@ -2932,8 +2921,8 @@ COMPOSITION & BACKGROUND:
                   type="button"
                   onClick={() => setCreationTab("script")}
                   className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg font-mono text-xs font-bold transition-all cursor-pointer ${creationTab === "script"
-                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                      : "text-zinc-400 hover:text-white"
+                    ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                    : "text-zinc-400 hover:text-white"
                     }`}
                 >
                   <FileText className="h-3.5 w-3.5" />
@@ -2971,8 +2960,8 @@ COMPOSITION & BACKGROUND:
                           type="button"
                           onClick={() => setDurationTarget("55s")}
                           className={`py-1.5 px-2 text-center rounded-lg font-mono text-[10px] font-bold border transition-all cursor-pointer ${durationTarget === "55s"
-                              ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-300"
-                              : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                            ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-300"
+                            : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
                             }`}
                         >
                           52-55s (Deep Story)
@@ -2981,8 +2970,8 @@ COMPOSITION & BACKGROUND:
                           type="button"
                           onClick={() => setDurationTarget("26s")}
                           className={`py-1.5 px-2 text-center rounded-lg font-mono text-[10px] font-bold border transition-all cursor-pointer ${durationTarget === "26s"
-                              ? "border-cyan-500/40 bg-cyan-500/20 text-cyan-300"
-                              : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                            ? "border-cyan-500/40 bg-cyan-500/20 text-cyan-300"
+                            : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
                             }`}
                         >
                           26s (Express Hook)
@@ -3133,8 +3122,8 @@ COMPOSITION & BACKGROUND:
                       type="button"
                       onClick={() => setActiveSceneTab(idx)}
                       className={`py-1.5 text-center rounded-lg font-mono text-[10px] font-bold transition-all cursor-pointer ${activeSceneTab === idx
-                          ? "bg-white text-black shadow"
-                          : "text-zinc-400 hover:text-white"
+                        ? "bg-white text-black shadow"
+                        : "text-zinc-400 hover:text-white"
                         }`}
                     >
                       SCENE {s.sceneNumber} ({s.durationSec}s)
@@ -3222,8 +3211,8 @@ COMPOSITION & BACKGROUND:
                     <select
                       value={scenes[activeSceneTab].suggestedPose || (
                         activeSceneTab === 0 ? "friendly-anchor" :
-                        activeSceneTab === 1 ? "problem-shrug" :
-                        activeSceneTab === 2 ? "eureka-point" : "strong-cta"
+                          activeSceneTab === 1 ? "problem-shrug" :
+                            activeSceneTab === 2 ? "eureka-point" : "strong-cta"
                       )}
                       onChange={(e) => updateSceneField(activeSceneTab, "suggestedPose", e.target.value as any)}
                       className="w-full rounded-lg border border-white/10 bg-black/50 px-2.5 py-1.5 text-xs text-emerald-300 font-mono font-bold focus:border-emerald-400 focus:outline-none"
@@ -3311,8 +3300,8 @@ COMPOSITION & BACKGROUND:
                 <span
                   title={localGpuInfo.note}
                   className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-[10px] border ${localGpuInfo.gpuAvailable
-                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                      : "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
+                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                    : "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
                     }`}
                 >
                   <Cpu className="h-3 w-3" />
@@ -3342,8 +3331,8 @@ COMPOSITION & BACKGROUND:
                     }
                   }}
                   className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${avatarEngine === eng.id
-                      ? "border-emerald-400 bg-emerald-500/15 text-white shadow-md shadow-emerald-500/10"
-                      : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                    ? "border-emerald-400 bg-emerald-500/15 text-white shadow-md shadow-emerald-500/10"
+                    : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
                     }`}
                 >
                   <div className="text-xs font-bold">{eng.label}</div>
@@ -3368,8 +3357,8 @@ COMPOSITION & BACKGROUND:
                         setVoiceActor(char.gender === "female" ? "gemini-aoede" : "gemini-charon");
                       }}
                       className={`p-2 rounded-xl border text-left font-mono transition-all cursor-pointer ${humanPreset === char.id
-                          ? "border-emerald-400 bg-emerald-500/15 text-white"
-                          : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                        ? "border-emerald-400 bg-emerald-500/15 text-white"
+                        : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
                         }`}
                     >
                       <div className="flex items-center justify-between gap-1">
@@ -3407,8 +3396,8 @@ COMPOSITION & BACKGROUND:
                         setVoiceActor(vox.gender === "female" ? "gemini-aoede" : "gemini-charon");
                       }}
                       className={`p-2 rounded-xl border text-left font-mono transition-all cursor-pointer ${voxelPreset === vox.id
-                          ? "border-emerald-400 bg-emerald-500/15 text-white"
-                          : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                        ? "border-emerald-400 bg-emerald-500/15 text-white"
+                        : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
                         }`}
                     >
                       <div className="flex items-center justify-between gap-1">
@@ -3447,11 +3436,10 @@ COMPOSITION & BACKGROUND:
                 <button
                   type="button"
                   onClick={() => setUploadMode("sheet")}
-                  className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg font-bold transition-all cursor-pointer ${
-                    uploadMode === "sheet"
+                  className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg font-bold transition-all cursor-pointer ${uploadMode === "sheet"
                       ? "bg-gradient-to-r from-emerald-500/30 to-teal-500/20 text-emerald-300 border border-emerald-400/50 shadow-sm"
                       : "text-zinc-400 hover:text-white"
-                  }`}
+                    }`}
                 >
                   <Scissors className="h-3.5 w-3.5" />
                   <span>✂️ Sheet 4-Pose (AI Grid)</span>
@@ -3459,11 +3447,10 @@ COMPOSITION & BACKGROUND:
                 <button
                   type="button"
                   onClick={() => setUploadMode("manual")}
-                  className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg font-bold transition-all cursor-pointer ${
-                    uploadMode === "manual"
+                  className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg font-bold transition-all cursor-pointer ${uploadMode === "manual"
                       ? "bg-gradient-to-r from-emerald-500/30 to-teal-500/20 text-emerald-300 border border-emerald-400/50 shadow-sm"
                       : "text-zinc-400 hover:text-white"
-                  }`}
+                    }`}
                 >
                   <ImageIcon className="h-3.5 w-3.5" />
                   <span>🖼️ Upload Manual (Slot 1–4)</span>
@@ -3773,11 +3760,10 @@ COMPOSITION & BACKGROUND:
                   <button
                     type="button"
                     onClick={() => setAvatarFraming("half-body")}
-                    className={`px-2.5 py-1 rounded-md text-[10px] transition-all cursor-pointer ${
-                      avatarFraming === "half-body"
+                    className={`px-2.5 py-1 rounded-md text-[10px] transition-all cursor-pointer ${avatarFraming === "half-body"
                         ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-bold shadow-sm"
                         : "text-zinc-400 hover:text-white"
-                    }`}
+                      }`}
                     title="Foto otomatis difokuskan ke tubuh bagian atas & wajah agar ekspresif di layar smartphone"
                   >
                     👤 Setengah Badan (Fokus Wajah)
@@ -3785,11 +3771,10 @@ COMPOSITION & BACKGROUND:
                   <button
                     type="button"
                     onClick={() => setAvatarFraming("full-body")}
-                    className={`px-2.5 py-1 rounded-md text-[10px] transition-all cursor-pointer ${
-                      avatarFraming === "full-body"
+                    className={`px-2.5 py-1 rounded-md text-[10px] transition-all cursor-pointer ${avatarFraming === "full-body"
                         ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-bold shadow-sm"
                         : "text-zinc-400 hover:text-white"
-                    }`}
+                      }`}
                     title="Menampilkan proporsi utuh (berdiri/duduk) dari kepala hingga kaki"
                   >
                     🧍 Seluruh Badan (Full-Body)
@@ -3833,8 +3818,8 @@ COMPOSITION & BACKGROUND:
                     type="button"
                     onClick={() => setStyleFilter("all")}
                     className={`px-2.5 py-1 rounded-md font-bold transition-colors cursor-pointer ${styleFilter === "all"
-                        ? "bg-white/15 text-white"
-                        : "text-zinc-400 hover:text-white"
+                      ? "bg-white/15 text-white"
+                      : "text-zinc-400 hover:text-white"
                       }`}
                   >
                     Semua ({Object.keys(MOTION_PALETTES).length})
@@ -3843,8 +3828,8 @@ COMPOSITION & BACKGROUND:
                     type="button"
                     onClick={() => setStyleFilter("favorites")}
                     className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-bold transition-colors cursor-pointer ${styleFilter === "favorites"
-                        ? "bg-amber-500/25 text-amber-300 border border-amber-500/40"
-                        : "text-zinc-400 hover:text-amber-300"
+                      ? "bg-amber-500/25 text-amber-300 border border-amber-500/40"
+                      : "text-zinc-400 hover:text-amber-300"
                       }`}
                   >
                     <Star className="h-3 w-3 fill-current" />
@@ -3881,10 +3866,10 @@ COMPOSITION & BACKGROUND:
                             }
                           }}
                           className={`relative p-2.5 rounded-xl border text-left font-mono text-xs transition-all cursor-pointer select-none ${motionStyle === st.id
-                              ? "border-emerald-400 bg-emerald-500/10 text-white font-bold shadow-md shadow-emerald-500/10"
-                              : isFav
-                                ? "border-amber-500/30 bg-amber-500/5 text-zinc-200 hover:border-amber-400/50"
-                                : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                            ? "border-emerald-400 bg-emerald-500/10 text-white font-bold shadow-md shadow-emerald-500/10"
+                            : isFav
+                              ? "border-amber-500/30 bg-amber-500/5 text-zinc-200 hover:border-amber-400/50"
+                              : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
                             }`}
                         >
                           <div className="flex items-center justify-between gap-1.5 mb-1">
@@ -3905,8 +3890,8 @@ COMPOSITION & BACKGROUND:
                               }}
                               title={isFav ? "Hapus dari Cluster Favorit" : "Simpan ke Cluster Favorit"}
                               className={`p-1 rounded-md transition-colors cursor-pointer ${isFav
-                                  ? "text-amber-400 hover:text-amber-300"
-                                  : "text-zinc-600 hover:text-amber-300"
+                                ? "text-amber-400 hover:text-amber-300"
+                                : "text-zinc-600 hover:text-amber-300"
                                 }`}
                             >
                               <Star className={`h-3.5 w-3.5 ${isFav ? "fill-current" : ""}`} />
@@ -3923,88 +3908,88 @@ COMPOSITION & BACKGROUND:
 
           {/* In-Browser Native Video Download Action */}
           <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-5 space-y-3 shadow-xl">
-              <div className="flex gap-2">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={isRecording}
+                onClick={recordAndDownloadVideo}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-6 py-4 font-mono text-sm font-bold text-white shadow-xl shadow-emerald-500/25 hover:opacity-95 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {isRecording ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span>MEREKAM CANVAS + FULL AUDIO ({recordProgress}%)...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4" />
+                    <span>
+                      {mode === "multi"
+                        ? `REKAM & DOWNLOAD FULL ${totalDurationSec}s VIDEO + AUDIO (9:16 HD)`
+                        : `REKAM & DOWNLOAD CLIP ${totalDurationSec}s (9:16 HD)`}
+                    </span>
+                  </>
+                )}
+              </button>
+
+              {isRecording && (
                 <button
                   type="button"
-                  disabled={isRecording}
-                  onClick={recordAndDownloadVideo}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-6 py-4 font-mono text-sm font-bold text-white shadow-xl shadow-emerald-500/25 hover:opacity-95 transition-all disabled:opacity-50 cursor-pointer"
+                  onClick={stopRecordingEarly}
+                  className="px-4 py-4 rounded-xl bg-rose-600 hover:bg-rose-500 font-mono text-xs font-bold text-white shadow-lg transition-colors cursor-pointer shrink-0"
                 >
-                  {isRecording ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                      <span>MEREKAM CANVAS + FULL AUDIO ({recordProgress}%)...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download className="h-4 w-4" />
-                      <span>
-                        {mode === "multi"
-                          ? `REKAM & DOWNLOAD FULL ${totalDurationSec}s VIDEO + AUDIO (9:16 HD)`
-                          : `REKAM & DOWNLOAD CLIP ${totalDurationSec}s (9:16 HD)`}
-                      </span>
-                    </>
-                  )}
+                  ⏹️ STOP & SIMPAN
                 </button>
+              )}
+            </div>
 
-                {isRecording && (
-                  <button
-                    type="button"
-                    onClick={stopRecordingEarly}
-                    className="px-4 py-4 rounded-xl bg-rose-600 hover:bg-rose-500 font-mono text-xs font-bold text-white shadow-lg transition-colors cursor-pointer shrink-0"
-                  >
-                    ⏹️ STOP & SIMPAN
-                  </button>
-                )}
+            {recordError && (
+              <div className="p-3 rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-300 font-mono text-xs">
+                ⚠️ {recordError}
               </div>
+            )}
 
-              {recordError && (
-                <div className="p-3 rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-300 font-mono text-xs">
-                  ⚠️ {recordError}
+            {recordedVideoUrl && !isRecording && (
+              <div className="rounded-2xl border border-emerald-500/40 bg-emerald-950/20 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5">
+                    <Check className="h-4 w-4" />
+                    <span>Video & Audio Berhasil Direkam!</span>
+                  </span>
+                  <span className="text-[10px] font-mono text-zinc-400">
+                    {recordedFileName}
+                  </span>
                 </div>
-              )}
 
-              {recordedVideoUrl && !isRecording && (
-                <div className="rounded-2xl border border-emerald-500/40 bg-emerald-950/20 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5">
-                      <Check className="h-4 w-4" />
-                      <span>Video & Audio Berhasil Direkam!</span>
-                    </span>
-                    <span className="text-[10px] font-mono text-zinc-400">
-                      {recordedFileName}
-                    </span>
-                  </div>
-
-                  {/* Direct In-Browser Playback to verify audio */}
-                  <div className="rounded-xl overflow-hidden border border-white/10 bg-black">
-                    <video
-                      src={recordedVideoUrl}
-                      controls
-                      autoPlay={false}
-                      playsInline
-                      className="w-full max-h-56 object-contain bg-black"
-                    />
-                  </div>
-
-                  <a
-                    href={recordedVideoUrl}
-                    download={recordedFileName}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-500/20 hover:bg-emerald-500/30 px-4 py-2.5 font-mono text-xs font-bold text-emerald-300 transition-colors"
-                  >
-                    <Download className="h-4 w-4" />
-                    <span>Download Ulang File ({recordedFileName})</span>
-                  </a>
-
-                  <p className="text-[10px] font-mono text-zinc-400 leading-relaxed bg-black/40 p-2.5 rounded-lg border border-white/5">
-                    💡 <strong className="text-zinc-200">Tips Pemutaran di Windows:</strong> Jika video diputar melalui pemutar bawaan Windows (Windows Media Player default), audio format WebM (Opus) mungkin tidak terdengar karena batasan codec bawaan Windows. Namun audio <strong className="text-emerald-300">100% terekam dan aktif</strong> saat diputar langsung di pemutar web di atas, di browser Google Chrome, VLC Player, CapCut, Premiere, Instagram, atau TikTok!
-                  </p>
+                {/* Direct In-Browser Playback to verify audio */}
+                <div className="rounded-xl overflow-hidden border border-white/10 bg-black">
+                  <video
+                    src={recordedVideoUrl}
+                    controls
+                    autoPlay={false}
+                    playsInline
+                    className="w-full max-h-56 object-contain bg-black"
+                  />
                 </div>
-              )}
 
-              <p className="text-[11px] font-mono text-zinc-400 text-center">
-                ⚡ 100% In-Browser. Voiceover + Foley SFX + Lo-Fi BGM otomatis termuxing ke file video. Siap posting tanpa CapCut.
-              </p>
+                <a
+                  href={recordedVideoUrl}
+                  download={recordedFileName}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-emerald-400/50 bg-emerald-500/20 hover:bg-emerald-500/30 px-4 py-2.5 font-mono text-xs font-bold text-emerald-300 transition-colors"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Download Ulang File ({recordedFileName})</span>
+                </a>
+
+                <p className="text-[10px] font-mono text-zinc-400 leading-relaxed bg-black/40 p-2.5 rounded-lg border border-white/5">
+                  💡 <strong className="text-zinc-200">Tips Pemutaran di Windows:</strong> Jika video diputar melalui pemutar bawaan Windows (Windows Media Player default), audio format WebM (Opus) mungkin tidak terdengar karena batasan codec bawaan Windows. Namun audio <strong className="text-emerald-300">100% terekam dan aktif</strong> saat diputar langsung di pemutar web di atas, di browser Google Chrome, VLC Player, CapCut, Premiere, Instagram, atau TikTok!
+                </p>
+              </div>
+            )}
+
+            <p className="text-[11px] font-mono text-zinc-400 text-center">
+              ⚡ 100% In-Browser. Voiceover + Foley SFX + Lo-Fi BGM otomatis termuxing ke file video. Siap posting tanpa CapCut.
+            </p>
           </div>
         </div>
 
@@ -4016,11 +4001,10 @@ COMPOSITION & BACKGROUND:
             <button
               type="button"
               onClick={() => setShowSafeZoneGuide((prev) => !prev)}
-              className={`text-[11px] font-mono px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
-                showSafeZoneGuide
+              className={`text-[11px] font-mono px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${showSafeZoneGuide
                   ? "bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-amber-500/20"
                   : "bg-white/5 text-zinc-400 border-white/10 hover:text-white hover:bg-white/10"
-              }`}
+                }`}
               title="Tampilkan garis batas zona aman TikTok, Reels, dan YouTube Shorts"
             >
               <span>🛡️ Safe-Zone {showSafeZoneGuide ? "Aktif" : "Overlay"}</span>

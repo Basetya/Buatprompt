@@ -12,6 +12,9 @@ const execPromise = util.promisify(exec);
 const ttsMemoryCache = new Map<string, Buffer>();
 const MAX_TTS_CACHE = 60;
 
+// Gemini Free-tier cooldown tracker (avoids 8-second 429 delays when daily quota is exhausted)
+let geminiQuotaExhaustedUntil = 0;
+
 // Fallback to Google Translate TTS if offline or edge-tts fails
 function fetchGoogleTTSFallback(text: string, lang: string = "id"): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -48,71 +51,71 @@ function fetchGoogleTTSFallback(text: string, lang: string = "id"): Promise<Buff
 }
 
 /**
- * Phonetic normalizer so Indonesian Neural TTS (id-ID-ArdiNeural / GadisNeural)
- * pronounces common English loanwords & creator/tech terms naturally
- * instead of reading them letter-by-letter with Indonesian spelling.
+ * Phonetic normalizer for Indonesian Neural TTS (id-ID-ArdiNeural / GadisNeural)
+ * Uses clean, fluent Indonesian spelling WITHOUT hyphens or odd double letters
+ * so Microsoft Azure Neural reads them seamlessly without awkward pauses or robotic glitches.
  */
 function normalizeIndonesianEnglishTTS(input: string): string {
   const phoneticMap: Record<string, string> = {
     lifestyle: "laifstail",
-    inflation: "infleisyenn",
+    inflation: "inflasi",
     autodebet: "otodebet",
-    save: "seiv",
-    share: "syer",
+    save: "simpan",
+    share: "bagikan",
     scroll: "skrol",
-    followers: "folowers",
+    followers: "folower",
     follower: "folower",
-    affiliate: "afili-et",
+    affiliate: "afiliasi",
     skincare: "skinker",
-    breakout: "brek-aut",
+    breakout: "brekaut",
     purging: "perjing",
     content: "konten",
-    creator: "kri-eiter",
-    viral: "vairel",
+    creator: "kreator",
+    viral: "viral",
     hook: "huk",
     mindset: "mainset",
-    cashflow: "kesflou",
+    cashflow: "kesflo",
     budget: "bajet",
     budgeting: "bajeting",
-    gadget: "gejet",
-    flagship: "fleksyip",
+    gadget: "gadget",
+    flagship: "flegsyip",
     upgrade: "apgreid",
-    download: "daunlod",
-    passive: "pesif",
+    download: "unduh",
+    passive: "pasif",
     income: "inkam",
-    feedback: "fitbek",
+    feedback: "umpan balik",
     branding: "brending",
     storytelling: "stori teling",
     closing: "klosing",
-    checkout: "cek-aut",
-    review: "ri-vyu",
-    growth: "grout",
+    checkout: "cekaut",
+    review: "riviu",
+    growth: "pertumbuhan",
     scale: "skeil",
     update: "apdeit",
-    online: "onlain",
-    offline: "oflain",
-    skill: "skil",
-    agent: "eijen",
-    github: "git-hab",
-    design: "disain",
-    swipe: "swaip",
-    workflow: "werkflou",
-    deadline: "dedlain",
+    online: "online",
+    offline: "offline",
+    skill: "keahlian",
+    agent: "agen",
+    github: "githab",
+    design: "desain",
+    swipe: "geser",
+    workflow: "workflo",
+    deadline: "tenggat",
     freelance: "frilens",
-    marketing: "mar-keting",
-    personal: "per-sonal",
-    finance: "fainens",
-    financial: "fainensyel",
-    wealth: "welt",
+    marketing: "marketing",
+    personal: "personal",
+    finance: "finansial",
+    financial: "finansial",
+    wealth: "kekayaan",
     profit: "profit",
     margin: "marjin",
-    revenue: "revenyu",
-    engagement: "engeijmen",
+    revenue: "pendapatan",
+    engagement: "interaksi",
     algorithm: "algoritma",
-    retention: "ritensyen",
-    highlight: "hailait",
-    caption: "kepsen",
-    voiceover: "vois-over",
+    retention: "retensi",
+    highlight: "sorotan",
+    caption: "kepsyen",
+    voiceover: "vois over",
   };
 
   return input.replace(/\b[a-zA-Z]+\b/g, (word) => {
@@ -194,12 +197,16 @@ function pcmToWav(pcmBuffer: Buffer, sampleRate: number = 24000, numChannels: nu
 
 /**
  * Ultra-Natural Human Studio Voice using Google Gemini Speech API (24kHz Studio Quality)
- * Cascades across 3.1-flash-tts-preview, 3.8-flash-tts, 3.8-flash-lite-tts, 2.5-pro-preview-tts
- * so it NEVER hits quota limits or falls back to robotic audio.
+ * Cascades across 3.8-flash-lite-tts, 2.5-flash-preview-tts, 3.1-flash-tts-preview, 3.8-flash-tts, 2.5-pro-preview-tts.
+ * Automatically respects quota cooldowns to prevent 8-second request hangs.
  */
 async function generateGeminiTTS(text: string, voiceName: string = "Aoede"): Promise<Buffer> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
+
+  if (Date.now() < geminiQuotaExhaustedUntil) {
+    throw new Error("Gemini daily TTS quota currently in cooldown, skipping to instant Neural fallback");
+  }
 
   const clean = text
     .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "")
@@ -212,11 +219,11 @@ async function generateGeminiTTS(text: string, voiceName: string = "Aoede"): Pro
   if (cached) return cached;
 
   const ttsCandidateModels = [
+    "gemini-3.8-flash-lite-tts",
+    "gemini-2.5-flash-preview-tts",
     "gemini-3.1-flash-tts-preview",
     "gemini-3.8-flash-tts",
-    "gemini-3.8-flash-lite-tts",
-    "gemini-2.5-pro-preview-tts",
-    "gemini-2.5-flash-preview-tts"
+    "gemini-2.5-pro-preview-tts"
   ];
 
   let lastErr = null;
@@ -240,6 +247,10 @@ async function generateGeminiTTS(text: string, voiceName: string = "Aoede"): Pro
       });
 
       if (!res.ok) {
+        if (res.status === 429) {
+          // Track 10-minute cooldown so subsequent scene requests don't lag
+          geminiQuotaExhaustedUntil = Date.now() + 10 * 60 * 1000;
+        }
         const errText = await res.text();
         lastErr = new Error(`Gemini TTS API (${modelName}) error ${res.status}: ${errText}`);
         continue;
@@ -308,13 +319,17 @@ async function generatePiperLocalTTS(text: string): Promise<Buffer> {
 
 /**
  * Formats text for natural Indonesian neural speech phrasing:
- * - Converts ALL-CAPS headlines to natural sentence case so TTS doesn't flatten them
+ * - Converts ALL-CAPS headlines to natural sentence case with clean capitalization
  * - Inserts subtle breathing commas before Indonesian conjunctions for melodic pitch contours
+ * - Cleans up multiple punctuation to avoid robotic stutter
  */
 function formatNaturalSpeechProsody(input: string): string {
   // Lowercase ALL-CAPS words (>2 chars) except common acronyms (HP, AI, CV, HRD, UMKM, BBM, KPR, ATS, STAR)
   const acronyms = new Set(["HP", "AI", "CV", "HRD", "UMKM", "BBM", "KPR", "ATS", "STAR", "HD", "SD", "SMP", "SMA"]);
   let out = input.replace(/\b[A-Z]{3,}\b/g, (w) => (acronyms.has(w) ? w : w.toLowerCase()));
+
+  // Capitalize sentence beginnings
+  out = out.replace(/(^\s*|[.!?]\s+)([a-z])/g, (_, p1, p2) => p1 + p2.toUpperCase());
 
   // Insert natural breathing pause before conjunctions if no punctuation precedes them
   out = out.replace(
@@ -322,9 +337,61 @@ function formatNaturalSpeechProsody(input: string): string {
     "$1, $2"
   );
 
-  // Add slight dramatic breath pause after hook ? or !
-  out = out.replace(/([?!])\s+/g, "$1 ... ");
+  // Normalize punctuation: avoid "..." which glitches Microsoft Neural TTS into mechanical pauses
+  out = out.replace(/\.{2,}/g, ", ");
+  out = out.replace(/([?!])\s+/g, "$1 ");
   return out;
+}
+
+/**
+ * Voice-specific natural emotional prosody tuning:
+ * Distinguishes female (Gadis) vs male (Ardi) accurately so Gadis is never distorted
+ * by aggressive rate/pitch boosts.
+ */
+function getVoiceProsody(
+  targetVoice: string,
+  emotion: string = "normal",
+  customRate?: string,
+  customPitch?: string
+): { rate: string; pitch: string } {
+  if (customRate && customPitch) {
+    return { rate: customRate, pitch: customPitch };
+  }
+
+  const isFemale =
+    targetVoice.toLowerCase().includes("gadis") ||
+    targetVoice.toLowerCase().includes("aoede") ||
+    targetVoice.toLowerCase().includes("kore");
+
+  if (isFemale) {
+    // id-ID-GadisNeural: warm, natural, friendly creator tone
+    switch (emotion) {
+      case "shocked":
+        return { rate: customRate || "+3%", pitch: customPitch || "+1Hz" };
+      case "skeptical":
+        return { rate: customRate || "-2%", pitch: customPitch || "-1Hz" };
+      case "celebrate":
+        return { rate: customRate || "+3%", pitch: customPitch || "+1Hz" };
+      case "point-cta":
+        return { rate: customRate || "+1%", pitch: customPitch || "+0Hz" };
+      default:
+        return { rate: customRate || "+1%", pitch: customPitch || "+0Hz" };
+    }
+  } else {
+    // id-ID-ArdiNeural: lively, dynamic, confident podcast host tone
+    switch (emotion) {
+      case "shocked":
+        return { rate: customRate || "+5%", pitch: customPitch || "+1Hz" };
+      case "skeptical":
+        return { rate: customRate || "-2%", pitch: customPitch || "-1Hz" };
+      case "celebrate":
+        return { rate: customRate || "+4%", pitch: customPitch || "+1Hz" };
+      case "point-cta":
+        return { rate: customRate || "+2%", pitch: customPitch || "+0Hz" };
+      default:
+        return { rate: customRate || "+2%", pitch: customPitch || "+0Hz" };
+    }
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -342,27 +409,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Text is required" }, { status: 400 });
     }
 
-    // 1. Voice-Specific Natural Emotional Prosody & Cadence Tuning
-    const isFemale = voice.toLowerCase().includes("gadis");
-    let rate = customRate || (isFemale ? "-2%" : "+0%");
-    let pitch = customPitch || (isFemale ? "-2Hz" : "+0Hz");
     const formattedText = formatNaturalSpeechProsody(text.trim());
 
-    if (emotion === "shocked") {
-      rate = customRate || (isFemale ? "+4%" : "+10%");
-      pitch = customPitch || (isFemale ? "+1Hz" : "+3Hz");
-    } else if (emotion === "skeptical") {
-      rate = customRate || (isFemale ? "-6%" : "-4%");
-      pitch = customPitch || (isFemale ? "-5Hz" : "-2Hz");
-    } else if (emotion === "celebrate") {
-      rate = customRate || (isFemale ? "+2%" : "+6%");
-      pitch = customPitch || (isFemale ? "+0Hz" : "+2Hz");
-    } else if (emotion === "point-cta") {
-      rate = customRate || (isFemale ? "-2%" : "+2%");
-      pitch = customPitch || (isFemale ? "-2Hz" : "+0Hz");
-    }
-
-    // 2. Primary: Google Gemini Ultra-Natural Studio Voice Multi-Model Cascade
+    // 1. Primary: Google Gemini Ultra-Natural Studio Voice Multi-Model Cascade
     const geminiVoiceMap: Record<string, string> = {
       "gemini-aoede": "Aoede",
       "aoede": "Aoede",
@@ -391,11 +440,12 @@ export async function POST(req: NextRequest) {
           },
         });
       } catch (geminiErr) {
-        console.warn(`Gemini TTS (${selectedGeminiVoice}) fallback to Cloud Microsoft Azure Neural:`, geminiErr);
-        // Fall back to Microsoft Neural HD (Gadis for female voices, Ardi for male voices)
+        console.warn(`Gemini TTS (${selectedGeminiVoice}) fallback to Cloud Microsoft Azure Neural:`, (geminiErr as any)?.message || geminiErr);
+        // Fall back to Microsoft Neural HD with matched gender & natural prosody
         const fallbackVoice = ["Aoede", "Kore"].includes(selectedGeminiVoice)
           ? "id-ID-GadisNeural"
           : "id-ID-ArdiNeural";
+        const { rate, pitch } = getVoiceProsody(fallbackVoice, emotion, customRate, customPitch);
         try {
           const neuralBuffer = await generateMicrosoftNeuralTTS(formattedText, fallbackVoice, rate, pitch);
           return new NextResponse(new Uint8Array(neuralBuffer), {
@@ -411,10 +461,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Fallback: Microsoft Azure / Edge Neural TTS HD (Accessible from anywhere: phone, laptop, cloud)
-    const neuralTargetVoice = voice === "id-ID-GadisNeural" || voice === "gemini-aoede" || voice === "gemini-kore"
+    // 2. Microsoft Azure / Edge Neural TTS HD
+    const neuralTargetVoice = voice.toLowerCase().includes("gadis") || voice.toLowerCase().includes("aoede") || voice.toLowerCase().includes("kore")
       ? "id-ID-GadisNeural"
       : "id-ID-ArdiNeural";
+    const { rate, pitch } = getVoiceProsody(neuralTargetVoice, emotion, customRate, customPitch);
 
     try {
       const neuralBuffer = await generateMicrosoftNeuralTTS(formattedText, neuralTargetVoice, rate, pitch);
@@ -431,7 +482,7 @@ export async function POST(req: NextRequest) {
       console.warn("Microsoft Neural TTS unavailable, checking local Piper offline fallback:", neuralErr);
     }
 
-    // 4. Local Piper ONNX Offline Fallback (if running on local PC with Piper binary)
+    // 3. Local Piper ONNX Offline Fallback (if running on local PC with Piper binary)
     try {
       const piperWav = await generatePiperLocalTTS(formattedText);
       return new NextResponse(new Uint8Array(piperWav), {
@@ -468,18 +519,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Text query param is required" }, { status: 400 });
   }
 
+  const formattedText = formatNaturalSpeechProsody(text.trim());
+  const targetVoice = voice.toLowerCase().includes("gadis") ? "id-ID-GadisNeural" : "id-ID-ArdiNeural";
+  const { rate, pitch } = getVoiceProsody(targetVoice, emotion);
+
   try {
-    const neuralBuffer = await generateMicrosoftNeuralTTS(text, voice);
+    const neuralBuffer = await generateMicrosoftNeuralTTS(formattedText, targetVoice, rate, pitch);
     return new NextResponse(new Uint8Array(neuralBuffer), {
       status: 200,
       headers: {
         "Content-Type": "audio/mpeg",
         "Content-Length": neuralBuffer.length.toString(),
+        "X-TTS-Engine": `Microsoft-Azure-Neural-${targetVoice.includes("Gadis") ? "Gadis" : "Ardi"}`,
         "Cache-Control": "public, max-age=86400",
       },
     });
   } catch (_) {
-    const fallbackBuffer = await fetchGoogleTTSFallback(text, "id");
+    const fallbackBuffer = await fetchGoogleTTSFallback(formattedText, "id");
     return new NextResponse(new Uint8Array(fallbackBuffer), {
       status: 200,
       headers: {
