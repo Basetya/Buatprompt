@@ -38,6 +38,7 @@ import {
   Image as ImageIcon,
   Cpu,
   Trash2,
+  Palette,
   Star,
 } from "lucide-react";
 import {
@@ -57,6 +58,138 @@ import {
 } from "@/lib/mographEngine";
 import { KNOWLEDGE_VAULT } from "@/lib/knowledgeVault";
 
+export type PresenterPoseId =
+  | "friendly-anchor"
+  | "problem-shrug"
+  | "secret-lean"
+  | "explainer"
+  | "eureka-point"
+  | "chin-thinker"
+  | "comparison"
+  | "strong-cta";
+
+export const PRESENTER_POSES: Record<
+  PresenterPoseId,
+  {
+    id: PresenterPoseId;
+    label: string;
+    icon: string;
+    desc: string;
+    stance: "standing" | "seated";
+    tiltDeg: number;
+    scaleMultiplier: number;
+    yOffset: number;
+    badgeEmoji: string;
+    badgeText: string;
+    glowColor: string;
+  }
+> = {
+  "friendly-anchor": {
+    id: "friendly-anchor",
+    label: "The Friendly Anchor",
+    icon: "👋",
+    desc: "Sapaan Hangat & Hook Pembuka",
+    stance: "standing",
+    tiltDeg: 0,
+    scaleMultiplier: 1.0,
+    yOffset: 0,
+    badgeEmoji: "👋",
+    badgeText: "HOOK INTRO",
+    glowColor: "#38bdf8",
+  },
+  "problem-shrug": {
+    id: "problem-shrug",
+    label: "The Problem Shrug",
+    icon: "🤷",
+    desc: "Bingung / Mitos / Masalah Keras",
+    stance: "standing",
+    tiltDeg: -8,
+    scaleMultiplier: 1.03,
+    yOffset: -8,
+    badgeEmoji: "❓",
+    badgeText: "KENAPA YA?",
+    glowColor: "#f87171",
+  },
+  "secret-lean": {
+    id: "secret-lean",
+    label: "The Secret Lean-In",
+    icon: "🤫",
+    desc: "Membocorkan Rahasia / Bisikan Eksklusif",
+    stance: "standing",
+    tiltDeg: 3,
+    scaleMultiplier: 1.12,
+    yOffset: -18,
+    badgeEmoji: "🤫",
+    badgeText: "BOCORAN RAHASIA",
+    glowColor: "#a855f7",
+  },
+  "explainer": {
+    id: "explainer",
+    label: "The Explainer",
+    icon: "📐",
+    desc: "Menjelaskan Konsep Logika & Langkah",
+    stance: "standing",
+    tiltDeg: 2,
+    scaleMultiplier: 1.02,
+    yOffset: -4,
+    badgeEmoji: "⚡",
+    badgeText: "CARA KERJA",
+    glowColor: "#38bdf8",
+  },
+  "eureka-point": {
+    id: "eureka-point",
+    label: "The Eureka Point",
+    icon: "💡",
+    desc: "Ide Cemerlang / Solusi Emas Terbongkar",
+    stance: "standing",
+    tiltDeg: -2,
+    scaleMultiplier: 1.06,
+    yOffset: -10,
+    badgeEmoji: "💡",
+    badgeText: "KUNCINYA INI!",
+    glowColor: "#fbbf24",
+  },
+  "chin-thinker": {
+    id: "chin-thinker",
+    label: "The Chin Thinker",
+    icon: "🤔",
+    desc: "Merenung & Ajak Penonton Menganalisis",
+    stance: "seated",
+    tiltDeg: 5,
+    scaleMultiplier: 1.04,
+    yOffset: -6,
+    badgeEmoji: "💭",
+    badgeText: "COBA PIKIRKAN",
+    glowColor: "#60a5fa",
+  },
+  "comparison": {
+    id: "comparison",
+    label: "The Comparison",
+    icon: "⚖️",
+    desc: "Bandingkan Cara Salah vs Cara Benar",
+    stance: "standing",
+    tiltDeg: 0,
+    scaleMultiplier: 1.02,
+    yOffset: -2,
+    badgeEmoji: "⚖️",
+    badgeText: "SALAH VS BENAR",
+    glowColor: "#f97316",
+  },
+  "strong-cta": {
+    id: "strong-cta",
+    label: "The Strong CTA",
+    icon: "🎯",
+    desc: "Ajakan Mantap / Follow / Save",
+    stance: "standing",
+    tiltDeg: -1,
+    scaleMultiplier: 1.08,
+    yOffset: -12,
+    badgeEmoji: "🔔",
+    badgeText: "FOLLOW & SAVE!",
+    glowColor: "#10b981",
+  },
+};
+
 interface StoryScene {
   sceneNumber: number;
   stageName: string;
@@ -67,6 +200,7 @@ interface StoryScene {
   highlightKeyword: string;
   durationSec: number;
   characterEmotion: "shocked" | "skeptical" | "celebrate" | "point-cta";
+  suggestedPose?: PresenterPoseId;
   kineticFx: string;
   foleyCue: string;
 }
@@ -82,6 +216,7 @@ const INITIAL_STUDIO_SCENES: StoryScene[] = [
     highlightKeyword: "TOPIK",
     durationSec: 8,
     characterEmotion: "shocked",
+    suggestedPose: "friendly-anchor",
     kineticFx: "Spring Punch Scale",
     foleyCue: "0:00 Fast Whoosh",
   },
@@ -95,6 +230,7 @@ const INITIAL_STUDIO_SCENES: StoryScene[] = [
     highlightKeyword: "KONTEKS",
     durationSec: 8,
     characterEmotion: "skeptical",
+    suggestedPose: "problem-shrug",
     kineticFx: "Slide-Up Masked Reveal",
     foleyCue: "0:08 Camera Snap",
   },
@@ -108,6 +244,7 @@ const INITIAL_STUDIO_SCENES: StoryScene[] = [
     highlightKeyword: "VISUAL",
     durationSec: 8,
     characterEmotion: "celebrate",
+    suggestedPose: "eureka-point",
     kineticFx: "Editorial Sweep Underline",
     foleyCue: "0:16 Harmonic Swell",
   },
@@ -121,6 +258,7 @@ const INITIAL_STUDIO_SCENES: StoryScene[] = [
     highlightKeyword: "UNDUH",
     durationSec: 8,
     characterEmotion: "point-cta",
+    suggestedPose: "strong-cta",
     kineticFx: "Spotlight Tilt",
     foleyCue: "0:24 Bell Ding",
   },
@@ -146,6 +284,26 @@ export default function KineticMotionPage() {
   const [activeSceneTab, setActiveSceneTab] = useState(0);
   const [showMascot, setShowMascot] = useState(true);
   const [showUpperCard, setShowUpperCard] = useState(true);
+
+  // Serialized Educational Multi-Part State (1-4 Parts)
+  const [seriesCount, setSeriesCount] = useState<number>(1);
+  const [seriesEpisodes, setSeriesEpisodes] = useState<
+    Array<{ partNumber: number; partTitle: string; scenes: StoryScene[] }>
+  >([]);
+  const [activeSeriesPart, setActiveSeriesPart] = useState<number>(1);
+
+  const selectSeriesPart = (partNum: number) => {
+    const ep = seriesEpisodes.find((e) => e.partNumber === partNum);
+    if (ep) {
+      setActiveSeriesPart(partNum);
+      setScenes(ep.scenes);
+      setActiveSceneTab(0);
+      startTimeRef.current = Date.now();
+      pausedElapsedRef.current = 0;
+      lastSceneIndexRef.current = -1;
+      playedSceneAudioRef.current = -1;
+    }
+  };
 
   // Audio Engine State
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -364,6 +522,105 @@ export default function KineticMotionPage() {
     });
   };
 
+  const [isProcessingCutout, setIsProcessingCutout] = useState<Record<number, boolean>>({});
+
+  // 100% In-Browser & Air-Gapped Intelligent Background Removal (Canvas Chroma & Edge Feathering)
+  const removeBackgroundInBrowser = (dataUrl: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return resolve(dataUrl);
+
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imgData.data;
+        const w = canvas.width;
+        const h = canvas.height;
+
+        // Sample corner pixels to calculate background color baseline
+        const corners = [
+          0,
+          Math.min(4, w - 1) * 4,
+          (w - 1) * 4,
+          ((h - 1) * w) * 4,
+          ((h - 1) * w + (w - 1)) * 4,
+        ];
+
+        let bgR = 0, bgG = 0, bgB = 0;
+        corners.forEach((idx) => {
+          bgR += data[idx];
+          bgG += data[idx + 1];
+          bgB += data[idx + 2];
+        });
+        bgR = Math.round(bgR / corners.length);
+        bgG = Math.round(bgG / corners.length);
+        bgB = Math.round(bgB / corners.length);
+
+        // Smart color distance thresholding with feathered alpha edge
+        const threshold = 40;
+        const feather = 20;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+
+          const dist = Math.sqrt(
+            Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2)
+          );
+
+          if (dist < threshold) {
+            data[i + 3] = 0; // Fully transparent
+          } else if (dist < threshold + feather) {
+            const alphaFactor = (dist - threshold) / feather;
+            data[i + 3] = Math.round(data[i + 3] * alphaFactor);
+          }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  };
+
+  const handleAutoCutout = async (sceneIdx: number) => {
+    const rawUrl = avatarPhotos[sceneIdx];
+    if (!rawUrl) return;
+    setIsProcessingCutout((prev) => ({ ...prev, [sceneIdx]: true }));
+    try {
+      const cutoutUrl = await removeBackgroundInBrowser(rawUrl);
+      const img = new window.Image();
+      img.onload = () => {
+        avatarImgElementsRef.current[sceneIdx] = img;
+        setAvatarPhotos((prev) => ({ ...prev, [sceneIdx]: cutoutUrl }));
+      };
+      img.src = cutoutUrl;
+    } finally {
+      setIsProcessingCutout((prev) => ({ ...prev, [sceneIdx]: false }));
+    }
+  };
+
+  const applyPhotoToAllScenes = () => {
+    const masterPhoto = avatarPhotos[0] || avatarPhotos[activeSceneTab];
+    if (!masterPhoto) return;
+    const masterImg = avatarImgElementsRef.current[0] || avatarImgElementsRef.current[activeSceneTab];
+
+    const newPhotos: Record<number, string> = {};
+    for (let i = 0; i < 4; i++) {
+      newPhotos[i] = masterPhoto;
+      if (masterImg) avatarImgElementsRef.current[i] = masterImg;
+    }
+    setAvatarPhotos(newPhotos);
+    setAvatarEngine("photo-cutout");
+  };
+
   // Handle Custom Human Photo Upload for Multi-Pose Cutout Avatar
   const handleAvatarUpload = (sceneIdx: number, file: File | null) => {
     if (!file) return;
@@ -433,21 +690,30 @@ export default function KineticMotionPage() {
           variantSeed: currentSeed,
           motionStyle,
           durationTarget,
+          seriesCount,
         }),
       });
 
       const data = await res.json();
-      if (data.scenes && Array.isArray(data.scenes)) {
+      if (data.episodes && Array.isArray(data.episodes) && data.episodes.length > 0) {
+        setSeriesEpisodes(data.episodes);
+        setScenes(data.episodes[0].scenes);
+        setActiveSeriesPart(1);
+        setActiveSceneTab(0);
+      } else if (data.scenes && Array.isArray(data.scenes)) {
+        setSeriesEpisodes([]);
         setScenes(data.scenes);
-        if (data.vaultUsed) {
-          setActiveVaultInfo(data.vaultUsed);
-        }
-        if (data.warningNotice) {
-          setWarningMessage(data.warningNotice);
-        }
-        startTimeRef.current = Date.now(); // reset animation to 0
-        lastSceneIndexRef.current = -1;
+        setActiveSeriesPart(1);
+        setActiveSceneTab(0);
       }
+      if (data.vaultUsed) {
+        setActiveVaultInfo(data.vaultUsed);
+      }
+      if (data.warningNotice) {
+        setWarningMessage(data.warningNotice);
+      }
+      startTimeRef.current = Date.now(); // reset animation to 0
+      lastSceneIndexRef.current = -1;
     } catch (err) {
       console.error(err);
     } finally {
@@ -778,6 +1044,26 @@ export default function KineticMotionPage() {
       ctx.font = "800 16px sans-serif";
       ctx.textAlign = "left";
       ctx.fillText("BUATPROMPT", 60, 62);
+
+      // Serial Educational Badge on Canvas (e.g. SERI 01 / 03)
+      if (seriesCount > 1 || seriesEpisodes.length > 1) {
+        ctx.save();
+        ctx.fillStyle = `${accentColor}26`;
+        ctx.strokeStyle = `${accentColor}88`;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.roundRect(185, 48, 105, 22, 11);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = "800 11px sans-serif";
+        ctx.fillStyle = accentColor;
+        ctx.textAlign = "center";
+        const currentPartDisplay = activeSeriesPart || 1;
+        const totalPartsDisplay = seriesEpisodes.length > 0 ? seriesEpisodes.length : seriesCount;
+        ctx.fillText(`SERI 0${currentPartDisplay} / 0${totalPartsDisplay}`, 237, 63);
+        ctx.restore();
+      }
 
       // 4-Segment Horizontal Progress Pills (Top Right)
       const segCount = mode === "multi" ? scenes.length : 1;
@@ -1244,8 +1530,16 @@ export default function KineticMotionPage() {
         const customPhotoImg =
           avatarImgElementsRef.current[sceneIndex] || avatarImgElementsRef.current[0];
 
+        const currentScene = scenes[sceneIndex];
+        const activePoseId: PresenterPoseId = currentScene?.suggestedPose || (
+          sceneIndex === 0 ? "friendly-anchor" :
+          sceneIndex === 1 ? "problem-shrug" :
+          sceneIndex === 2 ? "eureka-point" : "strong-cta"
+        );
+        const poseInfo = PRESENTER_POSES[activePoseId] || PRESENTER_POSES["friendly-anchor"];
+
         if (avatarEngine === "photo-cutout" && customPhotoImg) {
-          // Multi-Pose Human Photo Cutout
+          // Multi-Pose Human Photo Cutout with Contextual Dynamic Poses (Air-Gapped)
           drawHumanCutoutAvatar(ctx, {
             img: customPhotoImg,
             cx: W / 2,
@@ -1256,6 +1550,7 @@ export default function KineticMotionPage() {
             elapsed,
             accentColor,
             sceneProgress: sceneLocalProgress,
+            poseInfo: poseInfo,
           });
         } else if (avatarEngine === "human-rigged" || (avatarEngine === "photo-cutout" && !customPhotoImg)) {
           // 2D Rigged Human Creator Host (6-Phoneme Lip-Sync + Expressive Hands)
@@ -1496,7 +1791,8 @@ export default function KineticMotionPage() {
         const actualType = recorder.mimeType || mimeType || "video/webm";
         const blob = new Blob(chunks, { type: actualType });
         const url = URL.createObjectURL(blob);
-        const filename = `buatprompt-kinetic-${mode}-${totalDurationSec}s-audio.${ext}`;
+        const partLabel = seriesEpisodes.length > 1 ? `-seri-${activeSeriesPart}-dari-${seriesEpisodes.length}` : "";
+        const filename = `buatprompt-kinetic-${mode}${partLabel}-${totalDurationSec}s-audio.${ext}`;
 
         setRecordedVideoUrl(url);
         setRecordedFileName(filename);
@@ -1576,19 +1872,20 @@ export default function KineticMotionPage() {
         </p>
       </div>
 
-      {/* Mode & Audio Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+      {/* 1. Mode & Format Selection */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setMode("multi")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${mode === "multi"
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+              mode === "multi"
                 ? "bg-white text-black shadow-lg"
                 : "bg-white/5 border border-white/10 text-zinc-400 hover:text-white"
-              }`}
+            }`}
           >
             <Layers className="h-4 w-4" />
-            <span>FULL 4-SCENE STORY MOVIE ({totalDurationSec}s)</span>
+            <span>FULL 4-SCENE MOVIE ({totalDurationSec}s)</span>
             <span className="bg-emerald-500/20 text-emerald-800 text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase ml-1">
               Rekomendasi
             </span>
@@ -1597,182 +1894,332 @@ export default function KineticMotionPage() {
           <button
             type="button"
             onClick={() => setMode("single")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${mode === "single"
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+              mode === "single"
                 ? "bg-white text-black shadow-lg"
                 : "bg-white/5 border border-white/10 text-zinc-400 hover:text-white"
-              }`}
+            }`}
           >
             <Play className="h-4 w-4 fill-current" />
             <span>SINGLE HOOK CLIP (6s)</span>
           </button>
         </div>
 
-        {/* Audio & Character Controls */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Audio Voiceover Toggle */}
+        {/* Compact Toggle Strip */}
+        <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px]">
           <button
             type="button"
             onClick={() => {
               getOrCreateAudioEngine();
               setAudioEnabled(!audioEnabled);
             }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${audioEnabled
-                ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-300"
-                : "border-white/10 bg-black/40 text-zinc-500 hover:text-white"
-              }`}
+            className={`px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+              audioEnabled ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-300" : "border-white/10 text-zinc-500"
+            }`}
           >
-            {audioEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-            <span>Voiceover: {audioEnabled ? "AKTIF ✓" : "MUTE"}</span>
+            {audioEnabled ? "🎙️ Voice: ON" : "🎙️ Voice: MUTE"}
           </button>
 
-          {/* Studio Voice Character Selector (Gemini Ultra-Natural Primary + Azure Fallback) */}
-          <div className="flex flex-wrap items-center gap-1 rounded-xl bg-black/50 border border-white/10 p-1">
-            <button
-              type="button"
-              onClick={() => {
-                getOrCreateAudioEngine();
-                setVoiceActor("gemini-aoede");
-              }}
-              className={`px-2.5 py-1.5 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${voiceActor === "gemini-aoede"
-                  ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 shadow-sm"
-                  : "text-zinc-400 hover:text-white"
-                }`}
-            >
-              <span>✨ Aoede (Wanita)</span>
-              <span className="text-[9px] px-1 rounded bg-emerald-500/20 text-emerald-400">Gemini</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                getOrCreateAudioEngine();
-                setVoiceActor("gemini-kore");
-              }}
-              className={`px-2.5 py-1.5 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${voiceActor === "gemini-kore"
-                  ? "bg-cyan-500/25 text-cyan-300 border border-cyan-500/50 shadow-sm"
-                  : "text-zinc-400 hover:text-white"
-                }`}
-            >
-              <span>✨ Kore (Ceria)</span>
-              <span className="text-[9px] px-1 rounded bg-cyan-500/20 text-cyan-400">Gemini</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                getOrCreateAudioEngine();
-                setVoiceActor("gemini-charon");
-              }}
-              className={`px-2.5 py-1.5 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${voiceActor === "gemini-charon"
-                  ? "bg-indigo-500/25 text-indigo-300 border border-indigo-500/50 shadow-sm"
-                  : "text-zinc-400 hover:text-white"
-                }`}
-            >
-              <span>✨ Charon (Pria)</span>
-              <span className="text-[9px] px-1 rounded bg-indigo-500/20 text-indigo-400">Gemini</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                getOrCreateAudioEngine();
-                setVoiceActor("gemini-puck");
-              }}
-              className={`px-2.5 py-1.5 rounded-lg font-mono text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${voiceActor === "gemini-puck"
-                  ? "bg-amber-500/25 text-amber-300 border border-amber-500/50 shadow-sm"
-                  : "text-zinc-400 hover:text-white"
-                }`}
-            >
-              <span>✨ Puck (Casual)</span>
-              <span className="text-[9px] px-1 rounded bg-amber-500/20 text-amber-400">Gemini</span>
-            </button>
-
-            <div className="h-4 w-px bg-white/10 mx-1 hidden sm:block" />
-
-            <button
-              type="button"
-              onClick={() => {
-                getOrCreateAudioEngine();
-                setVoiceActor("id-ID-GadisNeural");
-              }}
-              className={`px-2 py-1 rounded-md font-mono text-[10px] transition-all cursor-pointer ${voiceActor === "id-ID-GadisNeural"
-                  ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
-                  : "text-zinc-500 hover:text-zinc-300"
-                }`}
-              title="Cadangan Azure Neural"
-            >
-              Gadis (Fallback)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                getOrCreateAudioEngine();
-                setVoiceActor("id-ID-ArdiNeural");
-              }}
-              className={`px-2 py-1 rounded-md font-mono text-[10px] transition-all cursor-pointer ${voiceActor === "id-ID-ArdiNeural"
-                  ? "bg-blue-500/20 text-blue-300 border border-blue-500/40"
-                  : "text-zinc-500 hover:text-zinc-300"
-                }`}
-              title="Cadangan Azure Neural"
-            >
-              Ardi (Fallback)
-            </button>
-          </div>
-
-          {/* Lo-Fi BGM Toggle */}
           <button
             type="button"
             onClick={() => {
               getOrCreateAudioEngine();
               setBgmEnabled(!bgmEnabled);
             }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${bgmEnabled
-                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                : "border-white/10 bg-black/40 text-zinc-500 hover:text-white"
-              }`}
+            className={`px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+              bgmEnabled ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-white/10 text-zinc-500"
+            }`}
           >
-            <Music className="h-3.5 w-3.5" />
-            <span>BGM Lo-Fi: {bgmEnabled ? "ON ✓" : "OFF"}</span>
+            {bgmEnabled ? "🎵 BGM: ON" : "🎵 BGM: OFF"}
           </button>
 
-          {/* Character Layout Toggle */}
           <button
             type="button"
-            onClick={() => setCharacterLayout(characterLayout === "single" ? "duo" : "single")}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border border-white/10 bg-black/40 text-zinc-300 hover:text-white transition-colors cursor-pointer"
+            onClick={() => setSfxEnabled(!sfxEnabled)}
+            className={`px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+              sfxEnabled ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-300" : "border-white/10 text-zinc-500"
+            }`}
           >
-            {characterLayout === "single" ? <User className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5 text-emerald-400" />}
-            <span>Avatar: {characterLayout === "single" ? "1 Host" : "Duo"}</span>
+            {sfxEnabled ? "🔊 SFX: ON" : "🔊 SFX: OFF"}
           </button>
 
-          {/* Showcase Card Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowUpperCard(!showUpperCard)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${showUpperCard
-                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                : "border-white/10 bg-black/40 text-zinc-500 hover:text-white"
-              }`}
-          >
-            <Layers className="h-3.5 w-3.5" />
-            <span>Showcase: {showUpperCard ? "ON ✓" : "OFF"}</span>
-          </button>
-
-          {/* Character Mascot Toggle */}
           <button
             type="button"
             onClick={() => setShowMascot(!showMascot)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-xs border transition-colors cursor-pointer ${showMascot
-                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                : "border-white/10 bg-black/40 text-zinc-500 hover:text-white"
-              }`}
+            className={`px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+              showMascot ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-white/10 text-zinc-500"
+            }`}
           >
-            <Smile className="h-3.5 w-3.5" />
-            <span>Maskot: {showMascot ? "ON ✓" : "OFF"}</span>
+            {showMascot ? "🧑 Maskot: ON" : "🧑 Maskot: OFF"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowUpperCard(!showUpperCard)}
+            className={`px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+              showUpperCard ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-white/10 text-zinc-500"
+            }`}
+          >
+            {showUpperCard ? "📋 Card: ON" : "📋 Card: OFF"}
           </button>
         </div>
       </div>
+
+      {/* 2. TOP QUICK ACCESS: 3 PRESET FAVORIT KREATOR (1-KLIK) */}
+      <div className="mb-4 rounded-2xl border border-white/10 bg-[#0d1017] p-3.5 space-y-2">
+        <div className="flex items-center justify-between text-xs font-mono text-zinc-300">
+          <span className="font-bold flex items-center gap-1.5 text-emerald-400">
+            <Sparkles className="h-3.5 w-3.5" /> 3 KOMBINASI FAVORIT KREATOR (1-KLIK SIAP PAKAI)
+          </span>
+          <span className="text-[10px] text-zinc-500">Paling rutin & instan dipakai</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {/* Preset 1: Apple Keynote + Human 2D + Aoede */}
+          <button
+            type="button"
+            onClick={() => {
+              setMotionStyle("apple-keynote");
+              setAvatarEngine("human-rigged");
+              setHumanPreset("tech-creator");
+              setVoiceActor("gemini-aoede");
+            }}
+            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${
+              motionStyle === "apple-keynote" && avatarEngine === "human-rigged" && voiceActor === "gemini-aoede"
+                ? "border-emerald-400 bg-emerald-500/15 text-white shadow-lg"
+                : "border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
+            }`}
+          >
+            <div className="text-xs font-bold text-white flex items-center gap-1">
+              <span>🍏 Edukasi Elegan</span>
+            </div>
+            <div className="text-[10px] text-zinc-400 mt-0.5">
+              Apple Keynote • Human 2D • Suara Aoede
+            </div>
+          </button>
+
+          {/* Preset 2: Viral Yellow + 3D Voxel + Kore */}
+          <button
+            type="button"
+            onClick={() => {
+              setMotionStyle("viral-yellow");
+              setAvatarEngine("voxel");
+              setVoxelPreset("beanie-striped");
+              setVoiceActor("gemini-kore");
+            }}
+            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${
+              motionStyle === "viral-yellow" && avatarEngine === "voxel" && voiceActor === "gemini-kore"
+                ? "border-amber-400 bg-amber-500/15 text-white shadow-lg"
+                : "border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
+            }`}
+          >
+            <div className="text-xs font-bold text-white flex items-center gap-1">
+              <span>⚡ Kreator Viral Hype</span>
+            </div>
+            <div className="text-[10px] text-zinc-400 mt-0.5">
+              Viral Yellow • 3D Voxel • Suara Kore
+            </div>
+          </button>
+
+          {/* Preset 3: Glass Aurora + Photo Cutout + Charon */}
+          <button
+            type="button"
+            onClick={() => {
+              setMotionStyle("glass-aurora");
+              setAvatarEngine("photo-cutout");
+              setVoiceActor("gemini-charon");
+            }}
+            className={`p-2.5 rounded-xl border text-left font-mono transition-all cursor-pointer ${
+              motionStyle === "glass-aurora" && avatarEngine === "photo-cutout" && voiceActor === "gemini-charon"
+                ? "border-cyan-400 bg-cyan-500/15 text-white shadow-lg"
+                : "border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10"
+            }`}
+          >
+            <div className="text-xs font-bold text-white flex items-center gap-1">
+              <span>🌌 Tech & Modern Aesthetic</span>
+            </div>
+            <div className="text-[10px] text-zinc-400 mt-0.5">
+              Glass Aurora • Foto Cutout • Suara Charon
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* 3. COMPACT MOBILE-FRIENDLY DROPDOWNS CONFIGURATION */}
+      <div className="mb-6 rounded-2xl border border-white/10 bg-[#0d1017] p-4 space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 font-mono text-xs">
+          {/* Dropdown 1: Format Seri Edukasi (1-4 Parts) */}
+          <div>
+            <label className="block text-zinc-400 font-semibold mb-1">
+              📺 Format Seri Video:
+            </label>
+            <select
+              value={seriesCount}
+              onChange={(e) => setSeriesCount(Number(e.target.value))}
+              className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white focus:border-emerald-400 focus:outline-none"
+            >
+              <option value={1}>1 Part (Single Video Standalone)</option>
+              <option value={2}>2 Parts (Mini Seri 2 Episode)</option>
+              <option value={3}>3 Parts (Golden Sweet Spot ⭐ Rekomendasi)</option>
+              <option value={4}>4 Parts (Serial Lengkap 4 Episode)</option>
+            </select>
+          </div>
+
+          {/* Dropdown 2: Target Durasi */}
+          <div>
+            <label className="block text-zinc-400 font-semibold mb-1">
+              ⏱️ Target Durasi per Video:
+            </label>
+            <select
+              value={durationTarget}
+              onChange={(e) => setDurationTarget(e.target.value as any)}
+              className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white focus:border-emerald-400 focus:outline-none"
+            >
+              <option value="55s">52-55 Detik (Golden Sweet Spot)</option>
+              <option value="26s">26 Detik (Express Quick Hook)</option>
+            </select>
+          </div>
+
+          {/* Dropdown 3: Gaya Visual Archetype */}
+          <div>
+            <label className="block text-zinc-400 font-semibold mb-1">
+              🎨 Gaya Visual Arsitektur:
+            </label>
+            <select
+              value={motionStyle}
+              onChange={(e) => setMotionStyle(e.target.value as any)}
+              className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white focus:border-emerald-400 focus:outline-none"
+            >
+              {Object.values(MOTION_PALETTES).map((st) => (
+                <option key={st.id} value={st.id}>
+                  {st.name} ({st.tag})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Dropdown 4: Suara Voiceover */}
+          <div>
+            <label className="block text-zinc-400 font-semibold mb-1">
+              🎙️ Karakter Suara:
+            </label>
+            <select
+              value={voiceActor}
+              onChange={(e) => {
+                getOrCreateAudioEngine();
+                setVoiceActor(e.target.value);
+              }}
+              className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white focus:border-emerald-400 focus:outline-none"
+            >
+              <optgroup label="✨ Google Gemini Studio (Ultra-Natural)">
+                <option value="gemini-aoede">✨ Aoede (Wanita - Alami & Percakapan)</option>
+                <option value="gemini-charon">✨ Charon (Pria - Otoritatif & Edukatif)</option>
+                <option value="gemini-kore">✨ Kore (Wanita - Ceria & Energik)</option>
+                <option value="gemini-puck">✨ Puck (Pria - Santai & Lifestyle)</option>
+              </optgroup>
+              <optgroup label="🛡️ Microsoft Neural HD (Cloud Fallback)">
+                <option value="id-ID-GadisNeural">🛡️ Gadis (Wanita - Cloud Fallback)</option>
+                <option value="id-ID-ArdiNeural">🛡️ Ardi (Pria - Cloud Fallback)</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+
+        {/* Presenter Engine & Persona Selection */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-white/5 font-mono text-xs">
+          <div>
+            <label className="block text-zinc-400 font-semibold mb-1">
+              🧑 Model Presenter:
+            </label>
+            <select
+              value={avatarEngine}
+              onChange={(e) => setAvatarEngine(e.target.value as any)}
+              className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white focus:border-emerald-400 focus:outline-none"
+            >
+              <option value="human-rigged">🧑 Human 2D Rigged (Lip-Sync 6 Fonem)</option>
+              <option value="voxel">🧱 3D Voxel Sculpted (Animasi Kotak)</option>
+              <option value="photo-cutout">📸 Foto Sendiri (Multi-Pose Cutout)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-zinc-400 font-semibold mb-1">
+              {avatarEngine === "human-rigged"
+                ? "Karakter Human 2D:"
+                : avatarEngine === "voxel"
+                ? "Outfit 3D Voxel:"
+                : "Pose Foto Manusia:"}
+            </label>
+            {avatarEngine === "human-rigged" && (
+              <select
+                value={humanPreset}
+                onChange={(e) => setHumanPreset(e.target.value as any)}
+                className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white focus:border-emerald-400 focus:outline-none"
+              >
+                {Object.values(HUMAN_2D_PRESETS).map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.gender === "female" ? "👩" : "👨"} {h.name} — {h.niche}
+                  </option>
+                ))}
+              </select>
+            )}
+            {avatarEngine === "voxel" && (
+              <select
+                value={voxelPreset}
+                onChange={(e) => setVoxelPreset(e.target.value as any)}
+                className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white focus:border-emerald-400 focus:outline-none"
+              >
+                {Object.values(VOXEL_3D_PRESETS).map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.gender === "female" ? "👩" : "👨"} {v.name} — {v.niche}
+                  </option>
+                ))}
+              </select>
+            )}
+            {avatarEngine === "photo-cutout" && (
+              <div className="text-[11px] text-zinc-400 pt-1.5 flex items-center gap-1.5">
+                <span>Upload foto pose transparan di panel foto di bawah</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 4. SERIAL PARTS NAVIGATION TAB BAR (Jika Konten Serial Aktif) */}
+      {seriesEpisodes.length > 1 && (
+        <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-2">
+          <div className="flex items-center justify-between text-xs font-mono text-emerald-300 font-bold">
+            <span className="flex items-center gap-1.5">
+              <Film className="h-4 w-4" /> SERIAL EDUKASI ({seriesEpisodes.length} EPISODE SIAP)
+            </span>
+            <span className="text-[10px] text-zinc-400">Pilih part untuk dipratinjau & diunduh</span>
+          </div>
+          <div className="flex flex-wrap gap-2 pt-1 font-mono text-xs">
+            {seriesEpisodes.map((ep) => {
+              const isSelected = activeSeriesPart === ep.partNumber;
+              return (
+                <button
+                  key={ep.partNumber}
+                  type="button"
+                  onClick={() => selectSeriesPart(ep.partNumber)}
+                  className={`px-3 py-2 rounded-xl border text-left transition-all cursor-pointer ${
+                    isSelected
+                      ? "border-emerald-400 bg-emerald-500/20 text-white font-bold shadow-md shadow-emerald-500/10"
+                      : "border-white/10 bg-black/40 text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-300 font-bold">
+                      PART {ep.partNumber}
+                    </span>
+                    <span className="truncate max-w-[130px] sm:max-w-[200px]">{ep.partTitle}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Word Count & Duration Pacing Alert */}
       <div className="mb-6 rounded-2xl border border-white/10 bg-[#0d1017] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -2155,6 +2602,28 @@ export default function KineticMotionPage() {
                   </div>
 
                   <div>
+                    <label className="block text-[10px] font-mono text-zinc-400 mb-1 flex items-center justify-between">
+                      <span>POSE GESTUR FOTO SCENE INI</span>
+                      <span className="text-emerald-400 font-semibold text-[9px]">100% Air-Gapped</span>
+                    </label>
+                    <select
+                      value={scenes[activeSceneTab].suggestedPose || (
+                        activeSceneTab === 0 ? "friendly-anchor" :
+                        activeSceneTab === 1 ? "problem-shrug" :
+                        activeSceneTab === 2 ? "eureka-point" : "strong-cta"
+                      )}
+                      onChange={(e) => updateSceneField(activeSceneTab, "suggestedPose", e.target.value as any)}
+                      className="w-full rounded-lg border border-white/10 bg-black/50 px-2.5 py-1.5 text-xs text-emerald-300 font-mono font-bold focus:border-emerald-400 focus:outline-none"
+                    >
+                      {Object.values(PRESENTER_POSES).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.icon} {p.label} - {p.desc}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
                     <label className="block text-[10px] font-mono text-zinc-400 mb-1">
                       SUBTEXT PENJELASAN
                     </label>
@@ -2349,11 +2818,24 @@ export default function KineticMotionPage() {
             )}
 
             {/* Multi-Pose Photo Uploader (Always accessible or auto-switches to Foto Sendiri) */}
-            <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
-                <span>Upload Foto Manusia (PNG Transparan / Foto Pose, 1–4 Pose):</span>
-                <span className="text-emerald-400">Auto-Float & Vocal Bounce</span>
+            <div className="space-y-2.5 pt-1">
+              <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] font-mono text-zinc-400">
+                <span>Upload Foto Presenter (1 Foto Cukup, atau 1–4 Pose):</span>
+                <span className="text-emerald-400 font-bold">100% On-Device / Air-Gapped</span>
               </div>
+
+              {/* 1-Click Distribute to All 4 Scenes with Auto-Pose */}
+              {avatarPhotos[0] && (
+                <button
+                  type="button"
+                  onClick={applyPhotoToAllScenes}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-emerald-400/40 bg-emerald-500/15 text-emerald-300 font-mono text-xs font-bold hover:bg-emerald-500/25 transition-all shadow-sm cursor-pointer"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>⚡ SEBAR 1 FOTO INI KE SEMUA SCENE (AUTO-POSE DINAMIS)</span>
+                </button>
+              )}
+
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
                   { idx: 0, label: "Pose 1 (Utama)" },
@@ -2362,21 +2844,41 @@ export default function KineticMotionPage() {
                   { idx: 3, label: "Pose 4 (CTA)" },
                 ].map((slot) => {
                   const imgUrl = avatarPhotos[slot.idx];
+                  const isProcessing = isProcessingCutout[slot.idx];
                   return (
                     <div
                       key={slot.idx}
-                      className="relative rounded-xl border border-dashed border-white/15 bg-black/40 p-2 flex flex-col items-center justify-center min-h-[88px] hover:border-emerald-400/50 transition-colors"
+                      className="relative rounded-xl border border-dashed border-white/15 bg-black/40 p-2 flex flex-col items-center justify-center min-h-[96px] hover:border-emerald-400/50 transition-colors"
                     >
                       {imgUrl ? (
                         <>
                           <img
                             src={imgUrl}
                             alt={slot.label}
-                            className="h-14 w-14 object-contain rounded"
+                            className="h-12 w-12 object-contain rounded"
                           />
                           <span className="text-[10px] font-mono text-emerald-300 mt-1 truncate max-w-full">
                             {slot.label}
                           </span>
+                          <button
+                            type="button"
+                            disabled={isProcessing}
+                            onClick={() => handleAutoCutout(slot.idx)}
+                            className="mt-1 flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[9px] font-mono transition-colors cursor-pointer"
+                            title="Hapus background otomatis di browser"
+                          >
+                            {isProcessing ? (
+                              <>
+                                <RefreshCw className="h-2.5 w-2.5 animate-spin" />
+                                <span>Cutout...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Wand2 className="h-2.5 w-2.5" />
+                                <span>🪄 Cutout</span>
+                              </>
+                            )}
+                          </button>
                           <button
                             type="button"
                             onClick={() => removeAvatarPhoto(slot.idx)}
@@ -2412,107 +2914,124 @@ export default function KineticMotionPage() {
             </div>
           </div>
 
-          {/* 12 Hype Visual Archetypes Selector with Favorite Cluster */}
-          <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-6 space-y-3 shadow-xl">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <label className="block text-xs font-mono font-semibold text-zinc-300">
-                GAYA VISUAL ARSITEKTUR ({Object.keys(MOTION_PALETTES).length} ARCHETYPES)
-              </label>
-
-              {/* Cluster Filter Tabs */}
-              <div className="flex items-center gap-1 p-1 rounded-lg bg-black/40 border border-white/10 font-mono text-[10px]">
-                <button
-                  type="button"
-                  onClick={() => setStyleFilter("all")}
-                  className={`px-2.5 py-1 rounded-md font-bold transition-colors cursor-pointer ${styleFilter === "all"
-                      ? "bg-white/15 text-white"
-                      : "text-zinc-400 hover:text-white"
-                    }`}
-                >
-                  Semua ({Object.keys(MOTION_PALETTES).length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStyleFilter("favorites")}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-bold transition-colors cursor-pointer ${styleFilter === "favorites"
-                      ? "bg-amber-500/25 text-amber-300 border border-amber-500/40"
-                      : "text-zinc-400 hover:text-amber-300"
-                    }`}
-                >
-                  <Star className="h-3 w-3 fill-current" />
-                  <span>Favorit ({favoriteStyles.length})</span>
-                </button>
+          {/* 12 Hype Visual Archetypes Selector (Collapsible Accordion for Mobile-Friendliness) */}
+          <details className="group rounded-2xl border border-white/10 bg-[#0d1017] p-4 space-y-3 shadow-xl transition-all">
+            <summary className="flex items-center justify-between cursor-pointer list-none select-none font-mono text-xs font-semibold text-zinc-300">
+              <div className="flex items-center gap-2">
+                <Palette className="h-4 w-4 text-emerald-400" />
+                <span>PALET VISUAL GRID ({Object.keys(MOTION_PALETTES).length} ARCHETYPES)</span>
+                <span className="text-[10px] text-zinc-500 font-normal hidden sm:inline">(Klik untuk lihat kartu preview)</span>
               </div>
-            </div>
-
-            {styleFilter === "favorites" && favoriteStyles.length === 0 ? (
-              <div className="p-4 rounded-xl border border-dashed border-white/10 bg-black/25 text-center font-mono text-xs text-zinc-400">
-                Belum ada archetype favorit. Klik ikon ⭐ di tab &quot;Semua&quot; untuk memasukkan style andalanmu ke Cluster Favorit!
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-mono">
+                  Aktif: {MOTION_PALETTES[motionStyle]?.name || motionStyle}
+                </span>
+                <span className="text-xs text-zinc-400 group-open:rotate-180 transition-transform">▼</span>
               </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {Object.values(MOTION_PALETTES)
-                  .filter((st) => styleFilter === "all" || favoriteStyles.includes(st.id))
-                  .sort((a, b) => {
-                    const aFav = favoriteStyles.includes(a.id) ? 0 : 1;
-                    const bFav = favoriteStyles.includes(b.id) ? 0 : 1;
-                    return aFav - bFav;
-                  })
-                  .map((st) => {
-                    const isFav = favoriteStyles.includes(st.id);
-                    return (
-                      <div
-                        key={st.id}
-                        onClick={() => setMotionStyle(st.id)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setMotionStyle(st.id);
-                          }
-                        }}
-                        className={`relative p-2.5 rounded-xl border text-left font-mono text-xs transition-all cursor-pointer select-none ${motionStyle === st.id
-                            ? "border-emerald-400 bg-emerald-500/10 text-white font-bold shadow-md shadow-emerald-500/10"
-                            : isFav
-                              ? "border-amber-500/30 bg-amber-500/5 text-zinc-200 hover:border-amber-400/50"
-                              : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
-                          }`}
-                      >
-                        <div className="flex items-center justify-between gap-1.5 mb-1">
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className="w-3 h-3 rounded-full border border-white/20 shrink-0"
-                              style={{ backgroundColor: st.bgColor, boxShadow: `inset 0 0 0 2px ${st.accentColor}` }}
-                            />
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-zinc-400">
-                              {st.tag}
-                            </span>
+            </summary>
+
+            <div className="pt-3 space-y-3 border-t border-white/5 mt-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] font-mono text-zinc-400">
+                  Pilih kartu archetype atau gunakan dropdown ringkas di atas:
+                </span>
+
+                {/* Cluster Filter Tabs */}
+                <div className="flex items-center gap-1 p-1 rounded-lg bg-black/40 border border-white/10 font-mono text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => setStyleFilter("all")}
+                    className={`px-2.5 py-1 rounded-md font-bold transition-colors cursor-pointer ${styleFilter === "all"
+                        ? "bg-white/15 text-white"
+                        : "text-zinc-400 hover:text-white"
+                      }`}
+                  >
+                    Semua ({Object.keys(MOTION_PALETTES).length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStyleFilter("favorites")}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-bold transition-colors cursor-pointer ${styleFilter === "favorites"
+                        ? "bg-amber-500/25 text-amber-300 border border-amber-500/40"
+                        : "text-zinc-400 hover:text-amber-300"
+                      }`}
+                  >
+                    <Star className="h-3 w-3 fill-current" />
+                    <span>Favorit ({favoriteStyles.length})</span>
+                  </button>
+                </div>
+              </div>
+
+              {styleFilter === "favorites" && favoriteStyles.length === 0 ? (
+                <div className="p-4 rounded-xl border border-dashed border-white/10 bg-black/25 text-center font-mono text-xs text-zinc-400">
+                  Belum ada archetype favorit. Klik ikon ⭐ di tab &quot;Semua&quot; untuk memasukkan style andalanmu ke Cluster Favorit!
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {Object.values(MOTION_PALETTES)
+                    .filter((st) => styleFilter === "all" || favoriteStyles.includes(st.id))
+                    .sort((a, b) => {
+                      const aFav = favoriteStyles.includes(a.id) ? 0 : 1;
+                      const bFav = favoriteStyles.includes(b.id) ? 0 : 1;
+                      return aFav - bFav;
+                    })
+                    .map((st) => {
+                      const isFav = favoriteStyles.includes(st.id);
+                      return (
+                        <div
+                          key={st.id}
+                          onClick={() => setMotionStyle(st.id)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setMotionStyle(st.id);
+                            }
+                          }}
+                          className={`relative p-2.5 rounded-xl border text-left font-mono text-xs transition-all cursor-pointer select-none ${motionStyle === st.id
+                              ? "border-emerald-400 bg-emerald-500/10 text-white font-bold shadow-md shadow-emerald-500/10"
+                              : isFav
+                                ? "border-amber-500/30 bg-amber-500/5 text-zinc-200 hover:border-amber-400/50"
+                                : "border-white/5 bg-black/30 text-zinc-400 hover:text-white"
+                            }`}
+                        >
+                          <div className="flex items-center justify-between gap-1.5 mb-1">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className="w-3 h-3 rounded-full border border-white/20 shrink-0"
+                                style={{ backgroundColor: st.bgColor, boxShadow: `inset 0 0 0 2px ${st.accentColor}` }}
+                              />
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-zinc-400">
+                                {st.tag}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleFavoriteStyle(st.id);
+                              }}
+                              title={isFav ? "Hapus dari Cluster Favorit" : "Simpan ke Cluster Favorit"}
+                              className={`p-1 rounded-md transition-colors cursor-pointer ${isFav
+                                  ? "text-amber-400 hover:text-amber-300"
+                                  : "text-zinc-600 hover:text-amber-300"
+                                }`}
+                            >
+                              <Star className={`h-3.5 w-3.5 ${isFav ? "fill-current" : ""}`} />
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleFavoriteStyle(st.id);
-                            }}
-                            title={isFav ? "Hapus dari Cluster Favorit" : "Simpan ke Cluster Favorit"}
-                            className={`p-1 rounded-md transition-colors cursor-pointer ${isFav
-                                ? "text-amber-400 hover:text-amber-300"
-                                : "text-zinc-600 hover:text-amber-300"
-                              }`}
-                          >
-                            <Star className={`h-3.5 w-3.5 ${isFav ? "fill-current" : ""}`} />
-                          </button>
+                          <div className="truncate">{st.name}</div>
                         </div>
-                        <div className="truncate">{st.name}</div>
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          </details>
 
-            {/* In-Browser Native Video Download Action */}
-            <div className="pt-3 space-y-2.5">
+          {/* In-Browser Native Video Download Action */}
+          <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-5 space-y-3 shadow-xl">
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -2595,7 +3114,6 @@ export default function KineticMotionPage() {
               <p className="text-[11px] font-mono text-zinc-400 text-center">
                 ⚡ 100% In-Browser. Voiceover + Foley SFX + Lo-Fi BGM otomatis termuxing ke file video. Siap posting tanpa CapCut.
               </p>
-            </div>
           </div>
         </div>
 

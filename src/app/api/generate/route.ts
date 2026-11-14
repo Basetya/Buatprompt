@@ -128,14 +128,101 @@ export async function POST(req: NextRequest) {
             targetNiche = "General Creator",
             motionStyle = "apple-keynote",
             durationTarget = "55s",
-            inputTab = "idea"
+            inputTab = "idea",
+            seriesCount = 1,
           } = extraParams;
 
+          const seriesTotal = Math.min(Math.max(Number(seriesCount) || 1, 1), 4);
           const is55s = durationTarget !== "26s";
           const targetSeconds = is55s ? 52 : 26;
           const targetWords = is55s ? "110-125 kata" : "55-65 kata";
 
-          const systemPrompt = `Anda adalah Master Scriptwriter & Top Viral TikTok/Reels Creator Indonesia.
+          let systemPrompt = "";
+
+          if (seriesTotal > 1) {
+            systemPrompt = `Anda adalah Master Scriptwriter & Top Viral TikTok/Reels Creator Indonesia.
+Tugas Anda adalah membedah topik edukasi: "${topicIdea}" menjadi TEPAT ${seriesTotal} SERI/EPISODE BERTURUT-TURUT (Part 1 sampai Part ${seriesTotal}).
+Masing-masing episode berdurasi ~${targetSeconds} detik (${targetWords}) yang dibagi menjadi 4 Scene sinematik dengan alur retensi visual tinggi.
+
+ATURAN SERI MULTI-PART EDUKASI:
+1. Setiap Part memiliki subtopik tersendiri yang padat dan berbobot (tidak bertele-tele).
+2. Di Scene 1 setiap Part (khususnya Part 2-4), buat Series Hook yang menyambung dari episode sebelumnya ("Di Part 1 kemarin kita udah... Sekarang di Part 2...").
+3. Di Scene 4 (untuk Part 1 sampai Part ${seriesTotal - 1}), WAJIB ada CLIFFHANGER HOOK menggantung yang bikin penasaran tinggi untuk part berikutnya ("...tapi rahasia utamanya ada di suhu minyak di Part 3 besok. Follow sekarang biar nggak ketinggalan!").
+4. Di Scene 4 episode terakhir (Part ${seriesTotal}), tutup dengan CTA tuntas & ajakan simpan keseluruhan seri.
+5. Gunakan gaya tutur lisan 100% natural, mengalir santai seperti teman akrab (DILARANG kalimat kaku buku teks seperti "banyak orang gagal paham", "memaksakan hasil instan").
+6. Setiap scene WAJIB menyertakan "suggestedPose": pilih salah satu dari ["friendly-anchor", "problem-shrug", "secret-lean", "explainer", "eureka-point", "chin-thinker", "comparison", "strong-cta"] yang paling tepat dengan emosi dan konteks kalimat.
+
+KEMBALIKAN HANYA JSON MURNI VALID (tanpa markdown code fences):
+{
+  "topic": "${topicIdea}",
+  "seriesCount": ${seriesTotal},
+  "episodes": [
+    {
+      "partNumber": 1,
+      "partTitle": "Judul Subtopik Singkat Part 1 (Maks. 4 Kata)",
+      "scenes": [
+        {
+          "sceneNumber": 1,
+          "stageName": "THE SHOCK HOOK",
+          "timeRange": "0:00 - 0:${is55s ? '10' : '06'}",
+          "headline": "HEADLINE SINGKAT PUNCHY",
+          "subtext": "Penjelasan pembuka hook serial...",
+          "metric": "SERI 01",
+          "highlightKeyword": "KATA_KUNCI",
+          "durationSec": ${is55s ? 10 : 6},
+          "characterEmotion": "shocked",
+          "suggestedPose": "friendly-anchor",
+          "kineticFx": "Spring Punch Scale 1.2x + Alert Aura Halo",
+          "foleyCue": "0:00 Fast Whoosh + Heavy Sub-Bass Thud"
+        },
+        {
+          "sceneNumber": 2,
+          "stageName": "THE PAIN AGITATION",
+          "timeRange": "0:${is55s ? '10' : '06'} - 0:${is55s ? '25' : '13'}",
+          "headline": "MASALAH YANG TERJADI",
+          "subtext": "Penjelasan masalah subtopik Part 1...",
+          "metric": "-85% GAGAL",
+          "highlightKeyword": "MASALAH",
+          "durationSec": ${is55s ? 15 : 7},
+          "characterEmotion": "skeptical",
+          "suggestedPose": "problem-shrug",
+          "kineticFx": "Wipe Push Left + Floating Red Question Particles",
+          "foleyCue": "0:${is55s ? '10' : '06'} Camera Snap + Low Vinyl Scratch"
+        },
+        {
+          "sceneNumber": 3,
+          "stageName": "THE BREAKTHROUGH REVEAL",
+          "timeRange": "0:${is55s ? '25' : '13'} - 0:${is55s ? '40' : '20'}",
+          "headline": "TRIK EMAS PART INI",
+          "subtext": "Langkah konkrit yang dibongkar di Part 1...",
+          "metric": "+350% HASIL",
+          "highlightKeyword": "SOLUSI",
+          "durationSec": ${is55s ? 15 : 7},
+          "characterEmotion": "celebrate",
+          "suggestedPose": "eureka-point",
+          "kineticFx": "Dynamic Glowing SVG Curve Path + Rocket Sparkles",
+          "foleyCue": "0:${is55s ? '25' : '13'} Harmonic Synth Swell + Crisp Cash Chime"
+        },
+        {
+          "sceneNumber": 4,
+          "stageName": "CLIFFHANGER CTA",
+          "timeRange": "0:${is55s ? '40' : '20'} - 0:${targetSeconds}",
+          "headline": "LANJUT KE PART BERIKUTNYA",
+          "subtext": "Kalimat cliffhanger bikin penasaran yang mengunci agar viewer wajib follow untuk Part 2...",
+          "metric": "FOLLOW! 🔔",
+          "highlightKeyword": "FOLLOW",
+          "durationSec": ${is55s ? 12 : 6},
+          "characterEmotion": "point-cta",
+          "suggestedPose": "strong-cta",
+          "kineticFx": "Pulsating Bookmark Ring + Seamless Loop Match Cut",
+          "foleyCue": "0:${is55s ? '40' : '20'} Clean Glass Bell Ding + Ambient Fade Out"
+        }
+      ]
+    }
+  ]
+}`;
+          } else {
+            systemPrompt = `Anda adalah Master Scriptwriter & Top Viral TikTok/Reels Creator Indonesia.
 Tugas Anda adalah membuat naskah video vertikal 9:16 yang SANGAT ALAMI, LUWES, DAN MENGALIR SEPERTI OBROLAN NYATA ANTAR TEMAN (100% gaya tutur lisan manusia, BUKAN bahasa buku, BUKAN makalah kaku, BUKAN template korporat).
 
 DETAIL TARGET:
@@ -159,6 +246,7 @@ PEDOMAN PERCAKAPAN SUPER ALAMI (WAJIB DIIKUTI):
    - Scene 4 (CTA Santai): Ajak simpan video dan ngobrol di kolom komentar ("Coba deh praktekin nanti sore! Save dulu biar nggak lupa, terus share ke temen kamu ya!").
 3. Headline harus singkat, padat, huruf kapital (maksimal 3-5 kata) agar nyaman dibaca di layar HP.
 4. Subtext adalah teks persis yang dibacakan oleh voiceover. Kalimat mengalir enak dengan intonasi natural.
+5. Setiap scene WAJIB menyertakan "suggestedPose": pilih salah satu dari ["friendly-anchor", "problem-shrug", "secret-lean", "explainer", "eureka-point", "chin-thinker", "comparison", "strong-cta"] yang paling tepat dengan emosi naskah.
 
 KEMBALIKAN HANYA JSON MURNI VALID (tanpa markdown code fences, tanpa kata pengantar):
 {
@@ -179,6 +267,7 @@ KEMBALIKAN HANYA JSON MURNI VALID (tanpa markdown code fences, tanpa kata pengan
       "highlightKeyword": "KATA_KUNCI",
       "durationSec": ${is55s ? 10 : 6},
       "characterEmotion": "shocked",
+      "suggestedPose": "friendly-anchor",
       "kineticFx": "Spring Punch Scale 1.2x + Alert Aura Halo",
       "foleyCue": "0:00 Fast Whoosh + Heavy Sub-Bass Thud"
     },
@@ -192,6 +281,7 @@ KEMBALIKAN HANYA JSON MURNI VALID (tanpa markdown code fences, tanpa kata pengan
       "highlightKeyword": "MASALAH",
       "durationSec": ${is55s ? 15 : 7},
       "characterEmotion": "skeptical",
+      "suggestedPose": "problem-shrug",
       "kineticFx": "Wipe Push Left + Floating Red Question Particles",
       "foleyCue": "0:${is55s ? '10' : '06'} Camera Snap + Low Vinyl Scratch"
     },
@@ -205,6 +295,7 @@ KEMBALIKAN HANYA JSON MURNI VALID (tanpa markdown code fences, tanpa kata pengan
       "highlightKeyword": "SOLUSI",
       "durationSec": ${is55s ? 15 : 7},
       "characterEmotion": "celebrate",
+      "suggestedPose": "eureka-point",
       "kineticFx": "Dynamic Glowing SVG Curve Path + Rocket Sparkles",
       "foleyCue": "0:${is55s ? '25' : '13'} Harmonic Synth Swell + Crisp Cash Chime"
     },
@@ -218,11 +309,13 @@ KEMBALIKAN HANYA JSON MURNI VALID (tanpa markdown code fences, tanpa kata pengan
       "highlightKeyword": "SIMPAN",
       "durationSec": ${is55s ? 12 : 6},
       "characterEmotion": "point-cta",
+      "suggestedPose": "strong-cta",
       "kineticFx": "Pulsating Bookmark Ring + Seamless Loop Match Cut",
       "foleyCue": "0:${is55s ? '40' : '20'} Clean Glass Bell Ding + Ambient Fade Out"
     }
   ]
 }`;
+          }
 
           // Try Gemini API models via direct v1beta endpoint
           const candidateModels = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-flash-latest", "gemini-3-flash-preview"];
@@ -243,8 +336,16 @@ KEMBALIKAN HANYA JSON MURNI VALID (tanpa markdown code fences, tanpa kata pengan
                 if (text) {
                   const cleanedJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
                   const parsed = JSON.parse(cleanedJson);
-                  if (parsed && Array.isArray(parsed.scenes) && parsed.scenes.length === 4) {
-                    return NextResponse.json(parsed);
+                  if (parsed) {
+                    if (Array.isArray(parsed.episodes) && parsed.episodes.length > 0) {
+                      if (!parsed.scenes && parsed.episodes[0]?.scenes) {
+                        parsed.scenes = parsed.episodes[0].scenes;
+                      }
+                      return NextResponse.json(parsed);
+                    }
+                    if (Array.isArray(parsed.scenes) && parsed.scenes.length === 4) {
+                      return NextResponse.json(parsed);
+                    }
                   }
                 }
               }

@@ -362,7 +362,7 @@ export async function POST(req: NextRequest) {
       pitch = customPitch || (isFemale ? "-2Hz" : "+0Hz");
     }
 
-    // 2. Primary: Google Gemini Ultra-Natural Studio Voice (Aoede, Kore, Charon, Puck, Fenrir)
+    // 2. Primary: Google Gemini Ultra-Natural Studio Voice Multi-Model Cascade
     const geminiVoiceMap: Record<string, string> = {
       "gemini-aoede": "Aoede",
       "aoede": "Aoede",
@@ -391,8 +391,8 @@ export async function POST(req: NextRequest) {
           },
         });
       } catch (geminiErr) {
-        console.warn(`Gemini TTS (${selectedGeminiVoice}) fallback to Azure Neural:`, geminiErr);
-        // Fall back to Microsoft Neural (Gadis for female voices, Ardi for male voices)
+        console.warn(`Gemini TTS (${selectedGeminiVoice}) fallback to Cloud Microsoft Azure Neural:`, geminiErr);
+        // Fall back to Microsoft Neural HD (Gadis for female voices, Ardi for male voices)
         const fallbackVoice = ["Aoede", "Kore"].includes(selectedGeminiVoice)
           ? "id-ID-GadisNeural"
           : "id-ID-ArdiNeural";
@@ -403,7 +403,7 @@ export async function POST(req: NextRequest) {
             headers: {
               "Content-Type": "audio/mpeg",
               "Content-Length": neuralBuffer.length.toString(),
-              "X-TTS-Engine": "Microsoft-Azure-Neural-Fallback",
+              "X-TTS-Engine": `Microsoft-Azure-Neural-${fallbackVoice.includes("Gadis") ? "Gadis" : "Ardi"}-CloudFallback`,
               "Cache-Control": "public, max-age=86400",
             },
           });
@@ -411,25 +411,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Fallback: Microsoft Azure Neural TTS (Ardi & Gadis)
-    if (voice !== "piper-id-news") {
-      try {
-        const neuralBuffer = await generateMicrosoftNeuralTTS(formattedText, voice, rate, pitch);
-        return new NextResponse(new Uint8Array(neuralBuffer), {
-          status: 200,
-          headers: {
-            "Content-Type": "audio/mpeg",
-            "Content-Length": neuralBuffer.length.toString(),
-            "X-TTS-Engine": "Microsoft-Azure-Neural",
-            "Cache-Control": "public, max-age=86400",
-          },
-        });
-      } catch (neuralErr) {
-        console.warn("Neural TTS unavailable, switching to local Piper offline fallback:", neuralErr);
-      }
+    // 3. Fallback: Microsoft Azure / Edge Neural TTS HD (Accessible from anywhere: phone, laptop, cloud)
+    const neuralTargetVoice = voice === "id-ID-GadisNeural" || voice === "gemini-aoede" || voice === "gemini-kore"
+      ? "id-ID-GadisNeural"
+      : "id-ID-ArdiNeural";
+
+    try {
+      const neuralBuffer = await generateMicrosoftNeuralTTS(formattedText, neuralTargetVoice, rate, pitch);
+      return new NextResponse(new Uint8Array(neuralBuffer), {
+        status: 200,
+        headers: {
+          "Content-Type": "audio/mpeg",
+          "Content-Length": neuralBuffer.length.toString(),
+          "X-TTS-Engine": `Microsoft-Azure-Neural-${neuralTargetVoice.includes("Gadis") ? "Gadis" : "Ardi"}`,
+          "Cache-Control": "public, max-age=86400",
+        },
+      });
+    } catch (neuralErr) {
+      console.warn("Microsoft Neural TTS unavailable, checking local Piper offline fallback:", neuralErr);
     }
 
-    // 3. 100% Offline Local Piper ONNX TTS Fallback
+    // 4. Local Piper ONNX Offline Fallback (if running on local PC with Piper binary)
     try {
       const piperWav = await generatePiperLocalTTS(formattedText);
       return new NextResponse(new Uint8Array(piperWav), {
@@ -445,17 +447,11 @@ export async function POST(req: NextRequest) {
       console.warn("Piper local TTS fallback failed:", piperErr);
     }
 
-    // 4. Final Fallback to Google TTS if both Neural and Piper fail
-    const fallbackBuffer = await fetchGoogleTTSFallback(formattedText, "id");
-    return new NextResponse(new Uint8Array(fallbackBuffer), {
-      status: 200,
-      headers: {
-        "Content-Type": "audio/mpeg",
-        "Content-Length": fallbackBuffer.length.toString(),
-        "X-TTS-Engine": "Google-Translate-Legacy",
-        "Cache-Control": "public, max-age=86400",
-      },
-    });
+    // Never fallback to robotic Google Translate! Return graceful error
+    return NextResponse.json(
+      { error: "Audio engine temporarily unavailable. Please retry." },
+      { status: 503 }
+    );
   } catch (error: any) {
     console.error("TTS API Error:", error);
     return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 });

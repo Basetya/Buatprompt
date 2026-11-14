@@ -1535,6 +1535,16 @@ export function drawHumanCutoutAvatar(
     elapsed: number;
     accentColor?: string;
     sceneProgress?: number;
+    poseInfo?: {
+      id: string;
+      label: string;
+      tiltDeg: number;
+      scaleMultiplier: number;
+      yOffset: number;
+      badgeEmoji: string;
+      badgeText: string;
+      glowColor?: string;
+    };
   }
 ) {
   const {
@@ -1547,6 +1557,7 @@ export function drawHumanCutoutAvatar(
     elapsed,
     accentColor = "#38bdf8",
     sceneProgress = 0.5,
+    poseInfo,
   } = options;
 
   if (!img.complete || img.naturalWidth === 0) return;
@@ -1561,19 +1572,71 @@ export function drawHumanCutoutAvatar(
   const swayX = Math.sin(elapsed * 1.4) * 3;
   const enterZoom = 0.94 + Math.min(sceneProgress * 4, 1) * 0.06;
 
-  ctx.save();
-  ctx.translate(cx + swayX, bottomY - vocalBounce);
-  ctx.scale(breatheScale * enterZoom, breatheScale * enterZoom);
+  // Contextual Dynamic Pose Transforms (100% Procedural & Air-Gapped)
+  const poseTilt = poseInfo?.tiltDeg ? (poseInfo.tiltDeg * Math.PI) / 180 : 0;
+  const poseScale = poseInfo?.scaleMultiplier || 1.0;
+  const poseYOffset = poseInfo?.yOffset || 0;
+  const activeGlowColor = poseInfo?.glowColor || accentColor;
 
-  // Subtle studio rim-light glow behind person
+  ctx.save();
+  ctx.translate(cx + swayX, bottomY - vocalBounce + poseYOffset);
+
+  // Smooth ease-in for pose tilt
+  const currentTilt = poseTilt * Math.min(sceneProgress * 3.5, 1);
+  ctx.rotate(currentTilt);
+
+  const finalScale = breatheScale * enterZoom * poseScale;
+  ctx.scale(finalScale, finalScale);
+
+  // Studio rim-light glow behind person
   const glow = ctx.createRadialGradient(0, -drawH * 0.55, 20, 0, -drawH * 0.55, drawH * 0.65);
-  glow.addColorStop(0, `${accentColor}2E`);
+  glow.addColorStop(0, `${activeGlowColor}33`);
   glow.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = glow;
   ctx.beginPath();
   ctx.arc(0, -drawH * 0.55, drawH * 0.65, 0, Math.PI * 2);
   ctx.fill();
 
+  // Draw the actual human cutout photo
   ctx.drawImage(img, -drawW / 2, -drawH, drawW, drawH);
+
+  // Contextual Gesture Prop / Floating Action Badge (Air-Gapped Visual Narrative)
+  if (poseInfo && poseInfo.badgeEmoji && sceneProgress > 0.08) {
+    const badgeFloatY = Math.sin(elapsed * 3) * 4;
+    const badgeX = drawW * 0.32;
+    const badgeY = -drawH * 0.88 + badgeFloatY;
+
+    ctx.save();
+    ctx.translate(badgeX, badgeY);
+
+    // Badge Pop-in
+    const badgeScale = Math.min((sceneProgress - 0.08) * 6, 1);
+    ctx.scale(badgeScale, badgeScale);
+
+    // Pill Background
+    ctx.fillStyle = "rgba(10, 15, 25, 0.88)";
+    ctx.strokeStyle = activeGlowColor;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = activeGlowColor;
+    ctx.shadowBlur = 10;
+
+    const badgeWidth = 115;
+    const badgeHeight = 32;
+    ctx.beginPath();
+    ctx.roundRect(-badgeWidth / 2, -badgeHeight / 2, badgeWidth, badgeHeight, 16);
+    ctx.fill();
+    ctx.stroke();
+
+    // Emoji + Text
+    ctx.shadowBlur = 0;
+    ctx.font = "900 12px Inter, system-ui, sans-serif";
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`${poseInfo.badgeEmoji} ${poseInfo.badgeText}`, 0, 1);
+
+    ctx.restore();
+  }
+
   ctx.restore();
 }
