@@ -1519,9 +1519,15 @@ export function drawRiggedHumanHost(
 }
 
 /**
- * Multi-Pose Human Cutout Renderer (Studio Photo Presenter Style)
- * Renders user-uploaded human photo/PNG cutout anchored at bottom with
- * breathing motion, studio rim-light, and acoustic vocal micro-bounce.
+ * Multi-Pose Human Cutout & Studio Presenter Renderer
+ * Seamlessly presents user photos with dynamic editorial camera directing:
+ * - Scene 1 (Anchor): Centered medium speaker portrait with subtle breathing float.
+ * - Scene 2 (Problem): Dramatic punch-in close-up on expression with tension rim light.
+ * - Scene 3 (Eureka): Hero spotlight stance with radiant golden glow.
+ * - Scene 4 (CTA): Action punch with vibrant emerald aura.
+ *
+ * Automatically frames rectangular photos in a sleek rounded studio card with
+ * soft shadow and neon border, completely preventing cut-off edges!
  */
 export function drawHumanCutoutAvatar(
   ctx: CanvasRenderingContext2D,
@@ -1529,8 +1535,8 @@ export function drawHumanCutoutAvatar(
     img: HTMLImageElement;
     cx: number;
     bottomY: number;
-    maxHeight: number;
-    maxWidth: number;
+    maxHeight?: number;
+    maxWidth?: number;
     vocalVolume?: number;
     elapsed: number;
     accentColor?: string;
@@ -1552,8 +1558,8 @@ export function drawHumanCutoutAvatar(
     img,
     cx,
     bottomY,
-    maxHeight,
-    maxWidth,
+    maxHeight = 360,
+    maxWidth = 420,
     vocalVolume = 0,
     elapsed,
     accentColor = "#38bdf8",
@@ -1564,51 +1570,91 @@ export function drawHumanCutoutAvatar(
 
   if (!img.complete || img.naturalWidth === 0) return;
 
-  // Smart Framing: If user uploads full-body photo (tall aspect ratio) and half-body is selected,
-  // crop to upper 58% (torso + head) so presenter face remains large, expressive and impactful on mobile screens!
-  const isTallFullBody = img.naturalHeight / img.naturalWidth > 1.35;
-  const isCropHalfBody = framing === "half-body" && isTallFullBody;
+  // Smart Framing: If user uploads full-body photo and half-body is chosen,
+  // crop to upper 60% (torso + head) so presenter face remains large and expressive.
+  const isTall = img.naturalHeight / img.naturalWidth > 1.25;
+  const isCropHalfBody = framing === "half-body" && isTall;
 
   const effectiveSourceW = img.naturalWidth;
-  const effectiveSourceH = isCropHalfBody ? img.naturalHeight * 0.58 : img.naturalHeight;
+  const effectiveSourceH = isCropHalfBody ? img.naturalHeight * 0.60 : img.naturalHeight;
 
-  const activeMaxH = framing === "full-body" ? Math.max(maxHeight, 520) : maxHeight;
-  const ratio = Math.min(maxWidth / effectiveSourceW, activeMaxH / effectiveSourceH);
+  // Maximum presenter height capped to 360px so it NEVER overlaps with kinetic text!
+  const targetMaxH = framing === "full-body" ? Math.min(maxHeight, 380) : Math.min(maxHeight, 340);
+  const ratio = Math.min(maxWidth / effectiveSourceW, targetMaxH / effectiveSourceH);
   const drawW = effectiveSourceW * ratio;
   const drawH = effectiveSourceH * ratio;
 
-  // Natural human micro-motion: breathing + gentle sway + vocal energy micro-nod
-  const breatheScale = 1 + Math.sin(elapsed * 2.2) * 0.012;
-  const vocalBounce = vocalVolume > 10 ? Math.min(vocalVolume / 60, 1) * 4.5 : 0;
-  const swayX = Math.sin(elapsed * 1.4) * 3;
-  const enterZoom = 0.94 + Math.min(sceneProgress * 4, 1) * 0.06;
+  // Natural human micro-motion: breathing + vocal nod
+  const breatheY = Math.sin(elapsed * 2.2) * 2.5;
+  const vocalNod = vocalVolume > 10 ? Math.min(vocalVolume / 60, 1) * 3 : 0;
+  const swayX = Math.sin(elapsed * 1.5) * 2;
 
-  // Contextual Dynamic Pose Transforms (100% Procedural & Air-Gapped)
-  const poseTilt = poseInfo?.tiltDeg ? (poseInfo.tiltDeg * Math.PI) / 180 : 0;
-  const poseScale = poseInfo?.scaleMultiplier || 1.0;
-  const poseYOffset = poseInfo?.yOffset || 0;
+  // Contextual Dynamic Camera Director Poses per Scene
+  const poseId = poseInfo?.id || "friendly-anchor";
   const activeGlowColor = poseInfo?.glowColor || accentColor;
 
+  let cameraZoom = 1.0;
+  let cameraOffsetX = 0;
+  let cameraOffsetY = 0;
+  let cameraTilt = 0;
+
+  if (poseId === "problem-shrug") {
+    // Scene 2: Dramatic Punch-In Close-Up (Focus on Face/Expression & Tension)
+    cameraZoom = 1.14;
+    cameraOffsetY = -10;
+    cameraTilt = -0.04;
+  } else if (poseId === "eureka-point") {
+    // Scene 3: Hero Spotlight Stance (Energetic Shift)
+    cameraZoom = 1.06;
+    cameraOffsetX = 16;
+    cameraOffsetY = -6;
+  } else if (poseId === "strong-cta") {
+    // Scene 4: Forward Action Punch
+    cameraZoom = 1.08;
+    cameraOffsetY = -12;
+  } else if (poseId === "secret-lean") {
+    cameraZoom = 1.15;
+    cameraOffsetX = -12;
+    cameraTilt = 0.05;
+  } else if (poseId === "chin-thinker") {
+    cameraZoom = 1.05;
+    cameraTilt = 0.03;
+  }
+
+  const finalScale = (0.95 + Math.min(sceneProgress * 4, 1) * 0.05) * cameraZoom;
+
   ctx.save();
-  ctx.translate(cx + swayX, bottomY - vocalBounce + poseYOffset);
-
-  // Smooth ease-in for pose tilt
-  const currentTilt = poseTilt * Math.min(sceneProgress * 3.5, 1);
-  ctx.rotate(currentTilt);
-
-  const finalScale = breatheScale * enterZoom * poseScale;
+  ctx.translate(cx + swayX + cameraOffsetX, bottomY + breatheY - vocalNod + cameraOffsetY);
+  ctx.rotate(cameraTilt);
   ctx.scale(finalScale, finalScale);
 
-  // Studio rim-light glow behind person
-  const glow = ctx.createRadialGradient(0, -drawH * 0.55, 20, 0, -drawH * 0.55, drawH * 0.65);
-  glow.addColorStop(0, `${activeGlowColor}33`);
+  // 1. Studio Rim-Light Ambient Aura behind Host
+  const glow = ctx.createRadialGradient(0, -drawH * 0.55, 20, 0, -drawH * 0.55, drawH * 0.75);
+  glow.addColorStop(0, `${activeGlowColor}38`);
+  glow.addColorStop(0.6, `${activeGlowColor}12`);
   glow.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = glow;
   ctx.beginPath();
-  ctx.arc(0, -drawH * 0.55, drawH * 0.65, 0, Math.PI * 2);
+  ctx.arc(0, -drawH * 0.55, drawH * 0.75, 0, Math.PI * 2);
   ctx.fill();
 
-  // Draw the actual human cutout photo (with smart source framing if full body)
+  // 2. Elegant Studio Card Container (Rounds off rectangular photos smoothly)
+  const cardRadius = 24;
+  const pad = 4;
+  const cardX = -drawW / 2 - pad;
+  const cardY = -drawH - pad;
+  const cardW = drawW + pad * 2;
+  const cardH = drawH + pad * 2;
+
+  // Subtle ambient backdrop card for crisp separation
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(cardX, cardY, cardW, cardH, [cardRadius, cardRadius, 0, 0]);
+  ctx.fillStyle = "rgba(15, 23, 42, 0.4)";
+  ctx.fill();
+  ctx.clip(); // Clip image inside rounded studio frame so no harsh rectangular edges!
+
+  // Draw the actual image
   if (isCropHalfBody) {
     ctx.drawImage(
       img,
@@ -1624,29 +1670,36 @@ export function drawHumanCutoutAvatar(
   } else {
     ctx.drawImage(img, -drawW / 2, -drawH, drawW, drawH);
   }
+  ctx.restore();
 
-  // Floating Action Gesture Badge: Only show if badgeEmoji is explicitly set AND non-empty!
-  // (Prevents any technical placeholder text like "HOOK INTRO" from appearing on screen)
+  // 3. Sleek Studio Border & Glow
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(cardX, cardY, cardW, cardH, [cardRadius, cardRadius, 0, 0]);
+  ctx.strokeStyle = `${activeGlowColor}44`;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+
+  // 4. Contextual Story Prop / Action Tag (Only when badgeEmoji is set)
   if (poseInfo && poseInfo.badgeEmoji && poseInfo.badgeEmoji.trim() !== "" && sceneProgress > 0.08) {
     const badgeFloatY = Math.sin(elapsed * 3) * 4;
-    const badgeX = drawW * 0.32;
+    const badgeX = drawW * 0.34;
     const badgeY = -drawH * 0.88 + badgeFloatY;
 
     ctx.save();
     ctx.translate(badgeX, badgeY);
 
-    // Badge Pop-in
     const badgeScale = Math.min((sceneProgress - 0.08) * 6, 1);
     ctx.scale(badgeScale, badgeScale);
 
     const hasText = !!poseInfo.badgeText && poseInfo.badgeText.trim() !== "";
-    const badgeWidth = hasText ? 115 : 44;
+    const badgeWidth = hasText ? 120 : 44;
     const badgeHeight = 34;
 
-    // Pill Background
-    ctx.fillStyle = "rgba(10, 15, 25, 0.88)";
+    ctx.fillStyle = "rgba(10, 15, 25, 0.92)";
     ctx.strokeStyle = activeGlowColor;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1.5;
     ctx.shadowColor = activeGlowColor;
     ctx.shadowBlur = 10;
 
@@ -1655,7 +1708,6 @@ export function drawHumanCutoutAvatar(
     ctx.fill();
     ctx.stroke();
 
-    // Emoji + Text
     ctx.shadowBlur = 0;
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "center";

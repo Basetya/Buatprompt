@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Play,
   Pause,
+  Square,
   Download,
   Copy,
   Check,
@@ -40,6 +41,8 @@ import {
   Trash2,
   Palette,
   Star,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
   extractTimedPhrases,
@@ -332,6 +335,16 @@ export default function KineticMotionPage() {
   const [avatarPhotos, setAvatarPhotos] = useState<Record<number, string>>({});
   const [avatarFraming, setAvatarFraming] = useState<"half-body" | "full-body">("half-body");
   const [showSafeZoneGuide, setShowSafeZoneGuide] = useState<boolean>(false);
+  // Contextual Character Action Sheet (2x2 Grid Multi-Pose Workflow)
+  const [uploadMode, setUploadMode] = useState<"sheet" | "manual">("sheet");
+  const [personaDesc, setPersonaDesc] = useState<string>(
+    "Wanita muda Indonesia berhijab rapi warna mocca, kemeja blazer marun elegan, celana bahan abu-abu, ramah dan profesional"
+  );
+  const [autoCutoutWhite, setAutoCutoutWhite] = useState<boolean>(true);
+  const [isSlicingSheet, setIsSlicingSheet] = useState<boolean>(false);
+  const [sheetSliceSuccess, setSheetSliceSuccess] = useState<boolean>(false);
+  const [showPromptBox, setShowPromptBox] = useState<boolean>(true);
+  const [sheetPromptCopied, setSheetPromptCopied] = useState<boolean>(false);
   const avatarImgElementsRef = useRef<Record<number, HTMLImageElement>>({});
   const [localGpuInfo, setLocalGpuInfo] = useState<{
     gpuAvailable: boolean;
@@ -653,6 +666,260 @@ export default function KineticMotionPage() {
     });
   };
 
+  const PERSONA_PRESETS = [
+    {
+      label: "🧕 Hijab Elegan",
+      desc: "Wanita muda Indonesia berhijab rapi warna mocca, kemeja blazer marun elegan, celana bahan abu-abu, ramah dan profesional",
+    },
+    {
+      label: "👔 Pria Eksekutif",
+      desc: "Pria muda Indonesia, rambut rapi klimis, kemeja putih berlapis rompi rajut navy modern, celana chino beige, ramah dan karismatik",
+    },
+    {
+      label: "👕 Kreator Santai",
+      desc: "Pria muda kasual, kaos oversized warna sage green, celana jeans gelap, jam tangan sporty, gaya tech YouTuber Indonesia",
+    },
+    {
+      label: "👩 Wanita Modern",
+      desc: "Wanita muda Indonesia, rambut sebahu rapi, kemeja linen broken white, celana kulot hitam, gaya minimalis aesthetic",
+    },
+    {
+      label: "👨‍🍳 Kuliner / UMKM",
+      desc: "Pemuda ramah Indonesia mengenakan celemek (apron) barista cokelat kulit dan kaos hitam, senyum hangat pemilik kedai",
+    },
+  ];
+
+  // Generate Contextual 2x2 Character Action Sheet Prompt based on Script & Persona
+  const generateActionSheetPrompt = useCallback(() => {
+    const s1 = scenes[0] || { headline: "Hook Pembuka", subtext: "" };
+    const s2 = scenes[1] || { headline: "Masalah / Frustasi", subtext: "" };
+    const s3 = scenes[2] || { headline: "Solusi / Rekomendasi", subtext: "" };
+    const s4 = scenes[3] || { headline: "Ajakan Bertindak (CTA)", subtext: "" };
+
+    const getContextualAction = (headline: string, subtext: string, sceneNum: number) => {
+      const text = `${headline} ${subtext}`.toLowerCase();
+      if (sceneNum === 1) {
+        if (text.includes("kopi") || text.includes("minum") || text.includes("cafe")) {
+          return "holding a warm ceramic cup of coffee, welcoming eye contact and an inviting warm smile";
+        }
+        if (text.includes("hp") || text.includes("ponsel") || text.includes("smartphone") || text.includes("gadget")) {
+          return "holding up a modern smartphone displaying a glowing screen towards the viewer, excited hook expression";
+        }
+        if (text.includes("uang") || text.includes("cuan") || text.includes("bisnis") || text.includes("omset") || text.includes("modal")) {
+          return "holding a premium leather cardholder or credit card with an enthusiastic confident smile";
+        }
+        if (text.includes("makanan") || text.includes("kuliner") || text.includes("masak") || text.includes("resep")) {
+          return "presenting a delicious culinary dish on a wooden tray, proud joyful expression";
+        }
+        return "standing confidently looking directly at the camera with engaging wide eyes, making an open-palm welcoming gesture";
+      }
+
+      if (sceneNum === 2) {
+        if (text.includes("macet") || text.includes("lelah") || text.includes("pusing") || text.includes("stres")) {
+          return "frustrated and overwhelmed, one hand gently pressing the temple or forehead, head slightly tilted with distressed relatable frown";
+        }
+        if (text.includes("rugi") || text.includes("mahal") || text.includes("gagal") || text.includes("bingung")) {
+          return "scratching head in complete confusion with one hand, shrugging other shoulder with open helpless palm, puzzled expression";
+        }
+        if (text.includes("hp") || text.includes("laptop") || text.includes("komputer") || text.includes("koneksi")) {
+          return "looking down at an unresponsive device with an annoyed and skeptical furrowed brow";
+        }
+        return "scratching back of head with right hand, shrugging left shoulder, skeptical and questioning facial expression";
+      }
+
+      if (sceneNum === 3) {
+        if (text.includes("rahasia") || text.includes("trik") || text.includes("tips") || text.includes("cara")) {
+          return "excited eureka revelation moment, holding up right index finger as if unveiling a brilliant secret, bright victorious smile";
+        }
+        if (text.includes("cepat") || text.includes("mudah") || text.includes("solusi") || text.includes("otomatis")) {
+          return "relaxed and confident posture, holding the hero solution item proudly with two hands, radiant reassuring smile";
+        }
+        if (text.includes("cuan") || text.includes("untung") || text.includes("hemat") || text.includes("sukses")) {
+          return "delighted cheerful celebration, giving an enthusiastic thumbs up with a glowing victorious look";
+        }
+        return "eureka moment of clarity, smiling brightly with eyes lit up, pointing index finger upward as the solution clicks, confident hero stance";
+      }
+
+      // Scene 4: CTA
+      if (text.includes("link") || text.includes("bio") || text.includes("klik") || text.includes("bawah")) {
+        return "pointing down and forward directly towards the viewer / link area with a charming smile and persuasive eye contact";
+      }
+      if (text.includes("komen") || text.includes("share") || text.includes("follow") || text.includes("simpan")) {
+        return "pointing directly at the viewer with both index fingers, friendly wink, inspiring immediate engagement";
+      }
+      return "high-energy call-to-action pose, pointing directly at the camera with an encouraging wide smile and inviting posture";
+    };
+
+    const action1 = getContextualAction(s1.headline, s1.subtext, 1);
+    const action2 = getContextualAction(s2.headline, s2.subtext, 2);
+    const action3 = getContextualAction(s3.headline, s3.subtext, 3);
+    const action4 = getContextualAction(s4.headline, s4.subtext, 4);
+
+    return `A cohesive 2x2 character action sheet grid showing the EXACT SAME character in 4 distinct narrative poses and emotional states, on a pure solid white background (#FFFFFF).
+
+CHARACTER IDENTITY (STRICT CONSISTENCY):
+${personaDesc.trim()}
+CRITICAL: The person's face, ethnicity, age, hair/hijab style, exact clothing colors, shoes, and realistic proportions must be 100% IDENTICAL across all 4 panels.
+
+THE 4 PANELS (2x2 GRID LAYOUT):
+1. Top-Left Panel (Scene 1 - Hook Intro):
+   - Pose & Gesture: ${action1}
+   - Emotion: Engaging, energetic, captivating eye contact.
+   - Script Context: "${s1.headline}"
+
+2. Top-Right Panel (Scene 2 - The Problem):
+   - Pose & Gesture: ${action2}
+   - Emotion: Skeptical, confused, puzzled frown, relatable frustration.
+   - Script Context: "${s2.headline}"
+
+3. Bottom-Left Panel (Scene 3 - The Solution):
+   - Pose & Gesture: ${action3}
+   - Emotion: Eureka moment, victorious bright smile, confident relief.
+   - Script Context: "${s3.headline}"
+
+4. Bottom-Right Panel (Scene 4 - Call To Action):
+   - Pose & Gesture: ${action4}
+   - Emotion: Persuasive, high energy, motivating, warm encouraging smile.
+   - Script Context: "${s4.headline}"
+
+COMPOSITION & BACKGROUND:
+- Clean 2x2 grid layout with distinct white spacing between panels.
+- Pure solid white background (#FFFFFF) with absolutely NO background objects, NO gradient, and NO floor shadows.
+- Standing or 3/4 medium-shot framing, consistent camera distance across all panels.
+- Studio lighting, crisp sharp edges for clean chroma key cutout, 8k resolution, cinematic commercial quality.
+--ar 1:1`;
+  }, [personaDesc, scenes]);
+
+  const copyActionSheetPrompt = async () => {
+    const text = generateActionSheetPrompt();
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(text);
+    }
+    setSheetPromptCopied(true);
+    setTimeout(() => setSheetPromptCopied(false), 2500);
+  };
+
+  // 1-Click Auto-Slice & Clean Chroma Cutout for 2x2 Action Sheet
+  const handleGridSheetUpload = (file: File | null) => {
+    if (!file) return;
+    setIsSlicingSheet(true);
+    setSheetSliceSuccess(false);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const rawDataUrl = reader.result as string;
+      const sheetImg = new window.Image();
+      sheetImg.onload = async () => {
+        try {
+          const origW = sheetImg.naturalWidth;
+          const origH = sheetImg.naturalHeight;
+          const halfW = Math.floor(origW / 2);
+          const halfH = Math.floor(origH / 2);
+
+          const quadrantCoords = [
+            { sx: 0, sy: 0 },         // Q0: Top-Left (Hook)
+            { sx: halfW, sy: 0 },     // Q1: Top-Right (Masalah)
+            { sx: 0, sy: halfH },     // Q2: Bottom-Left (Solusi)
+            { sx: halfW, sy: halfH }, // Q3: Bottom-Right (CTA)
+          ];
+
+          const newPhotos: Record<number, string> = {};
+          const loadedImgs: Record<number, HTMLImageElement> = {};
+
+          for (let i = 0; i < 4; i++) {
+            const { sx, sy } = quadrantCoords[i];
+            const qCanvas = document.createElement("canvas");
+            qCanvas.width = halfW;
+            qCanvas.height = halfH;
+            const qCtx = qCanvas.getContext("2d", { willReadFrequently: true });
+            if (!qCtx) continue;
+
+            // Draw this quadrant slice
+            qCtx.drawImage(sheetImg, sx, sy, halfW, halfH, 0, 0, halfW, halfH);
+
+            if (autoCutoutWhite) {
+              // High-precision Pure White / Light Chroma Removal with feathered edges
+              const imgData = qCtx.getImageData(0, 0, halfW, halfH);
+              const d = imgData.data;
+
+              // Sample quadrant corners to get ambient white level
+              let bgR = 0, bgG = 0, bgB = 0, sCount = 0;
+              const samplePts = [
+                [3, 3],
+                [halfW - 4, 3],
+                [3, halfH - 4],
+                [halfW - 4, halfH - 4],
+                [Math.floor(halfW / 2), 3],
+              ];
+              for (const [px, py] of samplePts) {
+                const idx = (py * halfW + px) * 4;
+                bgR += d[idx];
+                bgG += d[idx + 1];
+                bgB += d[idx + 2];
+                sCount++;
+              }
+              const avgBgR = sCount > 0 ? bgR / sCount : 255;
+              const avgBgG = sCount > 0 ? bgG / sCount : 255;
+              const avgBgB = sCount > 0 ? bgB / sCount : 255;
+              const isWhiteLike = (avgBgR + avgBgG + avgBgB) / 3 > 215;
+
+              if (isWhiteLike) {
+                for (let p = 0; p < d.length; p += 4) {
+                  const pr = d[p];
+                  const pg = d[p + 1];
+                  const pb = d[p + 2];
+                  const lum = 0.299 * pr + 0.587 * pg + 0.114 * pb;
+                  const satDiff = Math.max(pr, pg, pb) - Math.min(pr, pg, pb);
+                  const dist = Math.sqrt(
+                    Math.pow(pr - avgBgR, 2) + Math.pow(pg - avgBgG, 2) + Math.pow(pb - avgBgB, 2)
+                  );
+
+                  if (lum >= 238 && satDiff <= 18) {
+                    d[p + 3] = 0; // Pure white background removed
+                  } else if (dist < 26) {
+                    d[p + 3] = 0;
+                  } else if (dist < 46) {
+                    const factor = (dist - 26) / 20;
+                    d[p + 3] = Math.round(d[p + 3] * factor);
+                  }
+                }
+                qCtx.putImageData(imgData, 0, 0);
+              }
+            }
+
+            const sliceDataUrl = qCanvas.toDataURL("image/png");
+            newPhotos[i] = sliceDataUrl;
+
+            // Preload Image element
+            await new Promise<void>((res) => {
+              const loaded = new window.Image();
+              loaded.onload = () => {
+                loadedImgs[i] = loaded;
+                res();
+              };
+              loaded.onerror = () => res();
+              loaded.src = sliceDataUrl;
+            });
+          }
+
+          // Commit to state & refs
+          for (let i = 0; i < 4; i++) {
+            if (loadedImgs[i]) {
+              avatarImgElementsRef.current[i] = loadedImgs[i];
+            }
+          }
+          setAvatarPhotos(newPhotos);
+          setAvatarEngine("photo-cutout");
+          setSheetSliceSuccess(true);
+        } finally {
+          setIsSlicingSheet(false);
+        }
+      };
+      sheetImg.src = rawDataUrl;
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Handle BGM playback based on state
   useEffect(() => {
     if (bgmEnabled && isPlaying && !isRecording) {
@@ -781,6 +1048,29 @@ export default function KineticMotionPage() {
       const elapsed = isPlaying
         ? (now - startTimeRef.current) / 1000
         : (pausedElapsedRef.current || 0) / 1000;
+
+      // In Preview mode, when playback reaches the end of the video, cleanly auto-stop instead of infinite loop!
+      if (!isRecordingRef.current && isPlaying && elapsed >= totalDurationSec) {
+        setIsPlaying(false);
+        startTimeRef.current = 0;
+        pausedElapsedRef.current = 0;
+        lastSceneIndexRef.current = -1;
+        playedSceneAudioRef.current = -1;
+        if (activeAudioSourceRef.current) {
+          try {
+            activeAudioSourceRef.current.stop();
+            activeAudioSourceRef.current.disconnect();
+          } catch (_) { }
+          activeAudioSourceRef.current = null;
+        }
+        if (loFiBgmRef.current) {
+          try {
+            loFiBgmRef.current.stop();
+          } catch (_) { }
+        }
+        return;
+      }
+
       const loopTime = elapsed % Math.max(totalDurationSec, 1);
       const globalProgress = loopTime / Math.max(totalDurationSec, 1);
 
@@ -1390,8 +1680,8 @@ export default function KineticMotionPage() {
       const phraseDuration = Math.max(activePhrase.endPct - activePhrase.startPct, 0.05);
       const phraseProgress = Math.min(Math.max((speechProgress - activePhrase.startPct) / phraseDuration, 0), 1);
 
-      // Positioned closer above the avatar head for tight speaker-caption cohesion
-      const phraseCenterY = showUpperCard ? 760 : 640;
+      // Centered between the upper card and the presenter avatar for perfect zero-collision hierarchy
+      const phraseCenterY = showUpperCard ? 560 : 500;
 
       // Render Metric Badge above the beat if present
       if (activePhrase.badge) {
@@ -1552,8 +1842,8 @@ export default function KineticMotionPage() {
             img: customPhotoImg,
             cx: W / 2,
             bottomY: H,
-            maxHeight: 430,
-            maxWidth: 460,
+            maxHeight: 360,
+            maxWidth: 420,
             vocalVolume: isTalking ? currentVocalVolume : 0,
             elapsed,
             accentColor,
@@ -2984,29 +3274,356 @@ export default function KineticMotionPage() {
               </div>
             )}
 
-            {/* Multi-Pose Photo Uploader (Always accessible or auto-switches to Foto Sendiri) */}
-            <div className="space-y-2.5 pt-1">
-              <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] font-mono text-zinc-400">
-                <span>Upload Foto Presenter (1 Foto Cukup, atau 1–4 Pose):</span>
-                <span className="text-emerald-400 font-bold">100% On-Device / Air-Gapped</span>
+            {/* Multi-Pose Photo & AI Action Sheet Studio */}
+            <div className="space-y-3 pt-1">
+              <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] font-mono">
+                <span className="text-zinc-300 font-semibold flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>Studio Host & Presenter (Multi-Pose):</span>
+                </span>
+                <span className="text-emerald-400 font-bold text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                  100% On-Device / Air-Gapped
+                </span>
               </div>
 
-              {/* 1-Click Distribute to All 4 Scenes with Auto-Pose */}
-              {avatarPhotos[0] && (
+              {/* Mode Toggle: Action Sheet 4-Grid (AI) vs Manual Per-Slot */}
+              <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-black/60 border border-white/10 font-mono text-xs">
                 <button
                   type="button"
-                  onClick={applyPhotoToAllScenes}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-emerald-400/40 bg-emerald-500/15 text-emerald-300 font-mono text-xs font-bold hover:bg-emerald-500/25 transition-all shadow-sm cursor-pointer"
+                  onClick={() => setUploadMode("sheet")}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg font-bold transition-all cursor-pointer ${
+                    uploadMode === "sheet"
+                      ? "bg-gradient-to-r from-emerald-500/30 to-teal-500/20 text-emerald-300 border border-emerald-400/50 shadow-sm"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>⚡ SEBAR 1 FOTO INI KE SEMUA SCENE (AUTO-POSE DINAMIS)</span>
+                  <Scissors className="h-3.5 w-3.5" />
+                  <span>✂️ Sheet 4-Pose (AI Grid)</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setUploadMode("manual")}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg font-bold transition-all cursor-pointer ${
+                    uploadMode === "manual"
+                      ? "bg-gradient-to-r from-emerald-500/30 to-teal-500/20 text-emerald-300 border border-emerald-400/50 shadow-sm"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  <ImageIcon className="h-3.5 w-3.5" />
+                  <span>🖼️ Upload Manual (Slot 1–4)</span>
+                </button>
+              </div>
+
+              {/* MODE 1: 2x2 ACTION SHEET WORKFLOW */}
+              {uploadMode === "sheet" && (
+                <div className="space-y-3 p-3 rounded-2xl bg-gradient-to-b from-white/[0.04] to-black/40 border border-white/10 shadow-lg">
+                  {/* Workflow Explanation Banner */}
+                  <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[11px] font-mono leading-relaxed">
+                    <Sparkles className="h-4 w-4 shrink-0 mt-0.5 text-emerald-400" />
+                    <div>
+                      <strong className="text-white block font-sans text-xs">Workflow 1 Gambar = 4 Pose Konsisten Sesuai Naskah!</strong>
+                      Salin prompt di bawah ke Gemini / Midjourney / Flux. Hasil 1 gambar grid 2x2 cukup di-drop di bawah, sistem otomatis memotong 4 kuadran pose & membersihkan background secara instan tanpa API!
+                    </div>
+                  </div>
+
+                  {/* Persona Configuration */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider block">
+                      1. Karakter / Pakaian Host (Bisa Diedit):
+                    </label>
+                    <textarea
+                      value={personaDesc}
+                      onChange={(e) => setPersonaDesc(e.target.value)}
+                      rows={2}
+                      className="w-full text-xs font-mono p-2 rounded-xl bg-black/60 border border-white/10 text-zinc-200 focus:border-emerald-400 focus:outline-none transition-colors resize-none"
+                      placeholder="Jelaskan penampilan presenter (wajah, busana, warna baju)..."
+                    />
+                    {/* Persona Presets */}
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {PERSONA_PRESETS.map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => setPersonaDesc(preset.desc)}
+                          className="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-[10px] font-mono text-zinc-300 hover:text-emerald-300 border border-white/10 hover:border-emerald-500/30 transition-all cursor-pointer"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Contextual Prompt Box */}
+                  <div className="rounded-xl border border-white/10 bg-black/60 overflow-hidden">
+                    <div className="flex items-center justify-between p-2.5 bg-white/5 border-b border-white/10">
+                      <button
+                        type="button"
+                        onClick={() => setShowPromptBox(!showPromptBox)}
+                        className="flex items-center gap-2 text-xs font-mono font-semibold text-zinc-200 hover:text-white cursor-pointer"
+                      >
+                        <FileText className="h-3.5 w-3.5 text-emerald-400" />
+                        <span>2. Prompt Action Sheet (Auto dari Naskah)</span>
+                        {showPromptBox ? (
+                          <ChevronUp className="h-3.5 w-3.5 text-zinc-400" />
+                        ) : (
+                          <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={copyActionSheetPrompt}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 text-[11px] font-mono font-bold transition-all cursor-pointer shadow-sm"
+                      >
+                        {sheetPromptCopied ? (
+                          <>
+                            <Check className="h-3 w-3 text-emerald-400" />
+                            <span>✓ Tersalin!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3" />
+                            <span>Salin Prompt AI</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {showPromptBox && (
+                      <div className="p-2.5 space-y-2">
+                        <pre className="text-[10px] font-mono text-zinc-300 bg-black/80 p-2.5 rounded-lg max-h-36 overflow-y-auto whitespace-pre-wrap leading-relaxed border border-white/5 select-all">
+                          {generateActionSheetPrompt()}
+                        </pre>
+                        <p className="text-[9.5px] font-mono text-zinc-400 leading-tight">
+                          💡 <strong>Tips:</strong> Buka <span className="text-zinc-200">Google Gemini</span>, <span className="text-zinc-200">Midjourney</span>, atau <span className="text-zinc-200">Flux</span> ➡️ Paste prompt ➡️ Simpan gambar hasil 2x2 grid ➡️ Drop di bawah!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dropzone for 2x2 Grid Sheet */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400">
+                      <span>3. Upload Gambar Sheet 2x2:</span>
+                      <label className="flex items-center gap-1.5 text-zinc-300 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={autoCutoutWhite}
+                          onChange={(e) => setAutoCutoutWhite(e.target.checked)}
+                          className="rounded border-zinc-700 text-emerald-500 focus:ring-0 accent-emerald-500"
+                        />
+                        <span className="text-[9.5px]">Auto-Cutout Background Putih (#FFFFFF)</span>
+                      </label>
+                    </div>
+
+                    <label className="relative border-2 border-dashed border-emerald-500/30 hover:border-emerald-400 bg-emerald-950/10 hover:bg-emerald-950/20 rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-all group">
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        onChange={(e) => handleGridSheetUpload(e.target.files?.[0] || null)}
+                      />
+                      {isSlicingSheet ? (
+                        <div className="flex flex-col items-center py-2">
+                          <RefreshCw className="h-6 w-6 text-emerald-400 animate-spin mb-1.5" />
+                          <span className="text-xs font-mono font-bold text-emerald-300">
+                            ✂️ Memotong 4 Kuadran & Membersihkan Background...
+                          </span>
+                          <span className="text-[10px] font-mono text-zinc-400 mt-0.5">
+                            Proses 100% lokal di browser Anda
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center py-1">
+                          <div className="h-10 w-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                            <Scissors className="h-5 w-5 text-emerald-400" />
+                          </div>
+                          <span className="text-xs font-mono font-bold text-zinc-200 group-hover:text-emerald-300 transition-colors">
+                            Klik atau Drop File Gambar Sheet 2x2 di Sini
+                          </span>
+                          <span className="text-[10px] font-mono text-zinc-400 mt-1 max-w-sm">
+                            Otomatis diiris menjadi 4 Pose: Hook (Kiri Atas), Masalah (Kanan Atas), Solusi (Kiri Bawah), CTA (Kanan Bawah).
+                          </span>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+
+                  {/* Sliced 4-Pose Status & Preview Card */}
+                  {avatarPhotos[0] && (
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between text-[11px] font-mono">
+                        <span className="text-emerald-300 font-bold flex items-center gap-1.5">
+                          <CheckCheck className="h-3.5 w-3.5 text-emerald-400" />
+                          <span>4 Pose Berhasil Terpasang di Naskah:</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            for (let i = 0; i < 4; i++) removeAvatarPhoto(i);
+                            setSheetSliceSuccess(false);
+                          }}
+                          className="text-[10px] text-rose-400 hover:text-rose-300 underline cursor-pointer"
+                        >
+                          Hapus & Ulangi
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          { idx: 0, label: "Scene 1: Hook", desc: "Kiri-Atas" },
+                          { idx: 1, label: "Scene 2: Masalah", desc: "Kanan-Atas" },
+                          { idx: 2, label: "Scene 3: Solusi", desc: "Kiri-Bawah" },
+                          { idx: 3, label: "Scene 4: CTA", desc: "Kanan-Bawah" },
+                        ].map((slot) => {
+                          const imgUrl = avatarPhotos[slot.idx];
+                          return (
+                            <div
+                              key={slot.idx}
+                              className="relative rounded-xl border border-emerald-500/30 bg-black/50 p-2 flex flex-col items-center text-center shadow-sm"
+                            >
+                              {imgUrl ? (
+                                <>
+                                  <div className="h-14 w-14 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-center overflow-hidden p-1">
+                                    <img
+                                      src={imgUrl}
+                                      alt={slot.label}
+                                      className="max-h-full max-w-full object-contain"
+                                    />
+                                  </div>
+                                  <span className="text-[10px] font-mono font-bold text-emerald-300 mt-1">
+                                    {slot.label}
+                                  </span>
+                                  <span className="text-[8.5px] font-mono text-zinc-400">
+                                    {slot.desc}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-[10px] font-mono text-zinc-500 py-4">Kosong</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Instant Play Preview with Sliced Poses */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (activeAudioSourceRef.current) {
+                            try { activeAudioSourceRef.current.stop(); } catch (e) {}
+                          }
+                          startTimeRef.current = Date.now();
+                          pausedElapsedRef.current = 0;
+                          playedSceneAudioRef.current = -1;
+                          lastSceneIndexRef.current = -1;
+                          if (bgmEnabled && loFiBgmRef.current) {
+                            loFiBgmRef.current.start();
+                          }
+                          setIsPlaying(true);
+                        }}
+                        className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/50 text-emerald-300 font-mono text-xs font-bold transition-all shadow-md cursor-pointer"
+                      >
+                        <Play className="h-3.5 w-3.5 fill-current" />
+                        <span>▶️ PUTAR PREVIEW DENGAN 4 POSE INI</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
 
-              {/* Framing Mode: Setengah Badan vs Seluruh Badan */}
+              {/* MODE 2: MANUAL PER-SLOT UPLOADER */}
+              {uploadMode === "manual" && (
+                <div className="space-y-2.5">
+                  {/* 1-Click Distribute to All 4 Scenes with Dynamic Camera Director */}
+                  {avatarPhotos[0] && (
+                    <button
+                      type="button"
+                      onClick={applyPhotoToAllScenes}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-emerald-400/40 bg-emerald-500/15 text-emerald-300 font-mono text-xs font-bold hover:bg-emerald-500/25 transition-all shadow-sm cursor-pointer"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>⚡ SEBAR 1 FOTO KE SEMUA SCENE (DYNAMIC CAMERA DIRECTOR)</span>
+                    </button>
+                  )}
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { idx: 0, label: "Pose 1 (Utama)" },
+                      { idx: 1, label: "Pose 2 (Masalah)" },
+                      { idx: 2, label: "Pose 3 (Solusi)" },
+                      { idx: 3, label: "Pose 4 (CTA)" },
+                    ].map((slot) => {
+                      const imgUrl = avatarPhotos[slot.idx];
+                      const isProcessing = isProcessingCutout[slot.idx];
+                      return (
+                        <div
+                          key={slot.idx}
+                          className="relative rounded-xl border border-dashed border-white/15 bg-black/40 p-2 flex flex-col items-center justify-center min-h-[96px] hover:border-emerald-400/50 transition-colors"
+                        >
+                          {imgUrl ? (
+                            <>
+                              <img
+                                src={imgUrl}
+                                alt={slot.label}
+                                className="h-12 w-12 object-contain rounded"
+                              />
+                              <span className="text-[10px] font-mono text-emerald-300 mt-1 truncate max-w-full">
+                                {slot.label}
+                              </span>
+                              <button
+                                type="button"
+                                disabled={isProcessing}
+                                onClick={() => handleAutoCutout(slot.idx)}
+                                className="mt-1 flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[9px] font-mono transition-colors cursor-pointer"
+                                title="Hapus background otomatis di browser"
+                              >
+                                {isProcessing ? (
+                                  <>
+                                    <RefreshCw className="h-2.5 w-2.5 animate-spin" />
+                                    <span>Cutout...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Wand2 className="h-2.5 w-2.5" />
+                                    <span>🪄 Cutout</span>
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeAvatarPhoto(slot.idx)}
+                                className="absolute top-1 right-1 p-1 rounded-md bg-rose-500/80 text-white hover:bg-rose-500 cursor-pointer"
+                                title="Hapus foto"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </>
+                          ) : (
+                            <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer text-center">
+                              <Upload className="h-4 w-4 text-zinc-400 mb-1" />
+                              <span className="text-[10px] font-mono text-zinc-400 leading-tight">
+                                {slot.label}
+                              </span>
+                              <input
+                                type="file"
+                                accept="image/png,image/webp,image/jpeg"
+                                className="hidden"
+                                onChange={(e) => handleAvatarUpload(slot.idx, e.target.files?.[0] || null)}
+                              />
+                            </label>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Framing Mode: Setengah Badan vs Seluruh Badan (Available in Both Modes) */}
               <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-xl bg-white/5 border border-white/10 text-[11px] font-mono">
                 <span className="text-zinc-300 flex items-center gap-1.5">
-                  <span>📐 Format Penampilan Foto:</span>
+                  <span>📐 Format Penampilan:</span>
                 </span>
                 <div className="flex items-center gap-1 bg-black/50 p-0.5 rounded-lg border border-white/10">
                   <button
@@ -3017,7 +3634,7 @@ export default function KineticMotionPage() {
                         ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-bold shadow-sm"
                         : "text-zinc-400 hover:text-white"
                     }`}
-                    title="Foto full-body otomatis difokuskan ke tubuh bagian atas & wajah agar ekspresif di layar smartphone"
+                    title="Foto otomatis difokuskan ke tubuh bagian atas & wajah agar ekspresif di layar smartphone"
                   >
                     👤 Setengah Badan (Fokus Wajah)
                   </button>
@@ -3036,76 +3653,6 @@ export default function KineticMotionPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {[
-                  { idx: 0, label: "Pose 1 (Utama)" },
-                  { idx: 1, label: "Pose 2 (Masalah)" },
-                  { idx: 2, label: "Pose 3 (Solusi)" },
-                  { idx: 3, label: "Pose 4 (CTA)" },
-                ].map((slot) => {
-                  const imgUrl = avatarPhotos[slot.idx];
-                  const isProcessing = isProcessingCutout[slot.idx];
-                  return (
-                    <div
-                      key={slot.idx}
-                      className="relative rounded-xl border border-dashed border-white/15 bg-black/40 p-2 flex flex-col items-center justify-center min-h-[96px] hover:border-emerald-400/50 transition-colors"
-                    >
-                      {imgUrl ? (
-                        <>
-                          <img
-                            src={imgUrl}
-                            alt={slot.label}
-                            className="h-12 w-12 object-contain rounded"
-                          />
-                          <span className="text-[10px] font-mono text-emerald-300 mt-1 truncate max-w-full">
-                            {slot.label}
-                          </span>
-                          <button
-                            type="button"
-                            disabled={isProcessing}
-                            onClick={() => handleAutoCutout(slot.idx)}
-                            className="mt-1 flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[9px] font-mono transition-colors cursor-pointer"
-                            title="Hapus background otomatis di browser"
-                          >
-                            {isProcessing ? (
-                              <>
-                                <RefreshCw className="h-2.5 w-2.5 animate-spin" />
-                                <span>Cutout...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Wand2 className="h-2.5 w-2.5" />
-                                <span>🪄 Cutout</span>
-                              </>
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeAvatarPhoto(slot.idx)}
-                            className="absolute top-1 right-1 p-1 rounded-md bg-rose-500/80 text-white hover:bg-rose-500 cursor-pointer"
-                            title="Hapus foto"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </>
-                      ) : (
-                        <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer text-center">
-                          <Upload className="h-4 w-4 text-zinc-400 mb-1" />
-                          <span className="text-[10px] font-mono text-zinc-400 leading-tight">
-                            {slot.label}
-                          </span>
-                          <input
-                            type="file"
-                            accept="image/png,image/webp,image/jpeg"
-                            className="hidden"
-                            onChange={(e) => handleAvatarUpload(slot.idx, e.target.files?.[0] || null)}
-                          />
-                        </label>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
               {localGpuInfo && (
                 <p className="text-[10px] font-mono text-zinc-500">
                   💡 {localGpuInfo.note}
@@ -3347,26 +3894,53 @@ export default function KineticMotionPage() {
             <div className="w-full h-full rounded-[26px] overflow-hidden relative bg-black">
               <canvas ref={canvasRef} className="w-full h-full object-cover" />
 
-              {/* Pause / Play Click Overlay - Hanya aktif saat ditekan Play */}
-              {!isPlaying && !isRecording && (
-                <div
-                  onClick={async () => {
+              {/* Interactive Screen Play/Pause Overlay */}
+              <div
+                onClick={async () => {
+                  if (isRecording) return;
+                  if (isPlaying) {
+                    // Pause preview & silence all audio
+                    if (startTimeRef.current) {
+                      pausedElapsedRef.current = Date.now() - startTimeRef.current;
+                    }
+                    setIsPlaying(false);
+                    if (activeAudioSourceRef.current) {
+                      try {
+                        activeAudioSourceRef.current.stop();
+                        activeAudioSourceRef.current.disconnect();
+                      } catch (_) { }
+                      activeAudioSourceRef.current = null;
+                    }
+                    if (loFiBgmRef.current) {
+                      try { loFiBgmRef.current.stop(); } catch (_) { }
+                    }
+                    playedSceneAudioRef.current = -1;
+                  } else {
+                    // Start or Resume Preview
                     const { ctx } = getOrCreateAudioEngine();
                     if (ctx.state === "suspended") await ctx.resume();
                     startTimeRef.current = Date.now() - (pausedElapsedRef.current || 0);
                     playedSceneAudioRef.current = -1;
                     if (bgmEnabled && loFiBgmRef.current) loFiBgmRef.current.start();
                     setIsPlaying(true);
-                  }}
-                  className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px] cursor-pointer group transition-all"
-                >
-                  <div className="h-16 w-16 rounded-full bg-emerald-500/95 text-black flex items-center justify-center shadow-2xl group-hover:scale-110 group-hover:bg-emerald-400 transition-all">
-                    <Play className="h-7 w-7 fill-current ml-1" />
+                  }
+                }}
+                className="absolute inset-0 z-30 cursor-pointer"
+              >
+                {!isPlaying && !isRecording && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px] group transition-all">
+                    <div className="h-16 w-16 rounded-full bg-emerald-500/95 text-black flex items-center justify-center shadow-2xl group-hover:scale-110 group-hover:bg-emerald-400 transition-all">
+                      <Play className="h-7 w-7 fill-current ml-1" />
+                    </div>
+                    <span className="mt-3 text-xs font-mono font-bold text-white tracking-wider">
+                      {pausedElapsedRef.current ? "KLIK UNTUK LANJUTKAN" : "KLIK UNTUK PUTAR PREVIEW"}
+                    </span>
+                    <span className="text-[10px] font-mono text-zinc-400 mt-0.5">
+                      Klik layar untuk jeda / putar kapan saja
+                    </span>
                   </div>
-                  <span className="mt-3 text-xs font-mono font-bold text-white tracking-wider">KLIK UNTUK PUTAR PREVIEW</span>
-                  <span className="text-[10px] font-mono text-zinc-400 mt-0.5">Video petunjuk hanya aktif jika ditekan play</span>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* Recording Overlay Tag */}
               {isRecording && (
@@ -3379,7 +3953,7 @@ export default function KineticMotionPage() {
           </div>
 
           <div className="mt-4 w-full max-w-[340px] space-y-2 font-mono text-xs">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               <button
                 type="button"
                 onClick={async () => {
@@ -3393,7 +3967,9 @@ export default function KineticMotionPage() {
                   if (activeAudioSourceRef.current) {
                     try {
                       activeAudioSourceRef.current.stop();
+                      activeAudioSourceRef.current.disconnect();
                     } catch (_) { }
+                    activeAudioSourceRef.current = null;
                   }
                   startTimeRef.current = Date.now();
                   pausedElapsedRef.current = 0;
@@ -3408,10 +3984,11 @@ export default function KineticMotionPage() {
                   playSceneVoiceNow(0, 0);
                   setIsPlaying(true);
                 }}
-                className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold hover:bg-emerald-500/30 transition-colors cursor-pointer"
+                className="flex items-center justify-center gap-1 px-2.5 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold hover:bg-emerald-500/30 transition-colors cursor-pointer"
+                title="Putar ulang dari detik ke-0"
               >
                 <Play className="h-3.5 w-3.5 fill-current" />
-                <span>Play dari Awal</span>
+                <span>Ulang</span>
               </button>
 
               <button
@@ -3422,24 +3999,67 @@ export default function KineticMotionPage() {
                     await ctx.resume();
                   }
                   if (isPlaying) {
-                    pausedElapsedRef.current = Date.now() - startTimeRef.current;
+                    if (startTimeRef.current) {
+                      pausedElapsedRef.current = Date.now() - startTimeRef.current;
+                    }
                     if (activeAudioSourceRef.current) {
                       try {
                         activeAudioSourceRef.current.stop();
+                        activeAudioSourceRef.current.disconnect();
                       } catch (_) { }
+                      activeAudioSourceRef.current = null;
+                    }
+                    if (loFiBgmRef.current) {
+                      try { loFiBgmRef.current.stop(); } catch (_) { }
                     }
                     playedSceneAudioRef.current = -1;
                     setIsPlaying(false);
                   } else {
-                    startTimeRef.current = Date.now() - pausedElapsedRef.current;
+                    startTimeRef.current = Date.now() - (pausedElapsedRef.current || 0);
                     playedSceneAudioRef.current = -1;
+                    if (bgmEnabled && loFiBgmRef.current) {
+                      loFiBgmRef.current.start();
+                    }
                     setIsPlaying(true);
                   }
                 }}
-                className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="flex items-center justify-center gap-1 px-2.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
                 {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 fill-current" />}
                 <span>{isPlaying ? "Pause" : "Lanjut"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPlaying(false);
+                  startTimeRef.current = 0;
+                  pausedElapsedRef.current = 0;
+                  lastSceneIndexRef.current = -1;
+                  playedSceneAudioRef.current = -1;
+                  if (activeAudioSourceRef.current) {
+                    try {
+                      activeAudioSourceRef.current.stop();
+                      activeAudioSourceRef.current.disconnect();
+                    } catch (_) { }
+                    activeAudioSourceRef.current = null;
+                  }
+                  if (loFiBgmRef.current) {
+                    try { loFiBgmRef.current.stop(); } catch (_) { }
+                  }
+                  if (animationFrameRef.current) {
+                    cancelAnimationFrame(animationFrameRef.current);
+                    animationFrameRef.current = null;
+                  }
+                  if (renderFrameRef.current) {
+                    renderFrameRef.current();
+                  }
+                }}
+                className="flex items-center justify-center gap-1 px-2.5 py-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 font-bold hover:bg-rose-500/25 transition-colors cursor-pointer"
+                title="Hentikan total pemutaran dan kembalikan ke awal"
+              >
+                <Square className="h-3.5 w-3.5 fill-current" />
+                <span>Stop</span>
               </button>
             </div>
 
