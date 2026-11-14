@@ -2705,26 +2705,28 @@ COMPOSITION & BACKGROUND:
               }}
               className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white focus:border-emerald-400 focus:outline-none"
             >
-              <optgroup label="👑 Koleksi Suara Kang Suara (100% Konsisten & Bebas Kuota)">
+              <optgroup label="👑 Kang Suara Studio (Google Gemini 24kHz - Alami & Bernapas)">
                 <option value="kang-sarah">👩‍💼 Sarah (Host Profesional & Jelas)</option>
                 <option value="kang-dimas">👨‍🏫 Mas Dimas (Otoritatif & Tenang / Video Essay)</option>
                 <option value="kang-bams">⚡ Bang Bams (UGC Hook Cepat, Nyolot & Energik)</option>
-                <option value="kang-senja">🌙 Nada Senja (Storytelling Halus, Meditatif)</option>
+                <option value="kang-senja">🌙 Nada Senja (Storytelling Halus & Meditatif)</option>
                 <option value="kang-bimo">📱 Bimo (Reviewer Santai & Gaul / Gadget)</option>
-                <option value="kang-keisha">✨ Keisha (Gen-Z Aesthetic / Lifestyle / Skincare)</option>
+                <option value="kang-keisha">✨ Keisha (Gen-Z Aesthetic / Lifestyle)</option>
                 <option value="kang-reno">🎮 Reno (Anak Muda Hype / Gamer Dinamis)</option>
                 <option value="kang-hartono">👴 Pak Hartono (Bapak Bijak / Bisnis)</option>
                 <option value="kang-ratna">🧕 Ibu Ratna (Keibuan, Hangat & Mengayomi)</option>
-                <option value="kang-arka">👶 Arka (Anak Cowok Penasaran & Lincah)</option>
-                <option value="kang-naura">👧 Naura (Anak Cewek Ceria & Imut)</option>
-                <option value="id-ID-GadisNeural">👩 Gadis (Standar Kreator Indonesia)</option>
-                <option value="id-ID-ArdiNeural">👨 Ardi (Standar Host Podcast)</option>
+                <option value="gemini-aoede">✨ Aoede (Studio Ultra Wanita)</option>
+                <option value="gemini-charon">✨ Charon (Studio Ultra Pria)</option>
               </optgroup>
-              <optgroup label="✨ Google Gemini Studio (24kHz Studio - Kuota 10/Hari)">
-                <option value="gemini-aoede">✨ Aoede (Wanita - Percakapan Alami)</option>
-                <option value="gemini-charon">✨ Charon (Pria - Edukatif Mantap)</option>
-                <option value="gemini-kore">✨ Kore (Wanita - Ceria & Energik)</option>
-                <option value="gemini-puck">✨ Puck (Pria - Santai & Santun)</option>
+              <optgroup label="⚡ Kang Suara Edge Neural (Ardi & Gadis - 100% Bebas Kuota / 0 Biaya)">
+                <option value="edge-bams">⚡ Bang Bams (Ardi +12% Lincah & Energik)</option>
+                <option value="edge-dimas">👨‍🏫 Mas Dimas (Ardi -3% / -2Hz Tenang & Berwibawa)</option>
+                <option value="edge-bimo">📱 Bimo (Ardi +6% Reviewer Kasual)</option>
+                <option value="edge-sarah">👩‍💼 Sarah (Gadis +2% Artikulasi Jelas)</option>
+                <option value="edge-senja">🌙 Nada Senja (Gadis -25% / -2Hz Syahdu & Lembut)</option>
+                <option value="edge-keisha">✨ Keisha (Gadis +4% Gen-Z Ceria)</option>
+                <option value="id-ID-ArdiNeural">👨 Ardi Standar (+2% Podcast)</option>
+                <option value="id-ID-GadisNeural">👩 Gadis Standar (+1% Kreator)</option>
               </optgroup>
             </select>
           </div>

@@ -251,6 +251,66 @@ export const KANG_SUARA_PERSONAS: Record<string, KangSuaraPersona> = {
     pitch: "+2Hz",
     cast: "Kore",
   },
+  "edge-bams": {
+    id: "edge-bams",
+    name: "Bang Bams (Edge)",
+    gender: "male",
+    roleDesc: "UGC Hook Cepat, Nyolot & Energik (Ardi +12%)",
+    azureVoice: "id-ID-ArdiNeural",
+    rate: "+12%",
+    pitch: "+2Hz",
+    cast: "Puck",
+  },
+  "edge-dimas": {
+    id: "edge-dimas",
+    name: "Mas Dimas (Edge)",
+    gender: "male",
+    roleDesc: "Otoritatif & Tenang (Ardi -3% / -2Hz)",
+    azureVoice: "id-ID-ArdiNeural",
+    rate: "-3%",
+    pitch: "-2Hz",
+    cast: "Charon",
+  },
+  "edge-bimo": {
+    id: "edge-bimo",
+    name: "Bimo (Edge)",
+    gender: "male",
+    roleDesc: "Reviewer Santai & Gaul (Ardi +6%)",
+    azureVoice: "id-ID-ArdiNeural",
+    rate: "+6%",
+    pitch: "+0Hz",
+    cast: "Charon",
+  },
+  "edge-sarah": {
+    id: "edge-sarah",
+    name: "Sarah (Edge)",
+    gender: "female",
+    roleDesc: "Host Profesional & Jelas (Gadis +2%)",
+    azureVoice: "id-ID-GadisNeural",
+    rate: "+2%",
+    pitch: "+0Hz",
+    cast: "Aoede",
+  },
+  "edge-senja": {
+    id: "edge-senja",
+    name: "Nada Senja (Edge)",
+    gender: "female",
+    roleDesc: "Storytelling Lembut & Syahdu (Gadis -25% / -2Hz)",
+    azureVoice: "id-ID-GadisNeural",
+    rate: "-25%",
+    pitch: "-2Hz",
+    cast: "Aoede",
+  },
+  "edge-keisha": {
+    id: "edge-keisha",
+    name: "Keisha (Edge)",
+    gender: "female",
+    roleDesc: "Gen-Z Aesthetic & Skincare (Gadis +4% / +1Hz)",
+    azureVoice: "id-ID-GadisNeural",
+    rate: "+4%",
+    pitch: "+1Hz",
+    cast: "Kore",
+  },
 };
 
 /**
@@ -623,8 +683,31 @@ export async function POST(req: NextRequest) {
 
     const formattedText = formatNaturalSpeechProsody(text.trim());
 
-    // 1. Kang Suara Authentic Indonesian Personas (Powered by Studio Gemini + Acoustic Directives)
+    // 1. Dedicated Edge Neural Personas (100% Unlimited RPD & Zero Cost with Kang Suara Pitch/Rate Calibration)
     const kangPersona = KANG_SUARA_PERSONAS[voice.toLowerCase()];
+    if (voice.toLowerCase().startsWith("edge-") && kangPersona) {
+      try {
+        const neuralBuffer = await generateMicrosoftNeuralTTS(
+          formattedText,
+          kangPersona.azureVoice,
+          customRate || kangPersona.rate,
+          customPitch || kangPersona.pitch
+        );
+        return new NextResponse(new Uint8Array(neuralBuffer), {
+          status: 200,
+          headers: {
+            "Content-Type": "audio/mpeg",
+            "Content-Length": neuralBuffer.length.toString(),
+            "X-TTS-Engine": `Kang-Suara-Edge-${kangPersona.name}`,
+            "Cache-Control": "public, max-age=86400",
+          },
+        });
+      } catch (err) {
+        console.warn(`Edge persona (${kangPersona.name}) error:`, err);
+      }
+    }
+
+    // 2. Kang Suara Studio Personas (Powered by Studio Gemini 24kHz + Acoustic Directives)
     if (kangPersona) {
       const directiveInfo = KANG_SUARA_DIRECTIVES[voice.toLowerCase()];
       const targetCast = directiveInfo ? directiveInfo.cast : kangPersona.cast;
