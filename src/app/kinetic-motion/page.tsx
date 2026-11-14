@@ -353,6 +353,7 @@ export default function KineticMotionPage() {
   } | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
+  const isPlayingRef = useRef<boolean>(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordProgress, setRecordProgress] = useState(0);
   const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
@@ -505,6 +506,135 @@ export default function KineticMotionPage() {
     },
     [getOrCreateAudioEngine, voiceActor]
   );
+
+  // Synchronous, Race-Condition-Free Preview Playback Engine (Anti-Regression Protocol)
+  const handleStopPreview = useCallback(() => {
+    isPlayingRef.current = false;
+    setIsPlaying(false);
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    startTimeRef.current = 0;
+    pausedElapsedRef.current = 0;
+    lastSceneIndexRef.current = -1;
+    playedSceneAudioRef.current = -1;
+
+    // Immediately halt and disconnect voiceover audio
+    if (activeAudioSourceRef.current) {
+      try {
+        activeAudioSourceRef.current.stop();
+        activeAudioSourceRef.current.disconnect();
+      } catch (_) {}
+      activeAudioSourceRef.current = null;
+    }
+    if (loFiBgmRef.current) {
+      try {
+        loFiBgmRef.current.stop();
+      } catch (_) {}
+    }
+
+    // Paint static frame 0.00s without restarting RAF loop
+    if (renderFrameRef.current) {
+      renderFrameRef.current();
+    }
+  }, []);
+
+  const handlePausePreview = useCallback(() => {
+    if (!isPlayingRef.current) return;
+    if (startTimeRef.current) {
+      pausedElapsedRef.current = Date.now() - startTimeRef.current;
+    }
+    isPlayingRef.current = false;
+    setIsPlaying(false);
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    // Silence active voiceover immediately
+    if (activeAudioSourceRef.current) {
+      try {
+        activeAudioSourceRef.current.stop();
+        activeAudioSourceRef.current.disconnect();
+      } catch (_) {}
+      activeAudioSourceRef.current = null;
+    }
+    if (loFiBgmRef.current) {
+      try {
+        loFiBgmRef.current.stop();
+      } catch (_) {}
+    }
+    playedSceneAudioRef.current = -1;
+
+    // Paint static paused frame at exact paused time
+    if (renderFrameRef.current) {
+      renderFrameRef.current();
+    }
+  }, []);
+
+  const handleStartOrResumePreview = useCallback(async () => {
+    if (isRecordingRef.current) return;
+    const { ctx } = getOrCreateAudioEngine();
+    if (ctx.state === "suspended") {
+      await ctx.resume();
+    }
+
+    startTimeRef.current = Date.now() - (pausedElapsedRef.current || 0);
+    playedSceneAudioRef.current = -1;
+    if (bgmEnabled && loFiBgmRef.current) {
+      loFiBgmRef.current.start();
+    }
+
+    isPlayingRef.current = true;
+    setIsPlaying(true);
+
+    if (renderFrameRef.current) {
+      renderFrameRef.current();
+    }
+  }, [bgmEnabled, getOrCreateAudioEngine]);
+
+  const handleReplayFromStart = useCallback(async () => {
+    if (isRecordingRef.current) return;
+    const { ctx } = getOrCreateAudioEngine();
+    if (ctx.state === "suspended") {
+      await ctx.resume();
+    }
+    if (!audioBuffersRef.current[0] && scene0PromiseRef.current) {
+      await scene0PromiseRef.current;
+    }
+    if (activeAudioSourceRef.current) {
+      try {
+        activeAudioSourceRef.current.stop();
+        activeAudioSourceRef.current.disconnect();
+      } catch (_) {}
+      activeAudioSourceRef.current = null;
+    }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    startTimeRef.current = Date.now();
+    pausedElapsedRef.current = 0;
+    lastSceneIndexRef.current = 0;
+    playedSceneAudioRef.current = -1;
+
+    if (bgmEnabled && loFiBgmRef.current) {
+      loFiBgmRef.current.start();
+    }
+    if (sfxEnabled && audioDestRef.current) {
+      playProceduralSFX(ctx, [ctx.destination, audioDestRef.current], "whoosh");
+    }
+
+    playSceneVoiceNow(0, 0);
+    isPlayingRef.current = true;
+    setIsPlaying(true);
+
+    if (renderFrameRef.current) {
+      renderFrameRef.current();
+    }
+  }, [bgmEnabled, sfxEnabled, getOrCreateAudioEngine, playSceneVoiceNow]);
 
   // Trigger audio prefetch when scenes or voice actor change
   useEffect(() => {
@@ -1044,32 +1174,18 @@ COMPOSITION & BACKGROUND:
     const render = () => {
       try {
         const now = Date.now();
-      if (!startTimeRef.current) startTimeRef.current = now;
-      const elapsed = isPlaying
-        ? (now - startTimeRef.current) / 1000
-        : (pausedElapsedRef.current || 0) / 1000;
+        if (isPlayingRef.current && !startTimeRef.current) {
+          startTimeRef.current = now;
+        }
+        const elapsed = isPlayingRef.current
+          ? (now - startTimeRef.current) / 1000
+          : (pausedElapsedRef.current || 0) / 1000;
 
-      // In Preview mode, when playback reaches the end of the video, cleanly auto-stop instead of infinite loop!
-      if (!isRecordingRef.current && isPlaying && elapsed >= totalDurationSec) {
-        setIsPlaying(false);
-        startTimeRef.current = 0;
-        pausedElapsedRef.current = 0;
-        lastSceneIndexRef.current = -1;
-        playedSceneAudioRef.current = -1;
-        if (activeAudioSourceRef.current) {
-          try {
-            activeAudioSourceRef.current.stop();
-            activeAudioSourceRef.current.disconnect();
-          } catch (_) { }
-          activeAudioSourceRef.current = null;
+        // In Preview mode, when playback reaches the end of the video, cleanly auto-stop instead of infinite loop!
+        if (!isRecordingRef.current && isPlayingRef.current && elapsed >= totalDurationSec) {
+          handleStopPreview();
+          return;
         }
-        if (loFiBgmRef.current) {
-          try {
-            loFiBgmRef.current.stop();
-          } catch (_) { }
-        }
-        return;
-      }
 
       const loopTime = elapsed % Math.max(totalDurationSec, 1);
       const globalProgress = loopTime / Math.max(totalDurationSec, 1);
@@ -1127,7 +1243,7 @@ COMPOSITION & BACKGROUND:
       // Trigger Voiceover AudioBuffer as soon as buffer is ready AND AudioContext is running (Preview Mode)
       if (
         audioEnabled &&
-        isPlaying &&
+        isPlayingRef.current &&
         !isRecordingRef.current &&
         sceneIndex !== playedSceneAudioRef.current &&
         audioCtxRef.current &&
@@ -1823,7 +1939,7 @@ COMPOSITION & BACKGROUND:
         ctx.globalAlpha = transitionAlpha;
 
         const isTalking =
-          isPlaying && speechProgress < 0.99 && sceneLocalProgress > 0.01;
+          isPlayingRef.current && speechProgress < 0.99 && sceneLocalProgress > 0.01;
 
         const customPhotoImg =
           avatarImgElementsRef.current[sceneIndex] || avatarImgElementsRef.current[0];
@@ -1969,7 +2085,7 @@ COMPOSITION & BACKGROUND:
     } catch (renderErr) {
       console.error("Canvas render frame notice:", renderErr);
     } finally {
-      if (isPlaying) {
+      if (isPlayingRef.current) {
         animationFrameRef.current = requestAnimationFrame(render);
       }
     }
@@ -1981,6 +2097,7 @@ COMPOSITION & BACKGROUND:
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
     };
   }, [
@@ -2005,11 +2122,14 @@ COMPOSITION & BACKGROUND:
     sfxEnabled,
     topicIdea,
     activeVaultInfo,
+    handleStopPreview,
   ]);
 
   // In-Browser Native Video Recorder WITH EMBEDDED AUDIO
   const stopRecordingEarly = () => {
     isRecordingRef.current = false;
+    isPlayingRef.current = false;
+    setIsPlaying(false);
     if (recordingTickerRef.current) {
       clearInterval(recordingTickerRef.current);
       recordingTickerRef.current = null;
@@ -2045,6 +2165,7 @@ COMPOSITION & BACKGROUND:
         setRecordedVideoUrl(null);
       }
 
+      isPlayingRef.current = true;
       setIsPlaying(true);
       setIsRecording(true);
       isRecordingRef.current = true;
@@ -3509,19 +3630,7 @@ COMPOSITION & BACKGROUND:
                       {/* Instant Play Preview with Sliced Poses */}
                       <button
                         type="button"
-                        onClick={() => {
-                          if (activeAudioSourceRef.current) {
-                            try { activeAudioSourceRef.current.stop(); } catch (e) {}
-                          }
-                          startTimeRef.current = Date.now();
-                          pausedElapsedRef.current = 0;
-                          playedSceneAudioRef.current = -1;
-                          lastSceneIndexRef.current = -1;
-                          if (bgmEnabled && loFiBgmRef.current) {
-                            loFiBgmRef.current.start();
-                          }
-                          setIsPlaying(true);
-                        }}
+                        onClick={handleReplayFromStart}
                         className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/50 text-emerald-300 font-mono text-xs font-bold transition-all shadow-md cursor-pointer"
                       >
                         <Play className="h-3.5 w-3.5 fill-current" />
@@ -3896,33 +4005,12 @@ COMPOSITION & BACKGROUND:
 
               {/* Interactive Screen Play/Pause Overlay */}
               <div
-                onClick={async () => {
+                onClick={() => {
                   if (isRecording) return;
                   if (isPlaying) {
-                    // Pause preview & silence all audio
-                    if (startTimeRef.current) {
-                      pausedElapsedRef.current = Date.now() - startTimeRef.current;
-                    }
-                    setIsPlaying(false);
-                    if (activeAudioSourceRef.current) {
-                      try {
-                        activeAudioSourceRef.current.stop();
-                        activeAudioSourceRef.current.disconnect();
-                      } catch (_) { }
-                      activeAudioSourceRef.current = null;
-                    }
-                    if (loFiBgmRef.current) {
-                      try { loFiBgmRef.current.stop(); } catch (_) { }
-                    }
-                    playedSceneAudioRef.current = -1;
+                    handlePausePreview();
                   } else {
-                    // Start or Resume Preview
-                    const { ctx } = getOrCreateAudioEngine();
-                    if (ctx.state === "suspended") await ctx.resume();
-                    startTimeRef.current = Date.now() - (pausedElapsedRef.current || 0);
-                    playedSceneAudioRef.current = -1;
-                    if (bgmEnabled && loFiBgmRef.current) loFiBgmRef.current.start();
-                    setIsPlaying(true);
+                    handleStartOrResumePreview();
                   }
                 }}
                 className="absolute inset-0 z-30 cursor-pointer"
@@ -3956,34 +4044,7 @@ COMPOSITION & BACKGROUND:
             <div className="grid grid-cols-3 gap-1.5">
               <button
                 type="button"
-                onClick={async () => {
-                  const { ctx } = getOrCreateAudioEngine();
-                  if (ctx.state === "suspended") {
-                    await ctx.resume();
-                  }
-                  if (!audioBuffersRef.current[0] && scene0PromiseRef.current) {
-                    await scene0PromiseRef.current;
-                  }
-                  if (activeAudioSourceRef.current) {
-                    try {
-                      activeAudioSourceRef.current.stop();
-                      activeAudioSourceRef.current.disconnect();
-                    } catch (_) { }
-                    activeAudioSourceRef.current = null;
-                  }
-                  startTimeRef.current = Date.now();
-                  pausedElapsedRef.current = 0;
-                  lastSceneIndexRef.current = 0;
-                  playedSceneAudioRef.current = -1;
-                  if (bgmEnabled && loFiBgmRef.current) {
-                    loFiBgmRef.current.start();
-                  }
-                  if (sfxEnabled && audioDestRef.current) {
-                    playProceduralSFX(ctx, [ctx.destination, audioDestRef.current], "whoosh");
-                  }
-                  playSceneVoiceNow(0, 0);
-                  setIsPlaying(true);
-                }}
+                onClick={handleReplayFromStart}
                 className="flex items-center justify-center gap-1 px-2.5 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold hover:bg-emerald-500/30 transition-colors cursor-pointer"
                 title="Putar ulang dari detik ke-0"
               >
@@ -3993,34 +4054,11 @@ COMPOSITION & BACKGROUND:
 
               <button
                 type="button"
-                onClick={async () => {
-                  const { ctx } = getOrCreateAudioEngine();
-                  if (ctx.state === "suspended") {
-                    await ctx.resume();
-                  }
+                onClick={() => {
                   if (isPlaying) {
-                    if (startTimeRef.current) {
-                      pausedElapsedRef.current = Date.now() - startTimeRef.current;
-                    }
-                    if (activeAudioSourceRef.current) {
-                      try {
-                        activeAudioSourceRef.current.stop();
-                        activeAudioSourceRef.current.disconnect();
-                      } catch (_) { }
-                      activeAudioSourceRef.current = null;
-                    }
-                    if (loFiBgmRef.current) {
-                      try { loFiBgmRef.current.stop(); } catch (_) { }
-                    }
-                    playedSceneAudioRef.current = -1;
-                    setIsPlaying(false);
+                    handlePausePreview();
                   } else {
-                    startTimeRef.current = Date.now() - (pausedElapsedRef.current || 0);
-                    playedSceneAudioRef.current = -1;
-                    if (bgmEnabled && loFiBgmRef.current) {
-                      loFiBgmRef.current.start();
-                    }
-                    setIsPlaying(true);
+                    handleStartOrResumePreview();
                   }
                 }}
                 className="flex items-center justify-center gap-1 px-2.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
@@ -4031,30 +4069,7 @@ COMPOSITION & BACKGROUND:
 
               <button
                 type="button"
-                onClick={() => {
-                  setIsPlaying(false);
-                  startTimeRef.current = 0;
-                  pausedElapsedRef.current = 0;
-                  lastSceneIndexRef.current = -1;
-                  playedSceneAudioRef.current = -1;
-                  if (activeAudioSourceRef.current) {
-                    try {
-                      activeAudioSourceRef.current.stop();
-                      activeAudioSourceRef.current.disconnect();
-                    } catch (_) { }
-                    activeAudioSourceRef.current = null;
-                  }
-                  if (loFiBgmRef.current) {
-                    try { loFiBgmRef.current.stop(); } catch (_) { }
-                  }
-                  if (animationFrameRef.current) {
-                    cancelAnimationFrame(animationFrameRef.current);
-                    animationFrameRef.current = null;
-                  }
-                  if (renderFrameRef.current) {
-                    renderFrameRef.current();
-                  }
-                }}
+                onClick={handleStopPreview}
                 className="flex items-center justify-center gap-1 px-2.5 py-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 font-bold hover:bg-rose-500/25 transition-colors cursor-pointer"
                 title="Hentikan total pemutaran dan kembalikan ke awal"
               >
