@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   Play,
@@ -384,7 +384,7 @@ export default function KineticMotionPage() {
   const isRecordingRef = useRef<boolean>(false);
   const recordingSourcesRef = useRef<AudioBufferSourceNode[]>([]);
   const renderFrameRef = useRef<(() => void) | null>(null);
-  const recordingTickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isRenderingRef = useRef<boolean>(false);
 
   // Word count & pacing calculation
   const currentAnalyzedText = creationTab === "script" ? rawScriptInput : topicIdea;
@@ -480,11 +480,9 @@ export default function KineticMotionPage() {
           });
           if (buf) {
             audioBuffersRef.current[i] = buf;
-            // Auto-expand scene duration so speech is never clipped before sentence ends naturally
-            const neededDuration = Math.ceil(buf.duration + 0.35);
-            if (neededDuration > s.durationSec) {
-              s.durationSec = neededDuration;
-            }
+            // Calibrate scene duration to match speech length + natural transition pause (0.4s)
+            const optimalDuration = Math.max(Math.ceil(buf.duration + 0.4), 3);
+            s.durationSec = optimalDuration;
             if (i === 0 && playedSceneAudioRef.current === 0) {
               playedSceneAudioRef.current = -1;
             }
@@ -499,13 +497,38 @@ export default function KineticMotionPage() {
         if (sceneList.length > 1) {
           await Promise.all(sceneList.slice(1).map((s, idx) => fetchOne(s, idx + 1)));
         }
+
+        // Calibrate scene durations based on actual speech lengths to eliminate dead silence
+        if (mode === "multi") {
+          setScenes((prev) => {
+            let hasChange = false;
+            const updated = prev.map((s, idx) => {
+              const buf = audioBuffersRef.current[idx];
+              if (buf) {
+                const optimal = Math.max(Math.ceil(buf.duration + 0.4), 3);
+                if (s.durationSec !== optimal) {
+                  hasChange = true;
+                  return { ...s, durationSec: optimal };
+                }
+              }
+              return s;
+            });
+            return hasChange ? updated : prev;
+          });
+        } else {
+          const buf = audioBuffersRef.current[0];
+          if (buf) {
+            const optimal = Math.max(Math.ceil(buf.duration + 0.4), 3);
+            setSingleDuration(optimal);
+          }
+        }
       } catch (err) {
         console.warn("Audio prefetch notice:", err);
       } finally {
         setIsAudioLoading(false);
       }
     },
-    [getOrCreateAudioEngine, voiceActor]
+    [getOrCreateAudioEngine, voiceActor, mode]
   );
 
   // Synchronous, Race-Condition-Free Preview Playback Engine (Anti-Regression Protocol)
@@ -638,10 +661,16 @@ export default function KineticMotionPage() {
   }, [bgmEnabled, sfxEnabled, getOrCreateAudioEngine, playSceneVoiceNow]);
 
   // Trigger audio prefetch when scenes or voice actor change
+  const sceneTextSignature = useMemo(
+    () => (mode === "multi" ? scenes : [{ headline: singleHeadline, subtext: singleSubtext }]).map((s) => `${s.headline}:::${s.subtext}`).join("|||"),
+    [mode, scenes, singleHeadline, singleSubtext]
+  );
+
   useEffect(() => {
     audioBuffersRef.current = {};
-    prefetchTTSForScenes(scenes, voiceActor);
-  }, [scenes, voiceActor, prefetchTTSForScenes]);
+    const target = mode === "multi" ? scenes : [{ durationSec: singleDuration, headline: singleHeadline, subtext: singleSubtext } as StoryScene];
+    prefetchTTSForScenes(target, voiceActor);
+  }, [sceneTextSignature, voiceActor, mode, prefetchTTSForScenes]);
 
   // Check local GPU / Python AI Lip-Sync capability & load favorite archetypes
   useEffect(() => {
@@ -1173,6 +1202,8 @@ COMPOSITION & BACKGROUND:
     }
 
     const render = () => {
+      if (isRenderingRef.current) return;
+      isRenderingRef.current = true;
       try {
         const now = Date.now();
         if (isPlayingRef.current && !startTimeRef.current) {
@@ -2086,7 +2117,12 @@ COMPOSITION & BACKGROUND:
       } catch (renderErr) {
         console.error("Canvas render frame notice:", renderErr);
       } finally {
+        isRenderingRef.current = false;
         if (isPlayingRef.current) {
+          if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
+            animationFrameRef.current = null;
+          }
           animationFrameRef.current = requestAnimationFrame(render);
         }
       }
@@ -2131,10 +2167,6 @@ COMPOSITION & BACKGROUND:
     isRecordingRef.current = false;
     isPlayingRef.current = false;
     setIsPlaying(false);
-    if (recordingTickerRef.current) {
-      clearInterval(recordingTickerRef.current);
-      recordingTickerRef.current = null;
-    }
     recordingSourcesRef.current.forEach((s) => {
       try { s.stop(); s.disconnect(); } catch (_) { }
     });
@@ -2204,9 +2236,22 @@ COMPOSITION & BACKGROUND:
       if (audioEnabled) {
         const missingBuffers = targetScenes.some((_, idx) => !audioBuffersRef.current[idx]);
         if (missingBuffers) {
-          await prefetchTTSForScenes(scenes, voiceActor);
+          await prefetchTTSForScenes(targetScenes, voiceActor);
         }
       }
+
+      // Synchronize exact calibrated scene durations to eliminate dead silence pauses
+      const calibratedScenes = targetScenes.map((s, idx) => {
+        const buf = audioBuffersRef.current[idx];
+        if (buf && audioEnabled) {
+          return { ...s, durationSec: Math.max(Math.ceil(buf.duration + 0.4), 3) };
+        }
+        return { ...s };
+      });
+
+      const effectiveTotalDurationSec = mode === "multi"
+        ? calibratedScenes.reduce((acc, s) => acc + s.durationSec, 0)
+        : (calibratedScenes[0]?.durationSec || singleDuration);
 
       // Start BGM during recording if enabled
       if (bgmEnabled && loFiBgmRef.current) {
@@ -2234,9 +2279,9 @@ COMPOSITION & BACKGROUND:
       const audioStartTime = ctx.currentTime + 0.15; // 150ms safe stream handshake
       let sceneAccumTime = 0;
 
-      for (let i = 0; i < targetScenes.length; i++) {
+      for (let i = 0; i < calibratedScenes.length; i++) {
         const buf = audioBuffersRef.current[i];
-        const sceneDur = targetScenes[i].durationSec;
+        const sceneDur = calibratedScenes[i].durationSec;
         const atTime = audioStartTime + sceneAccumTime;
         const stopTime = atTime + sceneDur;
 
@@ -2253,10 +2298,10 @@ COMPOSITION & BACKGROUND:
 
           // STRICT ANTI-COLLISION: Gain envelope stops voice from bleeding into the next scene
           const effectiveDur = Math.min(buf.duration, sceneDur);
-          const fadeOutStart = Math.max(atTime, atTime + effectiveDur - 0.12);
+          const fadeOutStart = Math.max(atTime, atTime + effectiveDur - 0.08);
           gain.gain.setValueAtTime(1.0, fadeOutStart);
-          gain.gain.linearRampToValueAtTime(0.001, stopTime);
-          src.stop(stopTime + 0.05);
+          gain.gain.linearRampToValueAtTime(0.001, atTime + effectiveDur);
+          src.stop(atTime + effectiveDur + 0.05);
 
           recordingSourcesRef.current.push(src);
         }
@@ -2271,7 +2316,7 @@ COMPOSITION & BACKGROUND:
           }, sfxDelay * 1000);
         }
 
-        sceneAccumTime += targetScenes[i].durationSec;
+        sceneAccumTime += sceneDur;
       }
 
       // Capture canvas visual stream at 30fps
@@ -2323,10 +2368,6 @@ COMPOSITION & BACKGROUND:
       recorder.onerror = (ev: any) => {
         console.error("MediaRecorder error:", ev);
         isRecordingRef.current = false;
-        if (recordingTickerRef.current) {
-          clearInterval(recordingTickerRef.current);
-          recordingTickerRef.current = null;
-        }
         recordingSourcesRef.current.forEach((s) => {
           try { s.stop(); s.disconnect(); } catch (_) { }
         });
@@ -2350,10 +2391,6 @@ COMPOSITION & BACKGROUND:
 
       recorder.onstop = () => {
         isRecordingRef.current = false;
-        if (recordingTickerRef.current) {
-          clearInterval(recordingTickerRef.current);
-          recordingTickerRef.current = null;
-        }
         recordingSourcesRef.current.forEach((s) => {
           try { s.stop(); s.disconnect(); } catch (_) { }
         });
@@ -2384,7 +2421,7 @@ COMPOSITION & BACKGROUND:
         const blob = new Blob(chunks, { type: actualType });
         const url = URL.createObjectURL(blob);
         const partLabel = seriesEpisodes.length > 1 ? `-seri-${activeSeriesPart}-dari-${seriesEpisodes.length}` : "";
-        const filename = `buatprompt-kinetic-${mode}${partLabel}-${totalDurationSec}s-audio.${ext}`;
+        const filename = `buatprompt-kinetic-${mode}${partLabel}-${effectiveTotalDurationSec}s-audio.${ext}`;
 
         setRecordedVideoUrl(url);
         setRecordedFileName(filename);
@@ -2403,19 +2440,16 @@ COMPOSITION & BACKGROUND:
         }, 1000);
       };
 
-      // Backup render interval (30fps) to keep canvas drawing even if tab is unfocused or backgrounded
-      if (recordingTickerRef.current) clearInterval(recordingTickerRef.current);
-      recordingTickerRef.current = setInterval(() => {
-        if (renderFrameRef.current) {
-          renderFrameRef.current();
-        }
-      }, 33);
-
       // Emit timeslice chunks every 250ms for reliable, non-truncated webm output
       recorder.start(250);
 
+      // Immediately kick off canvas animation frame loop for recording
+      if (renderFrameRef.current) {
+        renderFrameRef.current();
+      }
+
       // Track recording progress using wall-clock time so tab throttling doesn't stall
-      const totalMs = totalDurationSec * 1000;
+      const totalMs = effectiveTotalDurationSec * 1000;
       const recStartMs = Date.now();
 
       recordTimerRef.current = setInterval(() => {
@@ -2439,10 +2473,6 @@ COMPOSITION & BACKGROUND:
     } catch (err: any) {
       console.error("recordAndDownloadVideo exception:", err);
       isRecordingRef.current = false;
-      if (recordingTickerRef.current) {
-        clearInterval(recordingTickerRef.current);
-        recordingTickerRef.current = null;
-      }
       setRecordError(err?.message || "Browser tidak mendukung perekaman canvas.");
       setIsRecording(false);
     }
