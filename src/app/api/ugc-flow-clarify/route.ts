@@ -18,11 +18,15 @@ export type LlmModelType = "gemini" | "claude" | "gpt" | "deepseek" | "kimi" | "
 
 export type TargetDurationOption =
   | "<=10s"
+  | "<=40s"
   | "<=60s"
   | "<=120s"
   | ">120s"
   | "gemini-5clip"
+  | "gemini-40s"
   | "longform-multiplier";
+
+export type PacingMode = "normal" | "fast";
 
 interface UgcFlowClarifyRequest {
   topic: string;
@@ -33,6 +37,10 @@ interface UgcFlowClarifyRequest {
   hostType: "male-casual" | "female-pro" | "custom" | "none-faceless" | "cartoon-3d-animation";
   customHostDescription?: string;
   cameraArchetype?: string;
+  pacingMode?: PacingMode;
+  characterCount?: number;
+  environmentCount?: number;
+  objectCount?: number;
 }
 
 export async function POST(req: NextRequest) {
@@ -40,18 +48,26 @@ export async function POST(req: NextRequest) {
     const body: UgcFlowClarifyRequest = await req.json();
     const {
       topic = "",
-      targetDuration = "gemini-5clip",
+      targetDuration = "gemini-40s",
       engineTarget = "google-flow",
       llmModel = "gemini",
       styleGenre = "hyper-real-ugc",
       hostType = "female-pro",
       customHostDescription = "",
       cameraArchetype = "auto",
+      pacingMode = "normal",
+      characterCount = 0,
+      environmentCount = 0,
+      objectCount = 0,
     } = body;
 
     const apiKey = process.env.GEMINI_API_KEY;
     const isShortClip = targetDuration === "<=10s";
-    const isGeminiChain = targetDuration === "gemini-5clip";
+    const isGeminiChain =
+      targetDuration === "gemini-5clip" ||
+      targetDuration === "gemini-40s" ||
+      targetDuration === "<=40s" ||
+      (engineTarget === "llm-native" && llmModel === "gemini");
     const isLongFormMultiplier = targetDuration === "longform-multiplier";
 
     // Director Default Questions (Zero Failure / Clean Japandi Style)
@@ -59,19 +75,19 @@ export async function POST(req: NextRequest) {
       {
         id: "cameraManeuver",
         label: isGeminiChain
-          ? "Struktur Alur Rantai 5-Klip (Gemini Continuity)"
+          ? "Struktur Gemini Session Pass (Maksimal 40 Detik • 4 Klip)"
           : isLongFormMultiplier
           ? "Rancangan A-Roll (Host Bicara) & B-Roll (Visual Aksi)"
           : "Sudut Pandang Kamera & Pergerakan Visual",
         question: isGeminiChain
-          ? `Pilih formula alur cerita 5 klip (~25 detik) untuk "${topic || "topik ini"}" yang paling memikat:`
+          ? `Pilih formula alur 4 klip (maksimal 40 detik, tuntas 1 sesi Gemini) untuk "${topic || "topik ini"}":`
           : isLongFormMultiplier
           ? `Bagaimana komposisi selingan A-Roll (Host berbicara) dan B-Roll (Detail aksi/produk) yang diinginkan?`
           : isShortClip
           ? `Untuk klip singkat 10 detik tentang "${topic || "topik ini"}", gaya framing kamera apa yang paling memikat?`
           : `Gaya pergerakan kamera utama apa yang ingin difokuskan dalam video "${topic || "topik ini"}"?`,
         tip: isGeminiChain
-          ? "Petunjuk: Setiap klip berdurasi 5 detik dengan 'Frame Boundary Hand-off' agar sambungan antar adegan tidak patah saat digabung di CapCut."
+          ? `Petunjuk: Dibatasi maksimal 40 detik (4 klip @ 10s) dengan pacing ${pacingMode === "fast" ? "Cepat (24–28 kata/adegan)" : "Normal (14–18 kata/adegan)"} agar selesai tuntas 1 sesi Gemini tanpa terpotong atau menunggu limit 5 jam.`
           : isLongFormMultiplier
           ? "Petunjuk: Kombinasi A-Roll & B-Roll memungkinkan video berdurasi 1-3 menit tanpa membuat penonton bosan."
           : isShortClip

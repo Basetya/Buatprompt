@@ -46,7 +46,22 @@ interface ClarifyQuestion {
   defaultChoice: string;
 }
 
-interface UgcScene {
+export interface SheetImageItem {
+  id: string;
+  url: string; // base64 data url
+  label?: string;
+}
+
+export interface VideoPart {
+  partNumber: number;
+  partTitle: string;
+  duration: string;
+  sessionAdvice: string;
+  sceneIndices: number[];
+  chainPrompts: string[];
+}
+
+export interface UgcScene {
   sceneNumber: number;
   timeRange: string;
   stageName: string;
@@ -60,14 +75,18 @@ interface UgcScene {
   audioSoundscapePrompt: string;
   keyVisualBeat: string;
   capcutEditNote?: string;
+  settingRefTag?: string;
+  characterRefTag?: string;
+  objectRefTag?: string;
 }
 
-interface MasterDirectiveData {
+export interface MasterDirectiveData {
   projectTitle: string;
   overview: string;
   totalDuration: string;
   engineTarget: VideoAiEngine;
   llmModel?: string;
+  pacingMode?: "normal" | "fast";
   hostProfile: {
     name: string;
     anchorTag: string;
@@ -86,6 +105,10 @@ interface MasterDirectiveData {
     masterObjectPrompt: string;
   };
   scenes: UgcScene[];
+  parts?: VideoPart[];
+  characterImages?: SheetImageItem[];
+  objectImages?: SheetImageItem[];
+  environmentImages?: SheetImageItem[];
   engineDirectPrompt?: string;
   operatorGuide: string[];
   hostImage?: string | null;
@@ -170,7 +193,7 @@ const LLM_MODELS: Array<{ id: LlmModelType; label: string }> = [
   { id: "grok", label: "Grok" },
 ];
 
-function compressImage(file: File, maxDim = 1024, quality = 0.82): Promise<string> {
+function compressImage(file: File, maxDim = 800, quality = 0.75): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -204,17 +227,20 @@ function compressImage(file: File, maxDim = 1024, quality = 0.82): Promise<strin
 
 export type TargetDurationOption =
   | "<=10s"
+  | "<=40s"
   | "<=60s"
   | "<=120s"
   | ">120s"
   | "gemini-5clip"
+  | "gemini-40s"
   | "longform-multiplier";
 
 export default function UgcFlowStudioPage() {
   // Step 1: Core Inputs
   const [topic, setTopic] = useState("");
-  const [targetDuration, setTargetDuration] = useState<TargetDurationOption>("gemini-5clip");
-  const [engineCategory, setEngineCategory] = useState<"video-ai" | "llm-native">("video-ai");
+  const [targetDuration, setTargetDuration] = useState<TargetDurationOption>("gemini-40s");
+  const [pacingMode, setPacingMode] = useState<"normal" | "fast">("normal");
+  const [engineCategory, setEngineCategory] = useState<"video-ai" | "llm-native">("llm-native");
   const [videoTool, setVideoTool] = useState<VideoAiEngine>("google-flow");
   const [llmModel, setLlmModel] = useState<LlmModelType>("gemini");
 
@@ -227,7 +253,12 @@ export default function UgcFlowStudioPage() {
     "auto" | "bird-eye-drone" | "low-angle-heroic" | "orbit-360" | "dutch-angle" | "pov-first-person"
   >("auto");
 
-  // User uploaded reference images for 100% character, product, and room consistency
+  // Multi-file sheets for Character, Object, and Environment (Unlimited Files)
+  const [characterImages, setCharacterImages] = useState<SheetImageItem[]>([]);
+  const [objectImages, setObjectImages] = useState<SheetImageItem[]>([]);
+  const [environmentImages, setEnvironmentImages] = useState<SheetImageItem[]>([]);
+
+  // User uploaded reference images for backward compatibility
   const [hostImage, setHostImage] = useState<string | null>(null);
   const [productImage, setProductImage] = useState<string | null>(null);
   const [settingImage, setSettingImage] = useState<string | null>(null);
@@ -244,6 +275,7 @@ export default function UgcFlowStudioPage() {
   const [activeBoardTab, setActiveBoardTab] = useState<
     "storyboard" | "gemini-chain" | "capcut-guide" | "direct-prompt" | "character" | "environment" | "guide"
   >("gemini-chain");
+  const [activePartTab, setActivePartTab] = useState<number>(0);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [selectedEngineTarget, setSelectedEngineTarget] = useState<VideoAiEngine>("google-flow");
 
@@ -256,51 +288,115 @@ export default function UgcFlowStudioPage() {
     setIsVaultPickerOpen(true);
   };
 
-  const handleSaveHostToVault = () => {
-    if (!hostImage) return;
+  // Upload handler for Characters
+  const handleUploadCharacters = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const newItems: SheetImageItem[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const b64 = await compressImage(file, 800, 0.75);
+      const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+      newItems.push({
+        id: `char-${Date.now()}-${i}`,
+        url: b64,
+        label: cleanName.length > 25 ? cleanName.slice(0, 25) : cleanName,
+      });
+    }
+    setCharacterImages((prev) => [...prev, ...newItems]);
+    setHostType("custom");
+    if (!hostImage && newItems[0]) setHostImage(newItems[0].url);
+    e.target.value = "";
+  };
+
+  // Upload handler for Objects
+  const handleUploadObjects = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const newItems: SheetImageItem[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const b64 = await compressImage(file, 800, 0.75);
+      const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+      newItems.push({
+        id: `obj-${Date.now()}-${i}`,
+        url: b64,
+        label: cleanName.length > 25 ? cleanName.slice(0, 25) : cleanName,
+      });
+    }
+    setObjectImages((prev) => [...prev, ...newItems]);
+    if (!productImage && newItems[0]) setProductImage(newItems[0].url);
+    e.target.value = "";
+  };
+
+  // Upload handler for Environments (e.g. 10 property photos)
+  const handleUploadEnvironments = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const newItems: SheetImageItem[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const b64 = await compressImage(file, 800, 0.75);
+      const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+      newItems.push({
+        id: `env-${Date.now()}-${i}`,
+        url: b64,
+        label: cleanName.length > 25 ? cleanName.slice(0, 25) : cleanName,
+      });
+    }
+    setEnvironmentImages((prev) => [...prev, ...newItems]);
+    if (!settingImage && newItems[0]) setSettingImage(newItems[0].url);
+    e.target.value = "";
+  };
+
+  const handleSaveHostToVault = (imgUrl?: string, label?: string) => {
+    const targetUrl = imgUrl || hostImage;
+    if (!targetUrl) return;
     addOrUpdateCharacter({
       id: `char-custom-${Date.now()}`,
-      name: customHostDescription ? customHostDescription.slice(0, 30) : "Host Unggahan UGC",
-      tag: "@host_anchor",
+      name: label || (customHostDescription ? customHostDescription.slice(0, 30) : "Host Unggahan UGC"),
+      tag: "@character_1",
       role: "UGC Creator",
       visualPrompt: customHostDescription || "UGC creator strictly matching the uploaded reference photo, natural realism.",
       wardrobe: "Casual modern outfit",
       gender: "female",
-      imageBase64: hostImage,
+      imageBase64: targetUrl,
       isCustom: true,
     });
-    alert("Foto Host berhasil disimpan ke Brankas Aset Bersama!");
+    alert("Foto Karakter berhasil disimpan ke Brankas Aset Bersama!");
   };
 
-  const handleSaveProductToVault = () => {
-    if (!productImage) return;
+  const handleSaveProductToVault = (imgUrl?: string, label?: string) => {
+    const targetUrl = imgUrl || productImage;
+    if (!targetUrl) return;
     addOrUpdateProduct({
       id: `prod-custom-${Date.now()}`,
-      name: topic ? topic.slice(0, 30) : "Produk Unggahan UGC",
-      tag: "@hero_object",
+      name: label || (topic ? topic.slice(0, 30) : "Produk Unggahan UGC"),
+      tag: "@object_1",
       category: "other",
       visualPrompt: `Pristine detail of product from uploaded reference photo, realistic lighting reflections.`,
       material: "Commercial item",
       physicalInteraction: "Held and demonstrated naturally on camera",
-      imageBase64: productImage,
+      imageBase64: targetUrl,
       isCustom: true,
     });
-    alert("Foto Produk berhasil disimpan ke Brankas Aset Bersama!");
+    alert("Foto Objek berhasil disimpan ke Brankas Aset Bersama!");
   };
 
-  const handleSaveSettingToVault = () => {
-    if (!settingImage) return;
+  const handleSaveSettingToVault = (imgUrl?: string, label?: string) => {
+    const targetUrl = imgUrl || settingImage;
+    if (!targetUrl) return;
     addOrUpdateEnvironment({
       id: `env-custom-${Date.now()}`,
-      name: customSettingDescription ? customSettingDescription.slice(0, 30) : (topic ? `Latar: ${topic.slice(0, 25)}` : "Latar Ruangan Nyata"),
-      tag: "@setting_anchor",
+      name: label || (customSettingDescription ? customSettingDescription.slice(0, 30) : (topic ? `Latar: ${topic.slice(0, 25)}` : "Latar Ruangan")),
+      tag: "@setting_1",
       visualPrompt: customSettingDescription || "Aesthetic interior matching the real uploaded photograph, exact architectural geometry, materials, and lighting continuity.",
       spatialMap: "Exact architectural room layout and geometry matching reference photo",
       lightingCondition: "Natural ambient lighting matching reference photo, soft realistic reflections",
-      imageBase64: settingImage,
+      imageBase64: targetUrl,
       isCustom: true,
     });
-    alert("Foto Ruangan/Latar berhasil disimpan ke Brankas Aset Bersama!");
+    alert("Foto Ruangan berhasil disimpan ke Brankas Aset Bersama!");
   };
 
   // Active engine computation
@@ -309,8 +405,9 @@ export default function UgcFlowStudioPage() {
   // Auto-switch engine when <=10s is selected
   const handleDurationChange = (dur: TargetDurationOption) => {
     setTargetDuration(dur);
-    if (dur === "<=10s") {
+    if (dur === "<=10s" || dur === "gemini-40s") {
       setEngineCategory("llm-native");
+      setLlmModel("gemini");
     }
   };
 
@@ -330,9 +427,13 @@ export default function UgcFlowStudioPage() {
           engineTarget: activeEngineTarget,
           llmModel,
           styleGenre,
-          hostType,
+          hostType: characterImages.length > 0 ? "custom" : hostType,
           customHostDescription,
           cameraArchetype,
+          pacingMode,
+          characterCount: characterImages.length,
+          environmentCount: environmentImages.length,
+          objectCount: objectImages.length,
         }),
       });
 
@@ -366,25 +467,34 @@ export default function UgcFlowStudioPage() {
           engineTarget: activeEngineTarget,
           llmModel,
           styleGenre,
-          hostType: hostImage ? "custom-upload" : hostType,
+          hostType: characterImages.length > 0 ? "custom-upload" : hostType,
           customHostDescription,
           cameraArchetype,
+          pacingMode,
           clarificationAnswers: clarifyAnswers,
-          hostImage,
-          productImage,
-          settingImage,
+          hostImage: characterImages[0]?.url || hostImage,
+          productImage: objectImages[0]?.url || productImage,
+          settingImage: environmentImages[0]?.url || settingImage,
+          characterImages,
+          objectImages,
+          environmentImages,
         }),
       });
 
       const data = await res.json();
       if (data.data) {
-        data.data.hostImage = hostImage;
-        data.data.productImage = productImage;
-        data.data.settingImage = settingImage;
+        data.data.characterImages = characterImages;
+        data.data.objectImages = objectImages;
+        data.data.environmentImages = environmentImages;
+        data.data.hostImage = characterImages[0]?.url || hostImage;
+        data.data.productImage = objectImages[0]?.url || productImage;
+        data.data.settingImage = environmentImages[0]?.url || settingImage;
+        data.data.pacingMode = pacingMode;
         setMasterResult(data.data);
         setSelectedEngineTarget(data.data.engineTarget || "google-flow");
         setWorkflowStep(3);
-        setActiveBoardTab("storyboard");
+        setActiveBoardTab("gemini-chain");
+        setActivePartTab(0);
       }
     } catch (err) {
       console.error("Final generation error:", err);
@@ -657,22 +767,47 @@ ${scenesText}`;
     s: UgcScene,
     idx: number
   ) => {
-    const hasHostImg = Boolean(result.hostImage);
-    const hasProdImg = Boolean(result.productImage);
-    const hasSettingImg = Boolean(result.settingImage);
+    const envImages = result.environmentImages || [];
+    const charImages = result.characterImages || [];
+    const objImages = result.objectImages || [];
+    const pacing = result.pacingMode || pacingMode;
+    const pacingLabel =
+      pacing === "fast"
+        ? "24–28 kata (Tempo Cepat / Padat TikTok)"
+        : "14–18 kata (Tempo Normal / Artikulatif)";
+
+    const settingIndex = envImages.length > 0 ? (idx % envImages.length) + 1 : 1;
+    const settingLabel =
+      envImages.length > 0
+        ? envImages[settingIndex - 1]?.label || `Area ${settingIndex}`
+        : "Ruangan / Latar Nyata";
+
+    const charIndex = charImages.length > 0 ? (idx % charImages.length) + 1 : 1;
+    const charLabel =
+      charImages.length > 0
+        ? charImages[charIndex - 1]?.label || `Host ${charIndex}`
+        : "Host Kreator";
+
+    const objIndex = objImages.length > 0 ? (idx % objImages.length) + 1 : 1;
+    const objLabel =
+      objImages.length > 0
+        ? objImages[objIndex - 1]?.label || `Produk ${objIndex}`
+        : "Produk";
 
     if (idx === 0) {
       return `=== KLIP 1: ${s.stageName.toUpperCase()} (${s.timeRange}) ===
-Target Durasi: 5 Detik (Sesi 1 Gemini)
+Format: Video 10 Detik (Gemini 40s Session Pass)
 Proyek: ${result.projectTitle}
+Pacing Naskah: ${pacingLabel}
 
 [INSTRUKSI MEMORI & KONSISTENSI GEMINI]:
 - Gunakan foto referensi yang saya lampirkan di chat ini:
-  * ${hasHostImg ? "Foto wajah & busana: Gunakan [IMAGE 1: @host_anchor]" : "@host_anchor: Wajah dan postur host tetap konsisten."}
-  * ${hasProdImg ? "Foto produk: Gunakan [IMAGE 2: @hero_object]" : "@hero_object: Produk/kemasan konsisten."}
-  * ${hasSettingImg ? "Foto latar/ruangan nyata: Gunakan [IMAGE 3: @setting_anchor] - Kunci tata letak arsitektur, furnitur, dan tekstur dinding tanpa halusinasi." : "@setting_anchor: Latar dan tata ruang konsisten."}
+  * Karakter Host: Gunakan [FOTO HOST ${charIndex}: @character_${charIndex} (${charLabel})]. Kunci wajah, ekspresi, dan pakaian 100% konsisten.
+  * Setting Ruangan: Gunakan [FOTO RUANGAN ${settingIndex}: @setting_${settingIndex} (${settingLabel})]. Kunci arsitektur, kayu jati, dan tata ruang persis tanpa halusinasi!
+  ${objImages.length > 0 ? `* Objek / Produk: Gunakan [FOTO PRODUK ${objIndex}: @object_${objIndex} (${objLabel})]. Kunci bentuk dan warna.` : ""}
 - Kunci tata cahaya: ${s.lightingAnchor || "Natural soft daylight, 45-degree key light"} di seluruh adegan.
 - Aksi Fisik Nyata: Efek suara foley wajib terlihat aksi fisiknya di layar (zero phantom sound).
+- Batas Durasi: 10 Detik pas agar selesai dalam 1 sesi 40 detik.
 
 [ARAHAN KAMERA]:
 ${s.cameraDirective}
@@ -680,22 +815,24 @@ ${s.cameraDirective}
 [VISUAL PROMPT KLIP 1]:
 ${s.flowVisualPrompt}
 
-[NASKAH DIALOGUE]:
+[NASKAH DIALOG (${pacingLabel})]:
 "${s.voiceoverScriptId}"
 
 [SOUNDSCAPE & SFX]:
 ${s.audioSoundscapePrompt}
 
 [ENDING POSE TITIK SAMBUNG]:
-${s.endingFrame || "@host_anchor memegang produk di depan kamera dengan senyum ramah dan gestur mengajak bicara."}`;
+${s.endingFrame || "@character_1 menyelesaikan pengantar dengan gestur mengarahkan kamera ke adegan berikutnya."}`;
     }
 
     return `=== KLIP ${s.sceneNumber}: ${s.stageName.toUpperCase()} (${s.timeRange}) ===
-Target Durasi: 5 Detik (Sambungan Langsung di Sesi Gemini yang Sama)
+Format: Video 10 Detik (Sambungan Langsung di Sesi Gemini yang Sama)
+Pacing Naskah: ${pacingLabel}
 
 [INSTRUKSI SAMBUNGAN GEMINI (FRAME BOUNDARY HAND-OFF)]:
 - Lanjutkan video sebelumnya di dalam satu utas percakapan ini.
-- JANGAN UBAH WAJAH, RAMBUT, BAJU, ATAU RUANGAN. Pertahankan 100% konsisten dengan klip sebelumnya.
+- JANGAN UBAH WAJAH, RAMBUT, ATAU BAJU KARAKTER.
+- Setting Ruangan: Gunakan [FOTO RUANGAN ${settingIndex}: @setting_${settingIndex} (${settingLabel})]. Kunci arsitektur foto ini persis tanpa halusinasi.
 - Starting Frame: ${s.startingFrame || `Melanjutkan persis dari frame terakhir Klip ${idx} tanpa jeda.`}
 - Kunci tata cahaya: ${s.lightingAnchor || "Natural soft daylight"} identik dengan klip sebelumnya.
 
@@ -705,35 +842,56 @@ ${s.cameraDirective}
 [VISUAL PROMPT KLIP ${s.sceneNumber}]:
 ${s.flowVisualPrompt}
 
-[NASKAH DIALOGUE]:
+[NASKAH DIALOG (${pacingLabel})]:
 "${s.voiceoverScriptId}"
 
 [SOUNDSCAPE & SFX (ZERO PHANTOM)]:
 ${s.audioSoundscapePrompt}
 
 [ENDING POSE TITIK SAMBUNG]:
-${s.endingFrame || "@host_anchor menyelesaikan aksi dengan ekspresi puas dan bersiap untuk adegan selanjutnya."}`;
+${s.endingFrame || "@character_1 menyelesaikan aksi dengan ekspresi puas dan bersiap untuk adegan selanjutnya."}`;
   };
 
   // Generate complete Gemini chain text file
   const generateFullGeminiChainText = (result: MasterDirectiveData) => {
+    const hasParts = Boolean(result.parts && result.parts.length > 1);
+
+    let partsContent = "";
+    if (hasParts && result.parts) {
+      partsContent = result.parts
+        .map((p) => {
+          const partScenes = p.sceneIndices.map((i) => result.scenes[i]).filter(Boolean);
+          const prompts = partScenes.map((s, idx) =>
+            formatGeminiSingleClipPrompt(result, s, p.sceneIndices[idx])
+          );
+          return `==================================================\n${p.partTitle.toUpperCase()} (${p.duration})\nPetunjuk Sesi: ${p.sessionAdvice}\n==================================================\n\n` +
+            prompts.join("\n\n--------------------------------------------------\n\n");
+        })
+        .join("\n\n\n");
+    } else {
+      partsContent = result.scenes
+        .map((s, idx) => formatGeminiSingleClipPrompt(result, s, idx))
+        .join("\n\n--------------------------------------------------\n\n");
+    }
+
     return `=== RANTAI PRODUKSI MULTI-KLIP GEMINI (FRAME BOUNDARY HAND-OFF) ===
 Proyek: ${result.projectTitle}
-Total Durasi: ${result.totalDuration} (${result.scenes.length} Klip @ 5 Detik)
+Total Durasi: ${result.totalDuration} (${result.scenes.length} Klip @ 10 Detik)
+Pacing: ${result.pacingMode === "fast" ? "Cepat (24–28 kata/klip)" : "Normal (14–18 kata/klip)"}
 
-PETUNJUK EKSEKUSI DI GEMINI:
-1. Buka satu utas percakapan chat di Gemini (https://gemini.google.com).
-2. Lampirkan foto host & produk Anda di pesan pertama.
-3. Kirim Prompt Klip 1.
-4. Setelah video Klip 1 selesai di-generate, JANGAN BUKA CHAT BARU. Cukup balas di chat yang sama dengan Prompt Klip 2.
-5. Ulangi berurutan hingga Klip ${result.scenes.length}.
-6. Jika kuota 5 jam habis, tunggu reset lalu lanjutkan klip berikutnya di chat yang SAMA!
+PETUNJUK EKSEKUSI DI GEMINI (BEBAS LIMIT 5 JAM):
+1. Maksimal per topik/sesi adalah 40 Detik (4 klip @ 10s) sehingga 100% tuntas dalam 1 sesi Gemini tanpa menunggu 5 jam atau terpotong.
+2. Buka satu utas percakapan chat di Gemini (https://gemini.google.com).
+3. Lampirkan foto-foto referensi Anda di pesan pertama.
+4. Kirim Prompt Klip 1.
+5. Setelah Klip 1 selesai di-generate, JANGAN BUKA CHAT BARU. Cukup balas di chat yang sama dengan Prompt Klip 2, dst.
+6. Jika ada Part 2, buka sesi baru setelah kuota siap untuk melanjutkan Part 2.
 
 ==================================================
 DAFTAR PROMPT BERURUTAN:
 ==================================================
 
-` + result.scenes.map((s, idx) => formatGeminiSingleClipPrompt(result, s, idx)).join("\n\n--------------------------------------------------\n\n");
+${partsContent}`;
   };
 
   // Generate CapCut Assembly Guide text file
@@ -884,12 +1042,14 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                 <label className="block text-xs font-mono font-medium text-[#c4bcb2] mb-2 uppercase tracking-wider flex items-center justify-between">
                   <span>Pilihan Format & Durasi Video</span>
                   <span className="text-[11px] text-[#8c857c] normal-case font-sans">
-                    {targetDuration === "gemini-5clip"
-                      ? "Gemini 5-Clip Chain (5 Klip x 5s • Frame Boundary Hand-Off • Pas Kuota 5 Jam)"
+                    {targetDuration === "gemini-40s"
+                      ? "Gemini 40s Session Pass (Maksimal 40 Detik • 4 Klip @ 10s • Tuntas 1 Sesi Tanpa Limit 5 Jam)"
                       : targetDuration === "longform-multiplier"
-                      ? "Long-Form Multiplier (10 Klip: 5 A-Roll Bicara + 5 B-Roll Aksi/Detail untuk YouTube 1–3 Menit)"
+                      ? "Multi-Part Long-Form (8 Klip • Otomatis Dipecah Jadi 2 Sesi Terhubung Part 1 & Part 2 @ 40s)"
+                      : targetDuration === "gemini-5clip"
+                      ? "Gemini 5-Clip Legacy (5 Klip x 5s • Frame Boundary Hand-Off)"
                       : targetDuration === "<=10s"
-                      ? "Klip singkat 10 detik (Cocok langsung di LLM)"
+                      ? "Klip singkat 10 detik (Hero Shot Langsung Jadi)"
                       : targetDuration === "<=60s"
                       ? "Short-form standar (6 Adegan)"
                       : targetDuration === "<=120s"
@@ -901,21 +1061,26 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                   {(
                     [
                       {
-                        id: "gemini-5clip" as const,
-                        label: "Gemini 5-Clip Chain (~25s)",
+                        id: "gemini-40s" as const,
+                        label: "Gemini 40s Session Pass (4 Klip)",
                         badge: "Juara Mutlak / Rekomendasi",
-                        desc: "5 Klip x 5s • Sambungan mulus • Pas jatah 1 sesi Gemini (4–5 klip per 5 jam)",
+                        desc: "Maks 40 detik per topik (4 klip @ 10s) • Pas jatah 1 sesi Gemini tuntas tanpa nunggu 5 jam",
                       },
                       {
                         id: "longform-multiplier" as const,
-                        label: "Long-Form Multiplier (1–3 Menit)",
-                        badge: "YouTube Ready",
-                        desc: "10 Klip • 5 A-Roll (Bicara) + 5 B-Roll (Aksi/Detail) • Super kaya visual di CapCut",
+                        label: "Multi-Part / Long-Form (8 Klip)",
+                        badge: "Auto 2-Part Split",
+                        desc: "Otomatis dipecah jadi 2 sesi terhubung (Part 1 & Part 2) @ 40s • YouTube & Series Ready",
                       },
                       {
                         id: "<=10s" as const,
                         label: "≤ 10 Detik (Hero Shot)",
                         desc: "Klip Singkat Instan • Aksi fisik & suara sinkron sekali generate",
+                      },
+                      {
+                        id: "gemini-5clip" as const,
+                        label: "Gemini 5-Clip Legacy (~25s)",
+                        desc: "5 Klip x 5s • Sambungan mulus Frame Boundary Hand-Off",
                       },
                       {
                         id: "<=60s" as const,
@@ -926,11 +1091,6 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                         id: "<=120s" as const,
                         label: "≤ 120 Detik (UGC Komplit)",
                         desc: "Deep review 8 Adegan eksplorasi",
-                      },
-                      {
-                        id: ">120s" as const,
-                        label: "> 120 Detik (Epic Feature)",
-                        desc: "Storyboard 12 Adegan sinematik",
                       },
                     ]
                   ).map((dur) => (
@@ -955,6 +1115,66 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                       <span className="block text-[11px] text-[#736d65] mt-1 leading-snug">{dur.desc}</span>
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Pacing Speed & Tempo Selector (Normal vs Fast) */}
+              <div className="rounded-xl border border-[#2d2a27] bg-[#1a1b1f] p-4 sm:p-5 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-xs font-mono font-semibold text-[#f5f1eb] flex items-center gap-1.5 uppercase tracking-wider">
+                      <Sparkles className="h-3.5 w-3.5 text-[#c29b74]" />
+                      <span>Tempo Naskah & Pacing Bicara (WPM)</span>
+                    </h4>
+                    <p className="text-[11px] text-[#8c857c] mt-0.5">
+                      Pilih kecepatan berbicara presenter untuk menyesuaikan kepadatan materi video Anda.
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-mono text-[#c29b74] bg-[#c29b74]/10 border border-[#c29b74]/20 px-2.5 py-1 rounded-full w-fit">
+                    {pacingMode === "fast" ? "⚡ Tempo Cepat (24–28 kata/adegan)" : "🎙️ Tempo Normal (14–18 kata/adegan)"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPacingMode("normal")}
+                    className={`rounded-xl border p-3.5 text-left transition-all ${
+                      pacingMode === "normal"
+                        ? "border-[#c29b74] bg-[#c29b74]/15 text-[#f5f1eb] shadow"
+                        : "border-[#262422] bg-[#151619] text-[#8c857c] hover:border-[#3a3632]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono font-bold text-[#f5f1eb]">
+                        Sedang / Normal (14–18 Kata / Klip)
+                      </span>
+                      {pacingMode === "normal" && <Check className="h-4 w-4 text-[#c29b74]" />}
+                    </div>
+                    <p className="text-[11px] font-sans text-[#a8a197] mt-1.5 leading-relaxed">
+                      Tempo natural ~130 WPM, artikulatif dengan jeda napas santai [pause]. Cocok untuk house tour, review santai, dan edukasi elegan.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPacingMode("fast")}
+                    className={`rounded-xl border p-3.5 text-left transition-all ${
+                      pacingMode === "fast"
+                        ? "border-[#c29b74] bg-[#c29b74]/15 text-[#f5f1eb] shadow"
+                        : "border-[#262422] bg-[#151619] text-[#8c857c] hover:border-[#3a3632]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono font-bold text-[#f5f1eb]">
+                        Cepat / Padat (24–28 Kata / Klip)
+                      </span>
+                      {pacingMode === "fast" && <Check className="h-4 w-4 text-[#c29b74]" />}
+                    </div>
+                    <p className="text-[11px] font-sans text-[#a8a197] mt-1.5 leading-relaxed">
+                      Tempo TikTok kinetic ~180 WPM, padat informasi, hook intensif tanpa jeda kosong. Maksimal 28 kata per 10 detik agar pas ritme visual.
+                    </p>
+                  </button>
                 </div>
               </div>
 
@@ -1077,8 +1297,8 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                     onChange={(e: any) => setHostType(e.target.value)}
                     className="w-full rounded-xl border border-[#2d2a27] bg-[#1a1b1f] p-3 text-xs text-[#f5f1eb] focus:border-[#c29b74] focus:outline-none"
                   >
-                    {hostImage && (
-                      <option value="custom">👤 Foto Host Terlampir (Kreator Anda Sendiri)</option>
+                    {characterImages.length > 0 && (
+                      <option value="custom">👤 Foto Host Terlampir ({characterImages.length} Karakter)</option>
                     )}
                     <option value="female-pro">Sarah — Modern Professional (Hangat & Artikulatif)</option>
                     <option value="male-casual">Bimo — Smart Casual (Ramah & Terbuka)</option>
@@ -1089,229 +1309,297 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                 </div>
               </div>
 
-              {/* Upload Foto Referensi Karakter, Produk & Ruangan (Kunci Konsistensi 100%) */}
-              <div className="rounded-2xl border border-[#2d2a27] bg-[#141518] p-4 sm:p-5 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+              {/* Multi-File Sheets: Character Sheet, Object Sheet, & Environment Sheet */}
+              <div className="rounded-2xl border border-[#2d2a27] bg-[#141518] p-4 sm:p-5 space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#262422] pb-3">
                   <div>
                     <h3 className="text-xs font-mono font-semibold text-[#f5f1eb] uppercase tracking-wider flex items-center gap-2">
                       <Sparkles className="h-3.5 w-3.5 text-[#c29b74]" />
-                      Foto Referensi Host, Produk & Ruangan (Kunci Konsistensi 100%)
+                      Multi-File Consistency Sheets (Bebas Upload Banyak Foto)
                     </h3>
                     <p className="text-[11px] text-[#8c857c] font-sans mt-0.5">
-                      Upload foto wajah kreator, produk, atau ruangan nyata untuk mengunci karakter, barang, dan arsitektur agar konsisten di setiap adegan (Gemini & Flow ready).
+                      Upload foto host, produk, atau banyak foto ruangan properti sekaligus. Sistem akan mendistribusikannya secara cerdas ke setiap adegan.
                     </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] font-mono text-[#c29b74]">
+                    <span>Host: {characterImages.length}</span> • <span>Objek: {objectImages.length}</span> • <span>Ruangan: {environmentImages.length}</span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Upload Foto Host / UGC Creator */}
-                  <div className="rounded-xl border border-[#262422] bg-[#1a1b1f] p-3.5 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-medium text-[#c4bcb2] flex items-center gap-1.5">
-                        <Users className="h-3.5 w-3.5 text-[#c29b74]" />
-                        Foto Host / Kreator (@host_anchor)
-                      </span>
+                <div className="space-y-4">
+                  {/* 1. Character Sheet Gallery */}
+                  <div className="rounded-xl border border-[#262422] bg-[#1a1b1f] p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#242220] pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-[#c29b74]" />
+                        <span className="text-xs font-mono font-semibold text-[#f5f1eb]">
+                          Character Sheet ({characterImages.length} Foto)
+                        </span>
+                        <span className="text-[10px] font-mono text-[#8c857c] hidden sm:inline">
+                          — Multi-Host / Podcast / Tamu
+                        </span>
+                      </div>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => handleOpenVaultPicker("characters")}
-                          className="text-[11px] font-mono text-[#c29b74] hover:underline flex items-center gap-1 bg-[#c29b74]/10 px-2 py-0.5 rounded border border-[#c29b74]/20"
-                          title="Pilih karakter yang tersimpan di Global Asset Vault"
+                          className="text-[11px] font-mono text-[#c29b74] hover:underline flex items-center gap-1 bg-[#c29b74]/10 px-2.5 py-1 rounded border border-[#c29b74]/20"
                         >
                           <Boxes className="h-3 w-3" /> Ambil dari Vault
                         </button>
-                        {hostImage && (
-                          <button
-                            type="button"
-                            onClick={() => setHostImage(null)}
-                            className="text-[10px] font-mono text-[#e06c75] hover:underline flex items-center gap-1"
-                          >
-                            <X className="h-3 w-3" /> Hapus
-                          </button>
-                        )}
+                        <label className="text-[11px] font-mono font-semibold text-[#121315] bg-[#c29b74] hover:bg-[#d1aa82] px-2.5 py-1 rounded cursor-pointer flex items-center gap-1">
+                          <Upload className="h-3 w-3" /> Tambah Foto Host
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleUploadCharacters}
+                          />
+                        </label>
                       </div>
                     </div>
 
-                    {hostImage ? (
-                      <div className="flex items-center justify-between gap-3 bg-[#111214] p-2.5 rounded-lg border border-[#33302c]">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={hostImage}
-                            alt="Host Reference"
-                            className="h-16 w-16 rounded-lg object-cover border border-[#c29b74]/40 shrink-0"
-                          />
-                          <div className="text-xs">
-                            <span className="font-mono text-[#c29b74] font-medium block">Foto Host Terlampir</span>
-                            <span className="text-[11px] text-[#7d776f]">Wajah & pakaian dikunci di semua adegan</span>
+                    {characterImages.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {characterImages.map((char, cIdx) => (
+                          <div
+                            key={char.id}
+                            className="relative group rounded-xl border border-[#2d2a27] bg-[#121315] p-2 space-y-1.5"
+                          >
+                            <div className="relative aspect-square rounded-lg overflow-hidden border border-[#383531]">
+                              <img
+                                src={char.url}
+                                alt={char.label || `Host ${cIdx + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCharacterImages((prev) => prev.filter((item) => item.id !== char.id));
+                                }}
+                                className="absolute top-1 right-1 h-5 w-5 rounded-full bg-[#1e1313]/90 text-[#e06c75] hover:bg-[#e06c75] hover:text-white flex items-center justify-center text-xs transition-colors"
+                                title="Hapus foto"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                              <span className="absolute bottom-1 left-1 bg-[#121315]/80 text-[#c29b74] px-1.5 py-0.5 rounded text-[9px] font-mono font-bold">
+                                @character_{cIdx + 1}
+                              </span>
+                            </div>
+                            <input
+                              type="text"
+                              value={char.label || ""}
+                              placeholder={`Nama/Label @character_${cIdx + 1}`}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setCharacterImages((prev) =>
+                                  prev.map((item) => (item.id === char.id ? { ...item, label: val } : item))
+                                );
+                              }}
+                              className="w-full bg-[#18191d] border border-[#2b2724] rounded px-2 py-1 text-[11px] font-mono text-[#f5f1eb] focus:border-[#c29b74] focus:outline-none"
+                            />
                             <button
                               type="button"
-                              onClick={handleSaveHostToVault}
-                              className="text-[10px] font-mono text-[#d4af88] hover:underline mt-1 block"
+                              onClick={() => handleSaveHostToVault(char.url, char.label)}
+                              className="w-full text-center text-[10px] font-mono text-[#8c857c] hover:text-[#d4af88] py-0.5 block"
                             >
-                              💾 Simpan ke Brankas Aset
+                              💾 Simpan ke Vault
                             </button>
                           </div>
-                        </div>
+                        ))}
                       </div>
                     ) : (
-                      <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#33302c] hover:border-[#c29b74]/50 rounded-xl p-4 cursor-pointer transition-all bg-[#121315]">
-                        <Upload className="h-5 w-5 text-[#8c857c] mb-1.5" />
-                        <span className="text-xs font-mono text-[#c4bcb2]">Upload Foto Wajah / Kreator</span>
-                        <span className="text-[10px] text-[#635d56] mt-0.5">JPG / PNG / WEBP</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const b64 = await compressImage(file);
-                              setHostImage(b64);
-                              setHostType("custom");
-                            }
-                          }}
-                        />
-                      </label>
+                      <div className="text-center py-4 border border-dashed border-[#2b2724] rounded-xl bg-[#121315]">
+                        <p className="text-[11px] font-mono text-[#7d776f]">
+                          Belum ada foto karakter diunggah. Klik "Tambah Foto Host" untuk upload foto wajah host.
+                        </p>
+                      </div>
                     )}
                   </div>
 
-                  {/* Upload Foto Produk / Hero Object */}
-                  <div className="rounded-xl border border-[#262422] bg-[#1a1b1f] p-3.5 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-medium text-[#c4bcb2] flex items-center gap-1.5">
-                        <Boxes className="h-3.5 w-3.5 text-[#c29b74]" />
-                        Foto Produk / Objek (@hero_object)
-                      </span>
+                  {/* 2. Object Sheet Gallery */}
+                  <div className="rounded-xl border border-[#262422] bg-[#1a1b1f] p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#242220] pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <Boxes className="h-4 w-4 text-[#c29b74]" />
+                        <span className="text-xs font-mono font-semibold text-[#f5f1eb]">
+                          Object / Product Sheet ({objectImages.length} Foto)
+                        </span>
+                        <span className="text-[10px] font-mono text-[#8c857c] hidden sm:inline">
+                          — Kemasan / Detail Objek / Varian
+                        </span>
+                      </div>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => handleOpenVaultPicker("products")}
-                          className="text-[11px] font-mono text-[#c29b74] hover:underline flex items-center gap-1 bg-[#c29b74]/10 px-2 py-0.5 rounded border border-[#c29b74]/20"
-                          title="Pilih produk yang tersimpan di Global Asset Vault"
+                          className="text-[11px] font-mono text-[#c29b74] hover:underline flex items-center gap-1 bg-[#c29b74]/10 px-2.5 py-1 rounded border border-[#c29b74]/20"
                         >
                           <Boxes className="h-3 w-3" /> Ambil dari Vault
                         </button>
-                        {productImage && (
-                          <button
-                            type="button"
-                            onClick={() => setProductImage(null)}
-                            className="text-[10px] font-mono text-[#e06c75] hover:underline flex items-center gap-1"
-                          >
-                            <X className="h-3 w-3" /> Hapus
-                          </button>
-                        )}
+                        <label className="text-[11px] font-mono font-semibold text-[#121315] bg-[#c29b74] hover:bg-[#d1aa82] px-2.5 py-1 rounded cursor-pointer flex items-center gap-1">
+                          <Upload className="h-3 w-3" /> Tambah Foto Objek
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleUploadObjects}
+                          />
+                        </label>
                       </div>
                     </div>
 
-                    {productImage ? (
-                      <div className="flex items-center justify-between gap-3 bg-[#111214] p-2.5 rounded-lg border border-[#33302c]">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={productImage}
-                            alt="Product Reference"
-                            className="h-16 w-16 rounded-lg object-cover border border-[#c29b74]/40 shrink-0"
-                          />
-                          <div className="text-xs">
-                            <span className="font-mono text-[#c29b74] font-medium block">Foto Produk Terlampir</span>
-                            <span className="text-[11px] text-[#7d776f]">Kemasan, warna, & tekstur dikunci</span>
+                    {objectImages.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {objectImages.map((obj, oIdx) => (
+                          <div
+                            key={obj.id}
+                            className="relative group rounded-xl border border-[#2d2a27] bg-[#121315] p-2 space-y-1.5"
+                          >
+                            <div className="relative aspect-square rounded-lg overflow-hidden border border-[#383531]">
+                              <img
+                                src={obj.url}
+                                alt={obj.label || `Objek ${oIdx + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setObjectImages((prev) => prev.filter((item) => item.id !== obj.id));
+                                }}
+                                className="absolute top-1 right-1 h-5 w-5 rounded-full bg-[#1e1313]/90 text-[#e06c75] hover:bg-[#e06c75] hover:text-white flex items-center justify-center text-xs transition-colors"
+                                title="Hapus foto"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                              <span className="absolute bottom-1 left-1 bg-[#121315]/80 text-[#c29b74] px-1.5 py-0.5 rounded text-[9px] font-mono font-bold">
+                                @object_{oIdx + 1}
+                              </span>
+                            </div>
+                            <input
+                              type="text"
+                              value={obj.label || ""}
+                              placeholder={`Nama/Label @object_${oIdx + 1}`}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setObjectImages((prev) =>
+                                  prev.map((item) => (item.id === obj.id ? { ...item, label: val } : item))
+                                );
+                              }}
+                              className="w-full bg-[#18191d] border border-[#2b2724] rounded px-2 py-1 text-[11px] font-mono text-[#f5f1eb] focus:border-[#c29b74] focus:outline-none"
+                            />
                             <button
                               type="button"
-                              onClick={handleSaveProductToVault}
-                              className="text-[10px] font-mono text-[#d4af88] hover:underline mt-1 block"
+                              onClick={() => handleSaveProductToVault(obj.url, obj.label)}
+                              className="w-full text-center text-[10px] font-mono text-[#8c857c] hover:text-[#d4af88] py-0.5 block"
                             >
-                              💾 Simpan ke Brankas Aset
+                              💾 Simpan ke Vault
                             </button>
                           </div>
-                        </div>
+                        ))}
                       </div>
                     ) : (
-                      <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#33302c] hover:border-[#c29b74]/50 rounded-xl p-4 cursor-pointer transition-all bg-[#121315]">
-                        <Upload className="h-5 w-5 text-[#8c857c] mb-1.5" />
-                        <span className="text-xs font-mono text-[#c4bcb2]">Upload Foto Produk / Objek</span>
-                        <span className="text-[10px] text-[#635d56] mt-0.5">JPG / PNG / WEBP</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const b64 = await compressImage(file);
-                              setProductImage(b64);
-                            }
-                          }}
-                        />
-                      </label>
+                      <div className="text-center py-4 border border-dashed border-[#2b2724] rounded-xl bg-[#121315]">
+                        <p className="text-[11px] font-mono text-[#7d776f]">
+                          Belum ada foto objek diunggah. Klik "Tambah Foto Objek" untuk upload foto produk.
+                        </p>
+                      </div>
                     )}
                   </div>
 
-                  {/* Upload Foto Latar / Ruangan Nyata (@setting_anchor) */}
-                  <div className="rounded-xl border border-[#262422] bg-[#1a1b1f] p-3.5 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-medium text-[#c4bcb2] flex items-center gap-1.5">
-                        <Compass className="h-3.5 w-3.5 text-[#c29b74]" />
-                        Foto Ruangan Nyata (@setting_anchor)
-                      </span>
+                  {/* 3. Environment Sheet Gallery (Multi-Photo for Property / Room Tour) */}
+                  <div className="rounded-xl border border-[#262422] bg-[#1a1b1f] p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#242220] pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <Compass className="h-4 w-4 text-[#c29b74]" />
+                        <span className="text-xs font-mono font-semibold text-[#f5f1eb]">
+                          Environment / Ruangan Sheet ({environmentImages.length} Foto)
+                        </span>
+                        <span className="text-[10px] font-mono text-[#c29b74] bg-[#c29b74]/10 border border-[#c29b74]/20 px-2 py-0.5 rounded hidden sm:inline">
+                          House Tour Ready
+                        </span>
+                      </div>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => handleOpenVaultPicker("environments")}
-                          className="text-[11px] font-mono text-[#c29b74] hover:underline flex items-center gap-1 bg-[#c29b74]/10 px-2 py-0.5 rounded border border-[#c29b74]/20"
-                          title="Pilih latar yang tersimpan di Global Asset Vault"
+                          className="text-[11px] font-mono text-[#c29b74] hover:underline flex items-center gap-1 bg-[#c29b74]/10 px-2.5 py-1 rounded border border-[#c29b74]/20"
                         >
                           <Boxes className="h-3 w-3" /> Ambil dari Vault
                         </button>
-                        {settingImage && (
-                          <button
-                            type="button"
-                            onClick={() => setSettingImage(null)}
-                            className="text-[10px] font-mono text-[#e06c75] hover:underline flex items-center gap-1"
-                          >
-                            <X className="h-3 w-3" /> Hapus
-                          </button>
-                        )}
+                        <label className="text-[11px] font-mono font-semibold text-[#121315] bg-[#c29b74] hover:bg-[#d1aa82] px-2.5 py-1 rounded cursor-pointer flex items-center gap-1">
+                          <Upload className="h-3 w-3" /> Upload Foto Properti (+ Multi-Select)
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleUploadEnvironments}
+                          />
+                        </label>
                       </div>
                     </div>
+                    <p className="text-[11px] text-[#8c857c]">
+                      Bisa pilih banyak foto sekaligus (misal 10 foto: fasad luar, ruang tamu kayu jati, kamar tidur, lemari jati, kos-kosan 10 pintu, halaman depan). AI akan memetakan foto yang tepat di setiap klip!
+                    </p>
 
-                    {settingImage ? (
-                      <div className="flex items-center justify-between gap-3 bg-[#111214] p-2.5 rounded-lg border border-[#33302c]">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={settingImage}
-                            alt="Room Reference"
-                            className="h-16 w-16 rounded-lg object-cover border border-[#c29b74]/40 shrink-0"
-                          />
-                          <div className="text-xs">
-                            <span className="font-mono text-[#c29b74] font-medium block">Foto Ruangan Terlampir</span>
-                            <span className="text-[11px] text-[#7d776f]">Arsitektur & geometri dikunci tanpa halusinasi</span>
+                    {environmentImages.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {environmentImages.map((env, eIdx) => (
+                          <div
+                            key={env.id}
+                            className="relative group rounded-xl border border-[#2d2a27] bg-[#121315] p-2 space-y-1.5"
+                          >
+                            <div className="relative aspect-square rounded-lg overflow-hidden border border-[#383531]">
+                              <img
+                                src={env.url}
+                                alt={env.label || `Area ${eIdx + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEnvironmentImages((prev) => prev.filter((item) => item.id !== env.id));
+                                }}
+                                className="absolute top-1 right-1 h-5 w-5 rounded-full bg-[#1e1313]/90 text-[#e06c75] hover:bg-[#e06c75] hover:text-white flex items-center justify-center text-xs transition-colors"
+                                title="Hapus foto"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                              <span className="absolute bottom-1 left-1 bg-[#121315]/80 text-[#c29b74] px-1.5 py-0.5 rounded text-[9px] font-mono font-bold">
+                                @setting_{eIdx + 1}
+                              </span>
+                            </div>
+                            <input
+                              type="text"
+                              value={env.label || ""}
+                              placeholder={`Label @setting_${eIdx + 1} (misal Fasad)`}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setEnvironmentImages((prev) =>
+                                  prev.map((item) => (item.id === env.id ? { ...item, label: val } : item))
+                                );
+                              }}
+                              className="w-full bg-[#18191d] border border-[#2b2724] rounded px-2 py-1 text-[11px] font-mono text-[#f5f1eb] focus:border-[#c29b74] focus:outline-none"
+                            />
                             <button
                               type="button"
-                              onClick={handleSaveSettingToVault}
-                              className="text-[10px] font-mono text-[#d4af88] hover:underline mt-1 block"
+                              onClick={() => handleSaveSettingToVault(env.url, env.label)}
+                              className="w-full text-center text-[10px] font-mono text-[#8c857c] hover:text-[#d4af88] py-0.5 block"
                             >
-                              💾 Simpan ke Brankas Aset
+                              💾 Simpan ke Vault
                             </button>
                           </div>
-                        </div>
+                        ))}
                       </div>
                     ) : (
-                      <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#33302c] hover:border-[#c29b74]/50 rounded-xl p-4 cursor-pointer transition-all bg-[#121315]">
-                        <Upload className="h-5 w-5 text-[#8c857c] mb-1.5" />
-                        <span className="text-xs font-mono text-[#c4bcb2]">Upload Foto Ruangan / Latar</span>
-                        <span className="text-[10px] text-[#635d56] mt-0.5">JPG / PNG / WEBP</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const b64 = await compressImage(file);
-                              setSettingImage(b64);
-                            }
-                          }}
-                        />
-                      </label>
+                      <div className="text-center py-4 border border-dashed border-[#2b2724] rounded-xl bg-[#121315]">
+                        <p className="text-[11px] font-mono text-[#7d776f]">
+                          Belum ada foto ruangan diunggah. Klik "Upload Foto Properti" untuk upload banyak foto house tour sekaligus.
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1581,7 +1869,7 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-5 w-5 text-[#c29b74]" />
                       <h3 className="text-base font-semibold text-[#f5f1eb]">
-                        Rantai Produksi Multi-Klip Gemini (Frame Boundary Hand-off)
+                        Rantai Produksi Multi-Klip Gemini (Maksimal 40 Detik • 4 Klip @ 10s)
                       </h3>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1611,104 +1899,199 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                     </div>
                   </div>
                   <p className="text-xs text-[#a8a197] leading-relaxed">
-                    Sistem ini dirancang khusus untuk kuota <strong>Gemini Pro (4–5 klip per 5 jam)</strong>. Eksekusi seluruh prompt di bawah secara berurutan di <strong>SATU UTAS PERCAKAPAN GEMINI YANG SAMA</strong> (jangan buat chat baru). Ketika kuota reset setelah 5 jam, lanjutkan klip berikutnya di chat yang sama sehingga karakter, pakaian, pencahayaan, dan latar belakang tetap 100% konsisten!
+                    Dirancang khusus untuk eksekusi video di <strong>Gemini (Maksimal 40 Detik / 4 Klip @ 10s per sesi)</strong>. Selesaikan 4 klip ini di <strong>SATU UTAS PERCAKAPAN GEMINI YANG SAMA</strong> sehingga 100% tuntas dalam satu sesi tanpa terpotong atau terkena batas kuota 5 jam!
                   </p>
                 </div>
 
+                {/* Smart Multi-Part Switcher if scenes > 4 */}
+                {masterResult.parts && masterResult.parts.length > 1 && (
+                  <div className="rounded-2xl border border-[#c29b74]/40 bg-[#151619] p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-[#c29b74]" />
+                        <span className="text-xs font-mono font-bold text-[#f5f1eb] uppercase tracking-wider">
+                          Topik Dipecah Cerdas Menjadi 2 Sesi Gemini
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#8c857c] mt-0.5">
+                        Karena topik melebihi 4 klip, sistem otomatis membaginya menjadi 2 bagian terhubung (@ 40s) agar aman dari batas kuota 5 jam.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 bg-[#101113] p-1 rounded-xl border border-[#2d2a27]">
+                      {masterResult.parts.map((p, pIdx) => (
+                        <button
+                          key={p.partNumber}
+                          type="button"
+                          onClick={() => setActivePartTab(pIdx)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
+                            activePartTab === pIdx
+                              ? "bg-[#c29b74] text-[#121315] font-bold shadow"
+                              : "text-[#8c857c] hover:text-[#f5f1eb]"
+                          }`}
+                        >
+                          Part {p.partNumber} ({p.sceneIndices.length} Klip)
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setActivePartTab(99)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
+                          activePartTab === 99
+                            ? "bg-[#c29b74] text-[#121315] font-bold shadow"
+                            : "text-[#8c857c] hover:text-[#f5f1eb]"
+                        }`}
+                      >
+                        Semua Klip ({masterResult.scenes.length})
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Part Session Advice Banner */}
+                {masterResult.parts && masterResult.parts[activePartTab] && activePartTab !== 99 && (
+                  <div className="rounded-xl border border-[#33302c] bg-[#1a1b1f] p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="text-xs font-mono">
+                      <span className="text-[#c29b74] font-bold block">
+                        {masterResult.parts[activePartTab].partTitle}
+                      </span>
+                      <span className="text-[#8c857c] text-[11px]">
+                        {masterResult.parts[activePartTab].sessionAdvice}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetIndices = masterResult.parts![activePartTab].sceneIndices;
+                        const partPrompts = targetIndices
+                          .map((idx) => formatGeminiSingleClipPrompt(masterResult, masterResult.scenes[idx], idx))
+                          .join("\n\n--------------------------------------------------\n\n");
+                        copyText(partPrompts, `part-copy-${activePartTab + 1}`);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-[#c29b74] text-xs font-mono font-semibold text-[#121315] hover:bg-[#d1aa82] shrink-0"
+                    >
+                      {copiedKey === `part-copy-${activePartTab + 1}`
+                        ? "Part Tersalin!"
+                        : `Salin 4 Prompt Part ${activePartTab + 1}`}
+                    </button>
+                  </div>
+                )}
+
                 {/* Clip Cards List */}
                 <div className="space-y-4">
-                  {masterResult.scenes.map((scene, idx) => (
-                    <div
-                      key={scene.sceneNumber}
-                      className="rounded-2xl border border-[#282624] bg-[#151619] p-5 sm:p-6 space-y-4 transition-all hover:border-[#c29b74]/40"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#242220] pb-3">
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#c29b74] text-[#121315] font-mono font-bold text-xs">
-                            {scene.sceneNumber}
-                          </span>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-sans text-sm font-semibold text-[#f5f1eb]">
-                                Klip {scene.sceneNumber}: {scene.stageName}
-                              </h4>
-                              {scene.rollType && (
-                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#242220] text-[#c29b74] font-medium">
-                                  {scene.rollType}
+                  {(masterResult.parts && masterResult.parts.length > 1 && activePartTab !== 99
+                    ? masterResult.scenes.filter((_, idx) =>
+                        masterResult.parts![activePartTab]?.sceneIndices.includes(idx)
+                      )
+                    : masterResult.scenes
+                  ).map((scene, idx) => {
+                    const actualIdx =
+                      masterResult.parts && masterResult.parts.length > 1 && activePartTab !== 99
+                        ? masterResult.parts[activePartTab].sceneIndices[idx]
+                        : idx;
+
+                    return (
+                      <div
+                        key={scene.sceneNumber}
+                        className="rounded-2xl border border-[#282624] bg-[#151619] p-5 sm:p-6 space-y-4 transition-all hover:border-[#c29b74]/40"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#242220] pb-3">
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#c29b74] text-[#121315] font-mono font-bold text-xs">
+                              {scene.sceneNumber}
+                            </span>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-sans text-sm font-semibold text-[#f5f1eb]">
+                                  Klip {scene.sceneNumber}: {scene.stageName}
+                                </h4>
+                                {scene.rollType && (
+                                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#242220] text-[#c29b74] font-medium">
+                                    {scene.rollType}
+                                  </span>
+                                )}
+                                {scene.settingRefTag && (
+                                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#1b2229] text-[#70b0ff] border border-[#70b0ff]/20 font-medium">
+                                    {scene.settingRefTag}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[11px] font-mono text-[#7d776f]">
+                                Durasi: 10 Detik ({scene.timeRange}) • Pacing:{" "}
+                                <span className="text-[#d4af88]">
+                                  {masterResult.pacingMode === "fast"
+                                    ? "Cepat (24–28 kata)"
+                                    : "Normal (14–18 kata)"}
                                 </span>
-                              )}
+                              </span>
                             </div>
-                            <span className="text-[11px] font-mono text-[#7d776f]">
-                              Durasi: 5 Detik ({scene.timeRange})
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                downloadTextFile(
+                                  `klip-${scene.sceneNumber}-${masterResult.projectTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}.txt`,
+                                  formatGeminiSingleClipPrompt(masterResult, scene, actualIdx)
+                                )
+                              }
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1a1b1f] border border-[#2d2a27] text-xs font-mono text-[#c4bcb2] hover:text-[#f5f1eb]"
+                              title="Unduh prompt klip ini"
+                            >
+                              <Download className="h-3 w-3 text-[#c29b74]" />
+                              <span className="hidden sm:inline">Unduh</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                copyText(
+                                  formatGeminiSingleClipPrompt(masterResult, scene, actualIdx),
+                                  `gemini-clip-${scene.sceneNumber}`
+                                )
+                              }
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#c29b74] text-xs font-mono font-semibold text-[#121315] hover:bg-[#d1aa82]"
+                            >
+                              {copiedKey === `gemini-clip-${scene.sceneNumber}` ? (
+                                <Check className="h-3.5 w-3.5" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5" />
+                              )}
+                              <span>
+                                {copiedKey === `gemini-clip-${scene.sceneNumber}`
+                                  ? "Klip Tersalin!"
+                                  : `Salin Prompt Klip ${scene.sceneNumber}`}
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Boundary Hand-off Indicators */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                          <div className="rounded-lg border border-[#282624] bg-[#121315] p-2.5">
+                            <span className="text-[10px] uppercase text-[#6e6861] block mb-0.5">
+                              🎬 Starting Frame (Titik Masuk):
+                            </span>
+                            <span className="text-[#cfc8bf] text-[11px]">
+                              {scene.startingFrame || "Melanjutkan persis dari pose akhir klip sebelumnya"}
+                            </span>
+                          </div>
+                          <div className="rounded-lg border border-[#282624] bg-[#121315] p-2.5">
+                            <span className="text-[10px] uppercase text-[#6e6861] block mb-0.5">
+                              🏁 Ending Frame (Titik Sambung):
+                            </span>
+                            <span className="text-[#cfc8bf] text-[11px]">
+                              {scene.endingFrame || "Transisi ke posisi awal klip selanjutnya"}
                             </span>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              downloadTextFile(
-                                `klip-${scene.sceneNumber}-${masterResult.projectTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}.txt`,
-                                formatGeminiSingleClipPrompt(masterResult, scene, idx)
-                              )
-                            }
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1a1b1f] border border-[#2d2a27] text-xs font-mono text-[#c4bcb2] hover:text-[#f5f1eb]"
-                            title="Unduh prompt klip ini"
-                          >
-                            <Download className="h-3 w-3 text-[#c29b74]" />
-                            <span className="hidden sm:inline">Unduh</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              copyText(
-                                formatGeminiSingleClipPrompt(masterResult, scene, idx),
-                                `gemini-clip-${scene.sceneNumber}`
-                              )
-                            }
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#c29b74] text-xs font-mono font-semibold text-[#121315] hover:bg-[#d1aa82]"
-                          >
-                            {copiedKey === `gemini-clip-${scene.sceneNumber}` ? (
-                              <Check className="h-3.5 w-3.5" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5" />
-                            )}
-                            <span>
-                              {copiedKey === `gemini-clip-${scene.sceneNumber}`
-                                ? "Klip Tersalin!"
-                                : `Salin Prompt Klip ${scene.sceneNumber}`}
-                            </span>
-                          </button>
+                        {/* Ready-to-Paste Code Box */}
+                        <div className="rounded-xl border border-[#262422] bg-[#111214] p-3.5 font-mono text-xs text-[#cfc8bf] leading-relaxed whitespace-pre-wrap select-all">
+                          {formatGeminiSingleClipPrompt(masterResult, scene, actualIdx)}
                         </div>
                       </div>
-
-                      {/* Boundary Hand-off Indicators */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
-                        <div className="rounded-lg border border-[#282624] bg-[#121315] p-2.5">
-                          <span className="text-[10px] uppercase text-[#6e6861] block mb-0.5">
-                            🎬 Starting Frame (Titik Masuk):
-                          </span>
-                          <span className="text-[#cfc8bf] text-[11px]">
-                            {scene.startingFrame || "Melanjutkan persis dari pose akhir klip sebelumnya"}
-                          </span>
-                        </div>
-                        <div className="rounded-lg border border-[#282624] bg-[#121315] p-2.5">
-                          <span className="text-[10px] uppercase text-[#6e6861] block mb-0.5">
-                            🏁 Ending Frame (Titik Sambung):
-                          </span>
-                          <span className="text-[#cfc8bf] text-[11px]">
-                            {scene.endingFrame || "Transisi ke posisi awal klip selanjutnya"}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Ready-to-Paste Code Box */}
-                      <div className="rounded-xl border border-[#262422] bg-[#111214] p-3.5 font-mono text-xs text-[#cfc8bf] leading-relaxed whitespace-pre-wrap select-all">
-                        {formatGeminiSingleClipPrompt(masterResult, scene, idx)}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -2135,7 +2518,31 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                   </button>
                 </div>
 
-                {masterResult.hostImage && (
+                {/* Gallery of Characters */}
+                {masterResult.characterImages && masterResult.characterImages.length > 0 ? (
+                  <div className="space-y-2">
+                    <span className="text-xs font-mono text-[#c29b74] font-medium block">
+                      Daftar Karakter Terkunci ({masterResult.characterImages.length} Foto):
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {masterResult.characterImages.map((c, cIdx) => (
+                        <div key={c.id || cIdx} className="rounded-xl border border-[#c29b74]/30 bg-[#171614] p-2 space-y-1">
+                          <img
+                            src={c.url}
+                            alt={c.label || `Host ${cIdx + 1}`}
+                            className="aspect-square w-full rounded-lg object-cover border border-[#c29b74]/40"
+                          />
+                          <span className="text-[10px] font-mono text-[#c29b74] block font-bold">
+                            @character_{cIdx + 1}
+                          </span>
+                          <span className="text-[11px] font-sans text-[#cfc8bf] block truncate">
+                            {c.label || `Host ${cIdx + 1}`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : masterResult.hostImage ? (
                   <div className="flex items-center gap-4 rounded-xl border border-[#c29b74]/30 bg-[#171614] p-4">
                     <img
                       src={masterResult.hostImage}
@@ -2154,7 +2561,7 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                       </p>
                     </div>
                   </div>
-                )}
+                ) : null}
 
                 <div>
                   <span className="text-xs font-mono font-medium text-[#a39e97] block mb-2">
@@ -2195,7 +2602,31 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                     </button>
                   </div>
 
-                  {masterResult.settingImage && (
+                  {/* Multi-Environment Gallery */}
+                  {masterResult.environmentImages && masterResult.environmentImages.length > 0 ? (
+                    <div className="space-y-2">
+                      <span className="text-xs font-mono text-[#c29b74] font-medium block">
+                        Daftar Ruangan / Properti Terkunci ({masterResult.environmentImages.length} Foto):
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                        {masterResult.environmentImages.map((env, eIdx) => (
+                          <div key={env.id || eIdx} className="rounded-xl border border-[#c29b74]/30 bg-[#171614] p-2 space-y-1">
+                            <img
+                              src={env.url}
+                              alt={env.label || `Area ${eIdx + 1}`}
+                              className="aspect-square w-full rounded-lg object-cover border border-[#c29b74]/40"
+                            />
+                            <span className="text-[10px] font-mono text-[#c29b74] block font-bold">
+                              @setting_{eIdx + 1}
+                            </span>
+                            <span className="text-[11px] font-sans text-[#cfc8bf] block truncate">
+                              {env.label || `Area ${eIdx + 1}`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : masterResult.settingImage ? (
                     <div className="flex items-center gap-4 rounded-xl border border-[#c29b74]/30 bg-[#171614] p-4">
                       <img
                         src={masterResult.settingImage}
@@ -2214,7 +2645,7 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                         </p>
                       </div>
                     </div>
-                  )}
+                  ) : null}
 
                   <div className="rounded-xl border border-[#262422] bg-[#111214] p-4 font-mono text-xs text-[#cfc8bf] leading-relaxed whitespace-pre-wrap select-all">
                     {masterResult.environmentProfile.masterSettingPrompt}
@@ -2237,7 +2668,30 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                     </button>
                   </div>
 
-                  {masterResult.productImage && (
+                  {masterResult.objectImages && masterResult.objectImages.length > 0 ? (
+                    <div className="space-y-2">
+                      <span className="text-xs font-mono text-[#c29b74] font-medium block">
+                        Daftar Objek / Produk Terkunci ({masterResult.objectImages.length} Foto):
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {masterResult.objectImages.map((obj, oIdx) => (
+                          <div key={obj.id || oIdx} className="rounded-xl border border-[#c29b74]/30 bg-[#171614] p-2 space-y-1">
+                            <img
+                              src={obj.url}
+                              alt={obj.label || `Objek ${oIdx + 1}`}
+                              className="aspect-square w-full rounded-lg object-cover border border-[#c29b74]/40"
+                            />
+                            <span className="text-[10px] font-mono text-[#c29b74] block font-bold">
+                              @object_{oIdx + 1}
+                            </span>
+                            <span className="text-[11px] font-sans text-[#cfc8bf] block truncate">
+                              {obj.label || `Objek ${oIdx + 1}`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : masterResult.productImage ? (
                     <div className="flex items-center gap-4 rounded-xl border border-[#c29b74]/30 bg-[#171614] p-4">
                       <img
                         src={masterResult.productImage}
@@ -2256,7 +2710,7 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                         </p>
                       </div>
                     </div>
-                  )}
+                  ) : null}
 
                   <div className="rounded-xl border border-[#262422] bg-[#111214] p-4 font-mono text-xs text-[#cfc8bf] leading-relaxed whitespace-pre-wrap select-all">
                     {masterResult.objectProfile.masterObjectPrompt}
@@ -2327,17 +2781,29 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
             setCustomHostDescription(char.visualPrompt);
             if (char.imageBase64) {
               setHostImage(char.imageBase64);
+              setCharacterImages((prev) => [
+                ...prev,
+                { id: `char-vault-${Date.now()}`, url: char.imageBase64!, label: char.name || "Host Vault" },
+              ]);
             }
           }}
           onSelectProduct={(prod) => {
             if (prod.imageBase64) {
               setProductImage(prod.imageBase64);
+              setObjectImages((prev) => [
+                ...prev,
+                { id: `obj-vault-${Date.now()}`, url: prod.imageBase64!, label: prod.name || "Produk Vault" },
+              ]);
             }
           }}
           onSelectEnvironment={(env) => {
             setCustomSettingDescription(env.visualPrompt);
             if (env.imageBase64) {
               setSettingImage(env.imageBase64);
+              setEnvironmentImages((prev) => [
+                ...prev,
+                { id: `env-vault-${Date.now()}`, url: env.imageBase64!, label: env.name || "Ruangan Vault" },
+              ]);
             }
           }}
         />
