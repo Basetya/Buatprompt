@@ -819,10 +819,12 @@ Format: Video 10 Detik Mandiri (Anti-Macet di Klip 3 • Gabung di CapCut)
 Proyek: ${result.projectTitle}
 Pacing Naskah: ${pacingLabel}
 
-[KONSISTENSI FOTO REFERENSI MANDIRI (ZERO CHAT OVERLOAD)]:
-- Generate video klip 10 detik ini secara mandiri (bersih tanpa perlu membaca memori video sebelumnya).
-  * Karakter Host: Gunakan [FOTO HOST ${charIndex}: @character_${charIndex} (${charLabel})]. Kunci wajah, ekspresi, dan pakaian 100% konsisten.
-  * Setting Ruangan: Gunakan [FOTO RUANGAN ${settingIndex}: @setting_${settingIndex} (${settingLabel})]. Kunci arsitektur foto ini persis tanpa halusinasi!
+[GUARDRAIL REALITAS & ANTI-HALUSINASI (ANTI-CATFISH / STRICT ZERO FAKE LUXURY)]:
+- STRICT GROUNDED REALITY: Replikasi 100% arsitektur, bentuk bangunan, material lantai/dinding, dan kondisi lingkungan persis seperti foto referensi (@setting_${settingIndex}).
+- DILARANG MENGARANG: Dilarang menambahkan pilar istana Romawi, kolam renang palsu, marmer mewah fiktif, taman Eropa palsu, atau mengubah rumah sederhana/asri menjadi istana mewah! Calon pembeli yang datang ke lokasi tidak boleh merasa tertipu video.
+- TEKNIK SINEMATIK RESMI: Buat video indah murni melalui variasi kamera sinematik (Ken Burns subtle zoom in/out, smooth eye-level gimbal glide, dynamic parallax) dan tata cahaya alami (soft morning sunlight / golden hour glow) pada aset yang BENAR-BENAR ADA di foto!
+  * Karakter Host: Gunakan [FOTO HOST ${charIndex}: @character_${charIndex} (${charLabel})]. Kunci wajah, hijab/rambut, dan pakaian 100% konsisten.
+  * Setting Ruangan: Gunakan [FOTO RUANGAN ${settingIndex}: @setting_${settingIndex} (${settingLabel})]. Kunci arsitektur, ukuran, dan kondisi asli foto ini 100% persis tanpa halusinasi!
   ${objImages.length > 0 ? `* Objek / Produk: Gunakan [FOTO PRODUK ${objIndex}: @object_${objIndex} (${objLabel})]. Kunci bentuk dan warna.` : ""}
 - Kunci tata cahaya: ${s.lightingAnchor || "Natural soft daylight, 45-degree key light"} di seluruh adegan.
 - Aksi Fisik Nyata: Efek suara foley wajib terlihat aksi fisiknya di layar (zero phantom sound).
@@ -850,10 +852,11 @@ Format: Video 10 Detik (Gemini 40s Session Pass)
 Proyek: ${result.projectTitle}
 Pacing Naskah: ${pacingLabel}
 
-[INSTRUKSI MEMORI & KONSISTENSI GEMINI]:
+[GUARDRAIL REALITAS & MEMORI KONSISTENSI GEMINI (ANTI-CATFISH)]:
+- STRICT GROUNDED REALITY: Replikasi 100% kondisi fisik dari foto referensi yang terlampir. DILARANG menambahkan pilar Romawi, kolam renang, atau ornamen istana fiktif!
 - Gunakan foto referensi yang saya lampirkan di chat ini:
-  * Karakter Host: Gunakan [FOTO HOST ${charIndex}: @character_${charIndex} (${charLabel})]. Kunci wajah, ekspresi, dan pakaian 100% konsisten.
-  * Setting Ruangan: Gunakan [FOTO RUANGAN ${settingIndex}: @setting_${settingIndex} (${settingLabel})]. Kunci arsitektur, kayu jati, dan tata ruang persis tanpa halusinasi!
+  * Karakter Host: Gunakan [FOTO HOST ${charIndex}: @character_${charIndex} (${charLabel})]. Kunci wajah, hijab/rambut, dan pakaian 100% konsisten.
+  * Setting Ruangan: Gunakan [FOTO RUANGAN ${settingIndex}: @setting_${settingIndex} (${settingLabel})]. Kunci arsitektur, bentuk bangunan, dan tata ruang foto ini 100% persis tanpa halusinasi!
   ${objImages.length > 0 ? `* Objek / Produk: Gunakan [FOTO PRODUK ${objIndex}: @object_${objIndex} (${objLabel})]. Kunci bentuk dan warna.` : ""}
 - Kunci tata cahaya: ${s.lightingAnchor || "Natural soft daylight, 45-degree key light"} di seluruh adegan.
 - Aksi Fisik Nyata: Efek suara foley wajib terlihat aksi fisiknya di layar (zero phantom sound).
@@ -879,9 +882,10 @@ ${s.endingFrame || "@character_1 menyelesaikan pengantar dengan gestur mengarahk
 Format: Video 10 Detik (Sambungan Langsung di Sesi Gemini yang Sama)
 Pacing Naskah: ${pacingLabel}
 
-[INSTRUKSI SAMBUNGAN GEMINI (FRAME BOUNDARY HAND-OFF)]:
+[INSTRUKSI SAMBUNGAN GEMINI (FRAME BOUNDARY HAND-OFF & ZERO CATFISH)]:
 - Lanjutkan video sebelumnya di dalam satu utas percakapan ini.
-- JANGAN UBAH WAJAH, RAMBUT, ATAU BAJU KARAKTER.
+- JANGAN UBAH WAJAH, RAMBUT/HIJAB, ATAU BAJU KARAKTER.
+- STRICT GROUNDED REALITY: Pertahankan arsitektur asli foto @setting_${settingIndex} tanpa menambah elemen mewah palsu.
 - Setting Ruangan: Gunakan [FOTO RUANGAN ${settingIndex}: @setting_${settingIndex} (${settingLabel})]. Kunci arsitektur foto ini persis tanpa halusinasi.
 - Starting Frame: ${s.startingFrame || `Melanjutkan persis dari frame terakhir Klip ${idx} tanpa jeda.`}
 - Kunci tata cahaya: ${s.lightingAnchor || "Natural soft daylight"} identik dengan klip sebelumnya.
@@ -973,18 +977,20 @@ ${s.flowVisualPrompt}
     }
 
     if (clipMode === "isolated") {
-      return `=== PRODUKSI VIDEO KLIP TERISOLASI / MODULAR (ANTI-MACET & CEPAT) ===
+      return `=== PRODUKSI VIDEO KLIP TERISOLASI / MODULAR (ANTI-MACET & GROUNDED REALITY) ===
 Proyek: ${result.projectTitle}
 Total Durasi: ${result.totalDuration} (${result.scenes.length} Klip @ 10 Detik Standalone)
 Pacing: ${result.pacingMode === "fast" ? "Cepat (24–28 kata/klip)" : "Normal (14–18 kata/klip)"}
 Metode Eksekusi: Standalone Clips -> Seamless Assembly di CapCut
+Guardrail: 🛡️ Anti-Catfish & Strict Grounded Reality (Ken Burns & Gimbal dari Foto Asli)
 
-PETUNJUK EKSEKUSI (ANTI-MACET DI KLIP KE-3):
+PETUNJUK EKSEKUSI (ANTI-MACET & ZERO HALUSINASI):
 1. Setiap klip dirancang MANDIRI & TERISOLASI mengunci konsistensi dari foto referensi yang sama (@character_1, @setting_1).
 2. AI TIDAK dibebani memori video sebelumnya sehingga 100% BEBAS MACET / FREEZE di Klip ke-3!
-3. Anda bisa mengeksekusi Klip 1 s/d ${result.scenes.length} satu per satu (bahkan bisa di tab chat baru terpisah).
-4. Unduh semua file MP4 (Klip 1 s/d ${result.scenes.length}), lalu impor ke CapCut.
-5. Di CapCut, jejerkan di timeline utama, trim 0.2 detik awal/akhir, dan aktifkan Auto Captions. Video 40 detik selesai dalam hitungan menit tanpa nunggu 5 jam!
+3. GUARDRAIL REALITAS: Visual video 100% mematuhi arsitektur foto nyata Anda tanpa halusinasi pilar/istana palsu, sehingga calon pembeli tidak merasa tertipu.
+4. Anda bisa mengeksekusi Klip 1 s/d ${result.scenes.length} satu per satu (bahkan bisa di tab chat baru terpisah).
+5. Unduh semua file MP4 (Klip 1 s/d ${result.scenes.length}), lalu impor ke CapCut.
+6. Di CapCut, jejerkan di timeline utama, trim 0.2 detik awal/akhir, dan aktifkan Auto Captions. Video 40 detik selesai dalam hitungan menit tanpa nunggu 5 jam!
 
 ==================================================
 DAFTAR PROMPT BERURUTAN (MODE TERISOLASI):
@@ -993,18 +999,20 @@ DAFTAR PROMPT BERURUTAN (MODE TERISOLASI):
 ${partsContent}`;
     }
 
-    return `=== RANTAI PRODUKSI MULTI-KLIP GEMINI (FRAME BOUNDARY HAND-OFF) ===
+    return `=== RANTAI PRODUKSI MULTI-KLIP GEMINI (FRAME BOUNDARY HAND-OFF & GROUNDED REALITY) ===
 Proyek: ${result.projectTitle}
 Total Durasi: ${result.totalDuration} (${result.scenes.length} Klip @ 10 Detik)
 Pacing: ${result.pacingMode === "fast" ? "Cepat (24–28 kata/klip)" : "Normal (14–18 kata/klip)"}
+Guardrail: 🛡️ Anti-Catfish & Strict Grounded Reality (Ken Burns & Gimbal dari Foto Asli)
 
-PETUNJUK EKSEKUSI DI GEMINI (BEBAS LIMIT 5 JAM):
+PETUNJUK EKSEKUSI DI GEMINI (BEBAS LIMIT 5 JAM & ZERO HALUSINASI):
 1. Maksimal per topik/sesi adalah 40 Detik (4 klip @ 10s) sehingga 100% tuntas dalam 1 sesi Gemini tanpa menunggu 5 jam atau terpotong.
 2. Buka satu utas percakapan chat di Gemini (https://gemini.google.com).
 3. Lampirkan foto-foto referensi Anda di pesan pertama.
 4. Kirim Prompt Klip 1.
 5. Setelah Klip 1 selesai di-generate, JANGAN BUKA CHAT BARU. Cukup balas di chat yang sama dengan Prompt Klip 2, dst.
 6. Jika ada Part 2, buka sesi baru setelah kuota siap untuk melanjutkan Part 2.
+7. GUARDRAIL REALITAS: Prompt mengunci kondisi arsitektur asli foto Anda tanpa penambahan elemen istana fiktif.
 
 ==================================================
 DAFTAR PROMPT BERURUTAN:
@@ -1354,6 +1362,23 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                       AI mencoba melanjutkan persis dari frame terakhir video sebelumnya dalam 1 percakapan berurutan. Berpotensi overload buffer memori di klip ke-3.
                     </p>
                   </button>
+                </div>
+
+                {/* Anti-Hallucination & Grounded Reality Guardrail Banner */}
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/10 p-3.5 flex items-start gap-3 mt-1">
+                  <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mt-0.5">
+                    <Check className="h-4 w-4" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-bold text-emerald-400">
+                        🛡️ Guardrail Realitas Aktif (Anti-Catfish & Zero Halusinasi)
+                      </span>
+                    </div>
+                    <p className="text-[11px] font-sans text-[#a8a197] leading-relaxed">
+                      AI mengunci 100% arsitektur, bentuk bangunan, dan lingkungan dari foto referensi Anda. DILARANG menambahkan pilar istana Romawi, kolam renang fiktif, atau marmer mewah palsu. Video tetap dibuat indah dan sinematik murni lewat variasi pergerakan kamera nyata (Ken Burns push/pull, smooth gimbal pan) dan pencahayaan alami.
+                    </p>
+                  </div>
                 </div>
               </div>
 

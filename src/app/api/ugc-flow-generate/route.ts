@@ -224,14 +224,25 @@ ${multiPartInstruction}
 
 ${multiSheetInstruction}
 
-TIGA PILAR KONSISTENSI VISUAL MUTLAK (THE THREE CONTINUITY PILLARS):
-1. PILAR 1 - LIGHTING CONTINUITY ANCHOR:
-   - Seluruh adegan WAJIB memiliki kondisi tata cahaya yang identik (misal: "Natural soft morning daylight, 45-degree warm key light with subtle rim reflection"). Dilarang mengubah sumber cahaya mendadak antar klip agar warna tidak melompat saat digabung di CapCut.
-2. PILAR 2 - WARDROBE & PROP LOCK ANCHOR:
-   - Pakaian, gaya rambut, dan aksesori @character_1 serta wujud fisik kemasan/tekstur @hero_object harus 100% TERKUNCI identik di setiap scene tanpa deviasi.
-3. PILAR 3 - AUDIO-ACTION SYNC ANCHOR (ZERO PHANTOM SFX):
-   - Efek suara foley (seperti kriuk/gigitan/snap/tegukan/tuang) WAJIB terlihat aksi fisik penyebabnya secara nyata di layar pada detik tersebut! DILARANG KERAS memunculkan suara kriuk jika makanan tidak terlihat digigit atau dipatahkan secara fisik di video.
-4. FRAME BOUNDARY HAND-OFF (KONSISTENSI SAMBUNGAN KLIP):
+EMPAT PILAR KONSISTENSI VISUAL MUTLAK & GUARDRAIL REALITAS:
+1. PILAR 1 - STRICT GROUNDED REALITY & ANTI-CATFISH GUARDRAIL (ANTI-HALUSINASI ARSITEKTUR):
+   - WAJIB 100% MEMATUHI ELEMEN FISIK FOTO REFERENSI (@setting_X): Bentuk bangunan asli, material dinding, jenis lantai, kondisi halaman/pekarangan, dan lingkungan sekitar HARUS identik dengan foto nyata yang dilampirkan.
+   - PANTANGAN MUTLAK / DILARANG KERAS MENGARANG:
+     * DILARANG menambahkan pilar istana Romawi, kolam renang mewah fiktif, lantai marmer kerajaan, taman bunga Eropa, gerbang istana, atau mengubah rumah sederhana/asri 1 lantai menjadi mansion megah!
+     * Calon pembeli yang datang ke lokasi TIDAK BOLEH merasa tertipu iklan video (ZERO CATFISHING).
+   - TEKNIK ESTETIKA TANPA NGARANG (CINEMATIC GROUNDED VARIATION):
+     * Jadikan video indah dan sinematik BUKAN dengan mengubah atau mempercantik bangunan secara palsu, melainkan dengan VARIASI ANGLE & PERGERAKAN KAMERA PROFESIONAL terhadap objek yang BENAR-BENAR ADA di foto:
+       1) Ken Burns effect (slow push-in, subtle pull-out, smooth drift zoom)
+       2) Smooth eye-level gimbal glide & parallax tracking (kamera meluncur halus sejajar mata)
+       3) Dynamic foreground depth (misal dedaunan pohon buah asli menjadi foreground alami)
+       4) Pencahayaan alami sinematik: Golden hour, soft morning sunbeams, warm ambient glow yang memperindah tekstur asli.
+2. PILAR 2 - LIGHTING CONTINUITY ANCHOR:
+   - Seluruh adegan WAJIB memiliki kondisi tata cahaya yang konsisten dan alami (misal: "Natural soft morning daylight, 45-degree warm key light with subtle rim reflection"). Dilarang mengubah sumber cahaya mendadak antar klip agar warna tidak melompat saat digabung di CapCut.
+3. PILAR 3 - WARDROBE & PROP LOCK ANCHOR:
+   - Pakaian, gaya hijab/rambut, kacamata, dan aksesori @character_1 serta wujud fisik @hero_object harus 100% TERKUNCI identik di setiap scene sesuai foto referensi tanpa deviasi.
+4. PILAR 4 - AUDIO-ACTION SYNC ANCHOR (ZERO PHANTOM SFX):
+   - Efek suara foley (seperti langkah kaki, desau angin dedaunan, gemerisik pohon, ketukan pintu) WAJIB terlihat aksi fisik penyebabnya secara nyata di layar pada detik tersebut! DILARANG KERAS memunculkan suara foley fiktif yang aksinya tidak ada di video.
+5. FRAME BOUNDARY HAND-OFF (KONSISTENSI SAMBUNGAN KLIP):
    - Setiap adegan (terutama adegan 2 ke atas) WAJIB mencantumkan "startingFrame" yang menyambung persis dari posisi akhir (endingFrame) adegan sebelumnya, sehingga ketika dieksekusi di sesi Gemini atau digabung di CapCut, pergerakannya mengalir mulus tanpa patah (*seamless cut*).
 
 ATURAN NASKAH & PENGETAHUAN LOKASI:
@@ -540,14 +551,14 @@ function buildGeminiChainPrompts(data: any): string[] {
     const settingIndex = envImages.length > 0 ? (globalIdx % envImages.length) + 1 : 1;
     const settingLabel = envImages.length > 0 ? envImages[settingIndex - 1]?.label || `Area ${settingIndex}` : "Ruangan Nyata";
     const settingDirective = envImages.length > 0
-      ? `* Latar / Ruangan: Gunakan [FOTO RUANGAN ${settingIndex}: @setting_${settingIndex} (${settingLabel})]. Kunci arsitektur foto ini persis tanpa halusinasi.`
-      : `* Latar / Ruangan: @setting_1 (Kunci tata letak dan tata cahaya identik).`;
+      ? `* Latar / Ruangan: Gunakan [FOTO RUANGAN ${settingIndex}: @setting_${settingIndex} (${settingLabel})]. Kunci arsitektur, ukuran, dan kondisi asli foto ini 100% persis tanpa halusinasi.`
+      : `* Latar / Ruangan: @setting_1 (Kunci tata letak, ukuran, dan tata cahaya identik dengan foto asli).`;
 
     // Character mapping badge
     const charIndex = charImages.length > 0 ? (globalIdx % charImages.length) + 1 : 1;
     const charLabel = charImages.length > 0 ? charImages[charIndex - 1]?.label || `Host ${charIndex}` : "Host Kreator";
     const charDirective = charImages.length > 0
-      ? `* Karakter Host: Gunakan [FOTO HOST ${charIndex}: @character_${charIndex} (${charLabel})]. Kunci wajah, rambut, dan pakaian.`
+      ? `* Karakter Host: Gunakan [FOTO HOST ${charIndex}: @character_${charIndex} (${charLabel})]. Kunci wajah, hijab/rambut, dan pakaian.`
       : `* Karakter Host: @character_1 (Wajah dan busana konsisten 100%).`;
 
     // Object mapping badge
@@ -564,8 +575,10 @@ Format: Video 10 Detik Mandiri (Anti-Macet • Gabung di CapCut)
 Proyek: ${projectTitle}
 Pacing Naskah: ${pacingWordLimit}
 
-[KONSISTENSI FOTO REFERENSI MANDIRI (ZERO CHAT OVERLOAD)]:
-- Generate video klip 10 detik ini secara mandiri (bersih tanpa perlu membaca memori video sebelumnya).
+[GUARDRAIL REALITAS & ANTI-HALUSINASI (ZERO CATFISH / STRICT PHOTO FIDELITY)]:
+- STRICT GROUNDED REALITY: Replikasi 100% arsitektur, bentuk bangunan asli, material lantai/dinding, dan kondisi lingkungan persis seperti foto referensi (@setting_${settingIndex}).
+- DILARANG MENGARANG: Dilarang menambahkan pilar istana Romawi, kolam renang palsu, marmer mewah fiktif, taman Eropa palsu, atau mengubah rumah sederhana/asri menjadi istana mewah! Calon pembeli yang datang ke lokasi tidak boleh merasa tertipu video.
+- TEKNIK SINEMATIK RESMI: Buat video indah murni melalui variasi kamera sinematik (Ken Burns subtle zoom in/out, smooth eye-level gimbal glide, dynamic parallax) dan tata cahaya alami (soft morning sunlight / golden hour glow) pada aset yang BENAR-BENAR ADA di foto!
   ${charDirective}
   ${settingDirective}
   ${objDirective}
@@ -595,7 +608,8 @@ Format: Video 10 Detik ${partNumber ? `(Sesi Part ${partNumber} Gemini)` : "(Gem
 Proyek: ${projectTitle}
 Pacing Naskah: ${pacingWordLimit}
 
-[INSTRUKSI MEMORI & KONSISTENSI GEMINI]:
+[GUARDRAIL REALITAS & MEMORI KONSISTENSI GEMINI (ANTI-CATFISH)]:
+- STRICT GROUNDED REALITY: Replikasi 100% kondisi fisik dari foto referensi yang terlampir. DILARANG menambahkan pilar Romawi, kolam renang, atau ornamen istana fiktif!
 - Gunakan foto referensi yang terlampir di chat ini:
   ${charDirective}
   ${settingDirective}
@@ -624,9 +638,10 @@ ${s.endingFrame || "@character_1 menyelesaikan pengantar dengan gestur mengarahk
 Format: Video 10 Detik (Sambungan Langsung di Sesi Gemini yang Sama)
 Pacing Naskah: ${pacingWordLimit}
 
-[INSTRUKSI SAMBUNGAN GEMINI (FRAME BOUNDARY HAND-OFF)]:
+[INSTRUKSI SAMBUNGAN GEMINI (FRAME BOUNDARY HAND-OFF & ZERO CATFISH)]:
 - Lanjutkan video sebelumnya di dalam satu utas percakapan ini.
-- JANGAN UBAH WAJAH, RAMBUT, ATAU BAJU KARAKTER.
+- JANGAN UBAH WAJAH, RAMBUT/HIJAB, ATAU BAJU KARAKTER.
+- STRICT GROUNDED REALITY: Pertahankan arsitektur asli foto @setting_${settingIndex} tanpa menambah elemen mewah palsu.
   ${settingDirective}
 - Starting Frame: ${s.startingFrame || `Melanjutkan persis dari frame terakhir Klip ${globalIdx} tanpa jeda.`}
 - Kunci tata cahaya: ${s.lightingAnchor || "Natural soft daylight"} identik dengan klip sebelumnya.
@@ -679,7 +694,7 @@ function buildEngineDirectPrompt(parsed: any, topic: string, hostName: string, e
   const isLlmNative = engineTarget === "llm-native";
   if (isLlmNative) {
     return (
-      `=== MASTER PROMPT UGC LENGKAP SIAP PAKAI KE ${llmModel.toUpperCase()} ===\n\nTopik: ${parsed.projectTitle || topic}\nDurasi Total: ${parsed.totalDuration} (${parsed.scenes.length} Adegan @ 10s)\nHost: ${parsed.hostProfile?.name || hostName}\nPacing: ${parsed.pacingMode === "fast" ? "Cepat (24–28 kata/adegan)" : "Normal (14–18 kata/adegan)"}\n\n[ATURAN SINKRONISASI MUTLAK]: Seluruh efek suara foley WAJIB terlihat aksi fisiknya secara nyata di layar.\n\nDAFTAR ADEGAN & NASKAH LENGKAP:\n` +
+      `=== MASTER PROMPT UGC LENGKAP SIAP PAKAI KE ${llmModel.toUpperCase()} ===\n\nTopik: ${parsed.projectTitle || topic}\nDurasi Total: ${parsed.totalDuration} (${parsed.scenes.length} Adegan @ 10s)\nHost: ${parsed.hostProfile?.name || hostName}\nPacing: ${parsed.pacingMode === "fast" ? "Cepat (24–28 kata/adegan)" : "Normal (14–18 kata/adegan)"}\n\n[GUARDRAIL REALITAS & ANTI-CATFISH]: Seluruh adegan WAJIB mereplikasi 100% arsitektur dan kondisi fisik foto referensi (@setting_X). DILARANG menambahkan pilar Romawi, kolam renang, atau ornamen mewah palsu. Keindahan sinematik dihasilkan lewat Ken Burns push/pull, gimbal tracking, dan pencahayaan alami.\n\n[ATURAN SINKRONISASI MUTLAK]: Seluruh efek suara foley WAJIB terlihat aksi fisiknya secara nyata di layar.\n\nDAFTAR ADEGAN & NASKAH LENGKAP:\n` +
       parsed.scenes
         .map(
           (s: any) =>
@@ -864,30 +879,30 @@ function generateCleanStudioFallback(params: any) {
     // 4 Scenes (for <=40s / gemini-40s) or 8 Scenes (for multi-part)
     const propertyTemplates = [
       {
-        stage: "HOOK & FASAD PROPERTI",
+        stage: "HOOK & FASAD PROPERTI ASLI",
         roll: "A-Roll",
-        normal: `[excited] Cari rumah idaman di ${propFacts.location}? [pause] Halaman luas ${propFacts.landArea} dengan akses jalan dua mobil!`,
-        fast: `[excited] Siapa bilang cari hunian asri di ${propFacts.location} itu susah? [pause] Rumah luas ${propFacts.landArea} ini posisinya super strategis dan bebas banjir!`,
-        cam: "Slow sweeping crane down from wide facade to eye-level medium shot in front of @character_1",
-        visual: "@character_1 stands proudly on the pathway in front of the property facade @setting_1, gesturing to the environment.",
+        normal: `[excited] Cari tanah ${propFacts.landArea} di ${propFacts.location}? [pause] Halaman luas dengan akses jalan dua mobil!`,
+        fast: `[excited] Siapa sangka di ${propFacts.location} masih ada properti seluas ${propFacts.landArea}? [pause] Suasananya adem, jalan depan 2 mobil, dan lokasinya super strategis!`,
+        cam: "Cinematic Ken Burns slow push-in 35mm from front gate / driveway towards @character_1 at eye-level",
+        visual: "@character_1 stands naturally in the front yard of the authentic residential house as shown in @setting_1, gesturing politely to the camera. Exact architectural match to @setting_1, natural morning daylight, realistic pavement texture, zero fake luxury additions.",
         settingTag: "@setting_1",
       },
       {
-        stage: "HIGHLIGHT BANGUNAN & KEUNGGULAN",
+        stage: "EKSPLORASI RUANG & BANGUNAN ASLI",
         roll: "B-Roll",
-        normal: `[warm] Bangunannya kokoh terawat, [pause] plus ${propFacts.specialFeature} yang super adem!`,
-        fast: `[warm] Masuk ke area dalam, bangunannya permanen dan terawat rapi. [pause] Ditambah ${propFacts.specialFeature}, bikin suasananya tenang banget buat keluarga!`,
-        cam: "Smooth gliding push-in 24mm showcasing the architecture and surrounding space",
-        visual: "Camera glides through @setting_2 showcasing the architectural details and lush surrounding environment.",
+        normal: `[warm] Bangunan permanen terawat, [pause] plus ${propFacts.specialFeature} yang super adem!`,
+        fast: `[warm] Masuk ke dalam, bangunannya permanen dan nyaman dihuni. [pause] Ditambah ${propFacts.specialFeature}, pas banget buat hunian keluarga yang tenang!`,
+        cam: "Smooth eye-level gimbal pan and slow drift zoom across the living area @setting_2",
+        visual: "Smooth cinematic gimbal glide through the authentic interior room @setting_2, showcasing real furniture and natural tile flooring with soft morning sunlight streaming in, 100% faithful to @setting_2 reference photo.",
         settingTag: "@setting_2",
       },
       {
-        stage: "AKSES STRATEGIS & KONEKTIVITAS",
-        roll: "A-Roll",
-        normal: `[curious] Lokasinya super strategis, [pause] cuma ${propFacts.proximityText}!`,
-        fast: `[curious] Mau ke mana-mana gampang banget! [pause] Posisinya cuma ${propFacts.proximityText}, pas banget buat hunian keluarga atau aset investasi bernilai tinggi!`,
-        cam: "Medium portrait 50mm / natural daylight with attractive property angle background",
-        visual: "@character_1 explains with confident, trustworthy posture in front of @setting_3, pointing out accessibility.",
+        stage: "KEBUN BELAKANG ASRI & AKSES LOKASI",
+        roll: "B-Roll / A-Roll",
+        normal: `[warm] Halaman belakang kebun buah luas, [pause] posisinya cuma ${propFacts.proximityText}!`,
+        fast: `[warm] Yang paling istimewa halaman belakangnya super luas penuh pepohonan buah! [pause] Aksesnya strategis cuma ${propFacts.proximityText}!`,
+        cam: "Low-angle tracking shot gliding gently across lush green lawn with tropical fruit trees @setting_3",
+        visual: "Camera glides slowly across the authentic lush green backyard garden @setting_3 with mature fruit trees and natural grass, bathed in warm golden morning light, exact match to @setting_3 reference photo without artificial embellishments.",
         settingTag: "@setting_3",
       },
       {
@@ -895,8 +910,8 @@ function generateCleanStudioFallback(params: any) {
         roll: "A-Roll",
         normal: `[excited] Legalitas aman sertifikat SHM, ditawarkan ${propFacts.priceText}. [pause] Yuk survey sekarang!`,
         fast: `[excited] Legalitas aman sertifikat sudah SHM lengkap, harga ${propFacts.priceText} nego sampai jadi! [pause] Hubungi kami sekarang dan jadwalkan survey minggu ini!`,
-        cam: "Slow tracking in 35mm to confident inviting closing smile",
-        visual: "@character_1 gives an inviting gesture with friendly smile, inviting viewer for private survey.",
+        cam: "Subtle Ken Burns push-in 50mm portrait shot focusing on @character_1 with welcoming smile",
+        visual: "@character_1 stands in the authentic front area @setting_1, giving an inviting warm smile and polite open hand gesture towards the camera, welcoming viewers to visit and survey the property directly.",
         settingTag: "@setting_1",
       },
       // Part 2 Scenes (for 8-scene multi-part)
@@ -905,17 +920,17 @@ function generateCleanStudioFallback(params: any) {
         roll: "A-Roll",
         normal: `[excited] Melanjutkan Part 1, mari kita eksplor lebih dalam! [pause] Ini dia detail keunggulan properti ini!`,
         fast: `[excited] Melanjutkan Part 1! Sekarang kita masuk ke area highlight kedua seluas ${propFacts.landArea} yang bikin properti ini beda dari yang lain!`,
-        cam: "Wide establishing pedestal shot revealing the wider courtyard @setting_4",
-        visual: "@character_1 welcomes viewers into the spacious outdoor area @setting_4.",
+        cam: "Cinematic Ken Burns slow pedestal shot revealing the wider courtyard @setting_4",
+        visual: "@character_1 welcomes viewers into the authentic outdoor courtyard @setting_4, exact match to reference photo.",
         settingTag: "@setting_4",
       },
       {
-        stage: "POTENSI NILAI INVESTASI",
+        stage: "POTENSI NILAI INVESTASI & TANAH LUAS",
         roll: "B-Roll",
         normal: `[warm] Nilai tanah terus naik di ${propFacts.location}, [pause] cocok banget buat investasi jangka panjang!`,
         fast: `[warm] Kawasan ${propFacts.location} terus berkembang pesat setiap tahun. [pause] Beli unit ini bukan cuma dapet hunian asri, tapi juga tabungan investasi masa depan yang aman!`,
-        cam: "Smooth tracking shot along the property perimeter showing good road access",
-        visual: "Smooth tracking across property grounds, wide access road, neat landscaping.",
+        cam: "Smooth horizontal tracking shot along the authentic property boundary @setting_4",
+        visual: "Smooth tracking across authentic property grounds and trees as shown in @setting_4, realistic natural daylight.",
         settingTag: "@setting_4",
       },
       {
@@ -923,8 +938,8 @@ function generateCleanStudioFallback(params: any) {
         roll: "A-Roll",
         normal: `[warm] Dekat ke berbagai fasilitas penting: [pause] ${propFacts.proximityText}!`,
         fast: `[warm] Dari pusat pendidikan sampai tol cuma hitungan menit: [pause] ${propFacts.proximityText}! Benar-benar memudahkan mobilitas harian Anda!`,
-        cam: "Medium portrait 50mm / warm daylight with lush garden background",
-        visual: "@character_1 explains with confident posture in front of @setting_1.",
+        cam: "Medium portrait 50mm / warm natural daylight with authentic property background",
+        visual: "@character_1 explains with confident posture in front of @setting_1, faithful to real property.",
         settingTag: "@setting_1",
       },
       {
@@ -933,7 +948,7 @@ function generateCleanStudioFallback(params: any) {
         normal: `[excited] Unit langka dengan harga ${propFacts.priceText}. [pause] Jangan sampai keduluan, hubungi sekarang!`,
         fast: `[excited] Kesempatan emas memiliki properti ${propFacts.landArea} di ${propFacts.location} dengan harga ${propFacts.priceText}! [pause] Langsung hubungi kami untuk info detail dan survey lokasi!`,
         cam: "Slow tracking in 35mm to confident inviting closing smile",
-        visual: "@character_1 gives an inviting gesture with friendly smile, pointing to contact link.",
+        visual: "@character_1 gives an inviting gesture with friendly smile in front of the real property @setting_1.",
         settingTag: "@setting_1",
       },
     ];
