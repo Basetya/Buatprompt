@@ -55,6 +55,8 @@ interface UgcFlowGenerateRequest {
   characterImages?: SheetImageItem[];
   objectImages?: SheetImageItem[];
   environmentImages?: SheetImageItem[];
+  // Execution architecture: isolated (default, anti-stall) vs chained
+  clipMode?: "isolated" | "chained";
 }
 
 export async function POST(req: NextRequest) {
@@ -70,6 +72,7 @@ export async function POST(req: NextRequest) {
       customHostDescription = "",
       cameraArchetype = "auto",
       pacingMode = "normal",
+      clipMode = "isolated",
       clarificationAnswers = {},
       hostImage = null,
       productImage = null,
@@ -407,7 +410,8 @@ Hasilkan JSON produksi utuh sekarang.`;
           }
 
           // Populate Gemini Chain Prompts
-          parsed.geminiChainPrompts = buildGeminiChainPrompts(parsed);
+          parsed.clipMode = clipMode;
+          parsed.geminiChainPrompts = buildGeminiChainPrompts({ ...parsed, clipMode });
 
           // Populate CapCut Assembly Guide
           if (!parsed.capcutAssemblyGuide || !Array.isArray(parsed.capcutAssemblyGuide) || parsed.capcutAssemblyGuide.length === 0) {
@@ -515,6 +519,7 @@ function buildGeminiChainPrompts(data: any): string[] {
   const scenes: UgcScene[] = data.scenes || [];
   const projectTitle = data.projectTitle || "Proyek UGC";
   const pacingMode: PacingMode = data.pacingMode || "normal";
+  const clipMode: "isolated" | "chained" = data.clipMode || "isolated";
   const envImages: SheetImageItem[] = data.environmentImages || [];
   const charImages: SheetImageItem[] = data.characterImages || [];
   const objImages: SheetImageItem[] = data.objectImages || [];
@@ -545,6 +550,38 @@ function buildGeminiChainPrompts(data: any): string[] {
       : `* Objek / Produk: @object_1 konsisten.`;
 
     const pacingWordLimit = pacingMode === "fast" ? "24–28 kata (Tempo Cepat / Padat TikTok)" : "14–18 kata (Tempo Normal / Artikulatif)";
+
+    // ISOLATED / MODULAR GENERATION MODE (ANTI-STALL ON CLIP 3)
+    if (clipMode === "isolated") {
+      return `=== KLIP ${globalIdx + 1}: ${s.stageName.toUpperCase()} (${s.timeRange}) [STANDALONE / TERISOLASI] ===
+Format: Video 10 Detik Mandiri (Anti-Macet • Gabung di CapCut)
+Proyek: ${projectTitle}
+Pacing Naskah: ${pacingWordLimit}
+
+[KONSISTENSI FOTO REFERENSI MANDIRI (ZERO CHAT OVERLOAD)]:
+- Generate video klip 10 detik ini secara mandiri (bersih tanpa perlu membaca memori video sebelumnya).
+  ${charDirective}
+  ${settingDirective}
+  ${objDirective}
+- Kunci tata cahaya: ${s.lightingAnchor || "Natural soft daylight, 45-degree key light"} di seluruh adegan.
+- Aksi Fisik Nyata: Efek suara foley wajib terlihat aksi fisiknya di layar (zero phantom sound).
+- Batas Durasi: 10 Detik pas. Penggabungan mulus dilakukan di timeline CapCut.
+
+[ARAHAN KAMERA]:
+${s.cameraDirective}
+
+[VISUAL PROMPT KLIP ${globalIdx + 1}]:
+${s.flowVisualPrompt}
+
+[NASKAH DIALOG (${pacingWordLimit})]:
+"${s.voiceoverScriptId}"
+
+[SOUNDSCAPE & SFX (ACTION-COUPLED)]:
+${s.audioSoundscapePrompt}
+
+[CATATAN EDIT CAPCUT]:
+${s.capcutEditNote || "Potong halus 0.2 detik awal/akhir dan gabungkan langsung (hard cut) di CapCut."}`;
+    }
 
     if (isFirstClipInSession) {
       return `=== KLIP ${globalIdx + 1}: ${s.stageName.toUpperCase()} (${s.timeRange}) ===
@@ -987,6 +1024,7 @@ function generateCleanStudioFallback(params: any) {
       projectTitle: topic || "Proyek Video UGC",
       pacingMode,
       environmentImages,
+      clipMode: params.clipMode || "isolated",
     }),
     capcutAssemblyGuide: buildCapcutAssemblyGuide({
       scenes,

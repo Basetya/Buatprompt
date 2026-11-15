@@ -240,6 +240,7 @@ export default function UgcFlowStudioPage() {
   const [topic, setTopic] = useState("");
   const [targetDuration, setTargetDuration] = useState<TargetDurationOption>("gemini-40s");
   const [pacingMode, setPacingMode] = useState<"normal" | "fast">("normal");
+  const [clipMode, setClipMode] = useState<"isolated" | "chained">("isolated");
   const [engineCategory, setEngineCategory] = useState<"video-ai" | "llm-native">("video-ai");
   const [videoTool, setVideoTool] = useState<VideoAiEngine>("google-flow");
   const [llmModel, setLlmModel] = useState<LlmModelType>("gemini");
@@ -471,6 +472,7 @@ export default function UgcFlowStudioPage() {
           customHostDescription,
           cameraArchetype,
           pacingMode,
+          clipMode,
           clarificationAnswers: clarifyAnswers,
           hostImage: characterImages[0]?.url || hostImage,
           productImage: objectImages[0]?.url || productImage,
@@ -811,6 +813,37 @@ ${scenesText}`;
         ? objImages[objIndex - 1]?.label || `Produk ${objIndex}`
         : "Produk";
 
+    if (clipMode === "isolated") {
+      return `=== KLIP ${s.sceneNumber}: ${s.stageName.toUpperCase()} (${s.timeRange}) [STANDALONE / TERISOLASI] ===
+Format: Video 10 Detik Mandiri (Anti-Macet di Klip 3 • Gabung di CapCut)
+Proyek: ${result.projectTitle}
+Pacing Naskah: ${pacingLabel}
+
+[KONSISTENSI FOTO REFERENSI MANDIRI (ZERO CHAT OVERLOAD)]:
+- Generate video klip 10 detik ini secara mandiri (bersih tanpa perlu membaca memori video sebelumnya).
+  * Karakter Host: Gunakan [FOTO HOST ${charIndex}: @character_${charIndex} (${charLabel})]. Kunci wajah, ekspresi, dan pakaian 100% konsisten.
+  * Setting Ruangan: Gunakan [FOTO RUANGAN ${settingIndex}: @setting_${settingIndex} (${settingLabel})]. Kunci arsitektur foto ini persis tanpa halusinasi!
+  ${objImages.length > 0 ? `* Objek / Produk: Gunakan [FOTO PRODUK ${objIndex}: @object_${objIndex} (${objLabel})]. Kunci bentuk dan warna.` : ""}
+- Kunci tata cahaya: ${s.lightingAnchor || "Natural soft daylight, 45-degree key light"} di seluruh adegan.
+- Aksi Fisik Nyata: Efek suara foley wajib terlihat aksi fisiknya di layar (zero phantom sound).
+- Batas Durasi: 10 Detik pas. Penggabungan mulus dilakukan di timeline CapCut.
+
+[ARAHAN KAMERA]:
+${s.cameraDirective}
+
+[VISUAL PROMPT KLIP ${s.sceneNumber}]:
+${s.flowVisualPrompt}
+
+[NASKAH DIALOG (${pacingLabel})]:
+"${s.voiceoverScriptId}"
+
+[SOUNDSCAPE & SFX (ACTION-COUPLED)]:
+${s.audioSoundscapePrompt}
+
+[CATATAN EDIT CAPCUT]:
+${s.capcutEditNote || "Potong halus 0.2 detik awal/akhir dan sambungkan langsung (hard cut) di timeline CapCut."}`;
+    }
+
     if (idx === 0) {
       return `=== KLIP 1: ${s.stageName.toUpperCase()} (${s.timeRange}) ===
 Format: Video 10 Detik (Gemini 40s Session Pass)
@@ -937,6 +970,27 @@ ${s.flowVisualPrompt}
       partsContent = result.scenes
         .map((s, idx) => formatGeminiSingleClipPrompt(result, s, idx))
         .join("\n\n--------------------------------------------------\n\n");
+    }
+
+    if (clipMode === "isolated") {
+      return `=== PRODUKSI VIDEO KLIP TERISOLASI / MODULAR (ANTI-MACET & CEPAT) ===
+Proyek: ${result.projectTitle}
+Total Durasi: ${result.totalDuration} (${result.scenes.length} Klip @ 10 Detik Standalone)
+Pacing: ${result.pacingMode === "fast" ? "Cepat (24–28 kata/klip)" : "Normal (14–18 kata/klip)"}
+Metode Eksekusi: Standalone Clips -> Seamless Assembly di CapCut
+
+PETUNJUK EKSEKUSI (ANTI-MACET DI KLIP KE-3):
+1. Setiap klip dirancang MANDIRI & TERISOLASI mengunci konsistensi dari foto referensi yang sama (@character_1, @setting_1).
+2. AI TIDAK dibebani memori video sebelumnya sehingga 100% BEBAS MACET / FREEZE di Klip ke-3!
+3. Anda bisa mengeksekusi Klip 1 s/d ${result.scenes.length} satu per satu (bahkan bisa di tab chat baru terpisah).
+4. Unduh semua file MP4 (Klip 1 s/d ${result.scenes.length}), lalu impor ke CapCut.
+5. Di CapCut, jejerkan di timeline utama, trim 0.2 detik awal/akhir, dan aktifkan Auto Captions. Video 40 detik selesai dalam hitungan menit tanpa nunggu 5 jam!
+
+==================================================
+DAFTAR PROMPT BERURUTAN (MODE TERISOLASI):
+==================================================
+
+${partsContent}`;
     }
 
     return `=== RANTAI PRODUKSI MULTI-KLIP GEMINI (FRAME BOUNDARY HAND-OFF) ===
@@ -1238,6 +1292,66 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                     </div>
                     <p className="text-[11px] font-sans text-[#a8a197] mt-1.5 leading-relaxed">
                       Tempo TikTok kinetic ~180 WPM, padat informasi, hook intensif tanpa jeda kosong. Maksimal 28 kata per 10 detik agar pas ritme visual.
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Architecture & Continuity Strategy Selector (Isolated vs Chained) */}
+              <div className="rounded-xl border border-[#2d2a27] bg-[#1a1b1f] p-4 sm:p-5 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-xs font-mono font-semibold text-[#f5f1eb] flex items-center gap-1.5 uppercase tracking-wider">
+                      <Sparkles className="h-3.5 w-3.5 text-[#c29b74]" />
+                      <span>Arsitektur Sambungan Klip (Anti-Macet di Klip 3)</span>
+                    </h4>
+                    <p className="text-[11px] text-[#8c857c] mt-0.5">
+                      Pilih bagaimana model AI mengeksekusi setiap adegan video Anda.
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-mono text-[#c29b74] bg-[#c29b74]/10 border border-[#c29b74]/20 px-2.5 py-1 rounded-full w-fit">
+                    {clipMode === "isolated" ? "🛡️ Mode Terisolasi (Anti-Macet • Gabung CapCut)" : "🔗 Mode Rantai (1 Percakapan)"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setClipMode("isolated")}
+                    className={`rounded-xl border p-3.5 text-left transition-all ${
+                      clipMode === "isolated"
+                        ? "border-[#c29b74] bg-[#c29b74]/15 text-[#f5f1eb] shadow"
+                        : "border-[#262422] bg-[#151619] text-[#8c857c] hover:border-[#3a3632]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono font-bold text-[#f5f1eb]">
+                        Mode Terisolasi / Mandiri (Rekomendasi)
+                      </span>
+                      {clipMode === "isolated" && <Check className="h-4 w-4 text-[#c29b74]" />}
+                    </div>
+                    <p className="text-[11px] font-sans text-[#a8a197] mt-1.5 leading-relaxed">
+                      Tiap klip 10 detik dibuat mandiri mengunci foto referensi tanpa membebani AI membaca video lama. 100% bebas macet di klip ke-3, cepat selesai tanpa nunggu 5 jam. Penggabungan mulus di CapCut!
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setClipMode("chained")}
+                    className={`rounded-xl border p-3.5 text-left transition-all ${
+                      clipMode === "chained"
+                        ? "border-[#c29b74] bg-[#c29b74]/15 text-[#f5f1eb] shadow"
+                        : "border-[#262422] bg-[#151619] text-[#8c857c] hover:border-[#3a3632]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono font-bold text-[#f5f1eb]">
+                        Mode Rantai Sambung Frame (1 Chat)
+                      </span>
+                      {clipMode === "chained" && <Check className="h-4 w-4 text-[#c29b74]" />}
+                    </div>
+                    <p className="text-[11px] font-sans text-[#a8a197] mt-1.5 leading-relaxed">
+                      AI mencoba melanjutkan persis dari frame terakhir video sebelumnya dalam 1 percakapan berurutan. Berpotensi overload buffer memori di klip ke-3.
                     </p>
                   </button>
                 </div>
@@ -1949,7 +2063,9 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-5 w-5 text-[#c29b74]" />
                       <h3 className="text-base font-semibold text-[#f5f1eb]">
-                        Rantai Produksi Multi-Klip Gemini (Maksimal 40 Detik • 4 Klip @ 10s)
+                        {clipMode === "isolated"
+                          ? `Produksi Video Klip Terisolasi (${masterResult.scenes.length} Klip Standalone • Anti-Macet)`
+                          : `Rantai Produksi Multi-Klip Gemini (${masterResult.scenes.length} Klip • Frame Hand-Off)`}
                       </h3>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1974,12 +2090,49 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                         className="flex items-center gap-1.5 rounded-lg bg-[#c29b74] px-3.5 py-1.5 text-xs font-mono font-semibold text-[#121315] hover:bg-[#d1aa82]"
                       >
                         {copiedKey === "all-gemini-chain" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                        <span>{copiedKey === "all-gemini-chain" ? "Tersalin!" : "Salin Seluruh Rantai"}</span>
+                        <span>{copiedKey === "all-gemini-chain" ? "Tersalin!" : "Salin Seluruh Prompt"}</span>
                       </button>
                     </div>
                   </div>
+
+                  {/* On-the-fly Mode Switcher: Isolated vs Chained */}
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#262422]">
+                    <span className="text-[11px] font-mono text-[#a8a197] uppercase">Metode Sambungan:</span>
+                    <button
+                      type="button"
+                      onClick={() => setClipMode("isolated")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all flex items-center gap-1.5 border ${
+                        clipMode === "isolated"
+                          ? "bg-[#c29b74] text-[#121315] font-bold border-[#c29b74] shadow-sm"
+                          : "bg-[#151619] text-[#8c857c] border-[#2d2a27] hover:text-[#f5f1eb]"
+                      }`}
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      <span>Mode Terisolasi / Mandiri (Anti-Macet di Klip 3 • Gabung CapCut)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClipMode("chained")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all flex items-center gap-1.5 border ${
+                        clipMode === "chained"
+                          ? "bg-[#c29b74] text-[#121315] font-bold border-[#c29b74] shadow-sm"
+                          : "bg-[#151619] text-[#8c857c] border-[#2d2a27] hover:text-[#f5f1eb]"
+                      }`}
+                    >
+                      <span>Mode Rantai Sambung Frame (Legacy Hand-Off)</span>
+                    </button>
+                  </div>
+
                   <p className="text-xs text-[#a8a197] leading-relaxed">
-                    Dirancang khusus untuk eksekusi video di <strong>Gemini (Maksimal 40 Detik / 4 Klip @ 10s per sesi)</strong>. Selesaikan 4 klip ini di <strong>SATU UTAS PERCAKAPAN GEMINI YANG SAMA</strong> sehingga 100% tuntas dalam satu sesi tanpa terpotong atau terkena batas kuota 5 jam!
+                    {clipMode === "isolated" ? (
+                      <>
+                        🛡️ <strong>Mode Terisolasi Aktif:</strong> Setiap klip 10 detik di-generate secara mandiri mengunci konsistensi dari foto referensi yang sama (@host & @setting). <strong>Model AI 100% bebas dari beban memori video lama</strong> sehingga tidak akan macet/freeze di Klip ke-3! Penggabungan mulus dilakukan langsung di timeline CapCut.
+                      </>
+                    ) : (
+                      <>
+                        🔗 <strong>Mode Rantai Aktif:</strong> Dirancang untuk eksekusi berantai di <strong>SATU UTAS PERCAKAPAN GEMINI YANG SAMA</strong> dengan frame hand-off lanjutan dari video sebelumnya.
+                      </>
+                    )}
                   </p>
                 </div>
 
