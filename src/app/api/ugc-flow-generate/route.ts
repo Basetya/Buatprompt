@@ -82,7 +82,11 @@ export async function POST(req: NextRequest) {
       environmentImages = [],
     } = body;
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const rawApiKey = process.env.GEMINI_API_KEY || "";
+    const apiKeys = rawApiKey
+      .split(",")
+      .map((k) => k.trim())
+      .filter((k) => k.length > 20);
 
     // Normalizing image arrays (multi-file sheet support)
     const normalizedCharacters: SheetImageItem[] = [...characterImages];
@@ -317,116 +321,118 @@ ${clarificationSummary}
 
 Hasilkan JSON produksi utuh sekarang.`;
 
-    if (apiKey) {
-      try {
-        const ai = new GoogleGenAI({ apiKey });
-        const userParts: any[] = [];
+    if (apiKeys.length > 0) {
+      for (const apiKey of apiKeys) {
+        try {
+          const ai = new GoogleGenAI({ apiKey });
+          const userParts: any[] = [];
 
-        // Attach multi-character images
-        normalizedCharacters.forEach((char, idx) => {
-          const cleanBase64 = char.url.replace(/^data:[^;]+;base64,/, "");
-          const mimeMatch = char.url.match(/^data:([^;]+);base64,/);
-          const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+          // Attach multi-character images
+          normalizedCharacters.forEach((char, idx) => {
+            const cleanBase64 = char.url.replace(/^data:[^;]+;base64,/, "");
+            const mimeMatch = char.url.match(/^data:([^;]+);base64,/);
+            const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+            userParts.push({
+              inlineData: {
+                data: cleanBase64,
+                mimeType,
+              },
+            });
+            userParts.push({
+              text: `[FOTO REFERENSI KARAKTER ${idx + 1}: @character_${idx + 1} (${char.label || "Host"})]: Kunci ciri wajah, rambut, dan busana karakter ini secara konsisten.`,
+            });
+          });
+
+          // Attach multi-object images
+          normalizedObjects.forEach((obj, idx) => {
+            const cleanBase64 = obj.url.replace(/^data:[^;]+;base64,/, "");
+            const mimeMatch = obj.url.match(/^data:([^;]+);base64,/);
+            const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+            userParts.push({
+              inlineData: {
+                data: cleanBase64,
+                mimeType,
+              },
+            });
+            userParts.push({
+              text: `[FOTO REFERENSI OBJEK ${idx + 1}: @object_${idx + 1} (${obj.label || "Produk"})]: Kunci bentuk kemasan, label, dan warna produk ini.`,
+            });
+          });
+
+          // Attach multi-environment images (e.g. 10 property photos)
+          normalizedEnvironments.forEach((env, idx) => {
+            const cleanBase64 = env.url.replace(/^data:[^;]+;base64,/, "");
+            const mimeMatch = env.url.match(/^data:([^;]+);base64,/);
+            const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+            userParts.push({
+              inlineData: {
+                data: cleanBase64,
+                mimeType,
+              },
+            });
+            userParts.push({
+              text: `[FOTO REFERENSI RUANGAN/ENVIRONMENT ${idx + 1}: @setting_${idx + 1} (${env.label || `Area ${idx + 1}`})]: Kunci tata ruang, furnitur jati, dan arsitektur foto ini persis tanpa halusinasi pada adegan yang menggunakan @setting_${idx + 1}.`,
+            });
+          });
+
           userParts.push({
-            inlineData: {
-              data: cleanBase64,
-              mimeType,
+            text: userPromptContent,
+          });
+
+          const response = await ai.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: [
+              {
+                role: "user",
+                parts: userParts,
+              },
+            ],
+            config: {
+              systemInstruction: systemPrompt,
+              responseMimeType: "application/json",
+              temperature: 0.35,
             },
           });
-          userParts.push({
-            text: `[FOTO REFERENSI KARAKTER ${idx + 1}: @character_${idx + 1} (${char.label || "Host"})]: Kunci ciri wajah, rambut, dan busana karakter ini secara konsisten.`,
-          });
-        });
 
-        // Attach multi-object images
-        normalizedObjects.forEach((obj, idx) => {
-          const cleanBase64 = obj.url.replace(/^data:[^;]+;base64,/, "");
-          const mimeMatch = obj.url.match(/^data:([^;]+);base64,/);
-          const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
-          userParts.push({
-            inlineData: {
-              data: cleanBase64,
-              mimeType,
-            },
-          });
-          userParts.push({
-            text: `[FOTO REFERENSI OBJEK ${idx + 1}: @object_${idx + 1} (${obj.label || "Produk"})]: Kunci bentuk kemasan, label, dan warna produk ini.`,
-          });
-        });
+          const text = response.text || "";
+          const parsed = JSON.parse(text);
+          if (parsed.scenes && Array.isArray(parsed.scenes)) {
+            // Attach sheet arrays and fallback single images
+            parsed.characterImages = normalizedCharacters;
+            parsed.objectImages = normalizedObjects;
+            parsed.environmentImages = normalizedEnvironments;
+            parsed.hostImage = normalizedCharacters[0]?.url || hostImage;
+            parsed.productImage = normalizedObjects[0]?.url || productImage;
+            parsed.settingImage = normalizedEnvironments[0]?.url || settingImage;
+            parsed.pacingMode = pacingMode;
 
-        // Attach multi-environment images (e.g. 10 property photos)
-        normalizedEnvironments.forEach((env, idx) => {
-          const cleanBase64 = env.url.replace(/^data:[^;]+;base64,/, "");
-          const mimeMatch = env.url.match(/^data:([^;]+);base64,/);
-          const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
-          userParts.push({
-            inlineData: {
-              data: cleanBase64,
-              mimeType,
-            },
-          });
-          userParts.push({
-            text: `[FOTO REFERENSI RUANGAN/ENVIRONMENT ${idx + 1}: @setting_${idx + 1} (${env.label || `Area ${idx + 1}`})]: Kunci tata ruang, furnitur jati, dan arsitektur foto ini persis tanpa halusinasi pada adegan yang menggunakan @setting_${idx + 1}.`,
-          });
-        });
+            // Hyper-Smart Audio-Visual Causality & Physical Action Lock
+            enforceAudioVisualCausality(parsed.scenes, topic);
 
-        userParts.push({
-          text: userPromptContent,
-        });
+            // Build Parts if scenes > 4 or if target is longform
+            if (parsed.scenes.length > 4 && (!parsed.parts || !Array.isArray(parsed.parts) || parsed.parts.length === 0)) {
+              parsed.parts = buildSmartMultiParts(parsed);
+            }
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3.5-flash-lite",
-          contents: [
-            {
-              role: "user",
-              parts: userParts,
-            },
-          ],
-          config: {
-            systemInstruction: systemPrompt,
-            responseMimeType: "application/json",
-            temperature: 0.35,
-          },
-        });
+            // Populate Gemini Chain Prompts
+            parsed.clipMode = clipMode;
+            parsed.geminiChainPrompts = buildGeminiChainPrompts({ ...parsed, clipMode });
 
-        const text = response.text || "";
-        const parsed = JSON.parse(text);
-        if (parsed.scenes && Array.isArray(parsed.scenes)) {
-          // Attach sheet arrays and fallback single images
-          parsed.characterImages = normalizedCharacters;
-          parsed.objectImages = normalizedObjects;
-          parsed.environmentImages = normalizedEnvironments;
-          parsed.hostImage = normalizedCharacters[0]?.url || hostImage;
-          parsed.productImage = normalizedObjects[0]?.url || productImage;
-          parsed.settingImage = normalizedEnvironments[0]?.url || settingImage;
-          parsed.pacingMode = pacingMode;
+            // Populate CapCut Assembly Guide
+            if (!parsed.capcutAssemblyGuide || !Array.isArray(parsed.capcutAssemblyGuide) || parsed.capcutAssemblyGuide.length === 0) {
+              parsed.capcutAssemblyGuide = buildCapcutAssemblyGuide(parsed);
+            }
 
-          // Hyper-Smart Audio-Visual Causality & Physical Action Lock
-          enforceAudioVisualCausality(parsed.scenes, topic);
+            // Master Direct Prompt
+            if (!parsed.engineDirectPrompt || parsed.engineDirectPrompt.length < 80) {
+              parsed.engineDirectPrompt = buildEngineDirectPrompt(parsed, topic, hostName, engineTarget, llmModel);
+            }
 
-          // Build Parts if scenes > 4 or if target is longform
-          if (parsed.scenes.length > 4 && (!parsed.parts || !Array.isArray(parsed.parts) || parsed.parts.length === 0)) {
-            parsed.parts = buildSmartMultiParts(parsed);
+            return NextResponse.json({ success: true, data: parsed, engine: "gemini-3.5-flash" });
           }
-
-          // Populate Gemini Chain Prompts
-          parsed.clipMode = clipMode;
-          parsed.geminiChainPrompts = buildGeminiChainPrompts({ ...parsed, clipMode });
-
-          // Populate CapCut Assembly Guide
-          if (!parsed.capcutAssemblyGuide || !Array.isArray(parsed.capcutAssemblyGuide) || parsed.capcutAssemblyGuide.length === 0) {
-            parsed.capcutAssemblyGuide = buildCapcutAssemblyGuide(parsed);
-          }
-
-          // Master Direct Prompt
-          if (!parsed.engineDirectPrompt || parsed.engineDirectPrompt.length < 80) {
-            parsed.engineDirectPrompt = buildEngineDirectPrompt(parsed, topic, hostName, engineTarget, llmModel);
-          }
-
-          return NextResponse.json({ success: true, data: parsed, engine: "gemini-3.5-flash-lite" });
+        } catch (geminiErr) {
+          console.warn("Gemini key attempt failed, trying next key:", geminiErr);
         }
-      } catch (geminiErr) {
-        console.warn("Gemini dynamic generate notice, switching to internal builder:", geminiErr);
       }
     }
 
@@ -749,8 +755,70 @@ function generateCleanStudioFallback(params: any) {
   const heroObject = clarificationAnswers.heroObjectOrFeature || "NONE: Tidak Ada Objek Terkunci";
   const isNoneObject = heroObject.includes("NONE");
   const isFood = /kentang|kue|snack|makan|food|crispy|renyah|krispi|goreng|kuliner|fries/i.test(topic);
-  const isProperty = /rumah|kos|properti|tanah|villa|mansion|cakung|apartemen|kost|lantai/i.test(topic) || styleGenre === "house-tour";
+  const isProperty = /rumah|kos|properti|tanah|villa|mansion|apartemen|kost|lantai/i.test(topic) || styleGenre === "house-tour";
 
+  // Dynamic Fact Extractor to prevent any template hallucination
+  const extractPropertyFacts = (text: string) => {
+    let location = "kawasan strategis";
+    if (/pondok\s*cabe|tangsel|pamulang|tangerang\s*selatan/i.test(text)) {
+      location = "Pondok Cabe, Tangerang Selatan";
+    } else if (/cakung|pulo\s*gebang/i.test(text)) {
+      location = "Cakung, Jakarta Timur";
+    } else {
+      const locMatch = text.match(/#(tangsel|pondokcabe|jakarta\w*|bogor|depok|tangerang\w*|bekasi|bandung|surabaya|bali|jogja|semarang)/gi) ||
+                       text.match(/(?:di|daerah|wilayah|lokasi)\s+([A-Z][a-zA-Z\s]{2,20})/i);
+      if (locMatch) {
+        location = locMatch[0].replace(/#/g, "").replace(/(?:di|daerah|wilayah|lokasi)\s+/i, "").trim();
+      }
+    }
+
+    // Land area: prioritize "luas tanah" or "LT", otherwise match m2/m² (skip plain "meter" like 100 meter flyover)
+    let landArea = "tanah luas";
+    const ltMatch = text.match(/(?:luas\s*tanah|lt\.?)\s*(?:adalah|sebesar|:)?\s*(\d+[\.,]?\d*)\s*(?:m2|m²|meter\s*persegi)?/i);
+    if (ltMatch) {
+      landArea = ltMatch[1] + " m²";
+    } else {
+      const areaMatch = text.match(/(\d+[\.,]?\d*)\s*(?:m2|m²|meter\s*persegi)/i);
+      if (areaMatch) landArea = areaMatch[1] + " m²";
+    }
+
+    const proximityItems: string[] = [];
+    if (/kampus\s*ut|universitas\s*terbuka/i.test(text)) proximityItems.push("1 km dari Kampus Universitas Terbuka");
+    if (/flyover/i.test(text)) proximityItems.push("100 meter dari Flyover");
+    if (/tol|jorr/i.test(text)) proximityItems.push("1 km dari gerbang Tol JORR Pamulang-Depok");
+    if (/walikota/i.test(text)) proximityItems.push("dekat Kantor Walikota");
+    if (/stasiun|terminal/i.test(text)) proximityItems.push("dekat terminal bis terpadu");
+    const proximityText = proximityItems.length > 0 ? proximityItems.join(", ") : "akses jalan 2 mobil bebas banjir";
+
+    let specialFeature = "lingkungan asri & bangunan kokoh";
+    if (/durian|alpokat|kebun|tanaman|rimpang/i.test(text)) {
+      specialFeature = "halaman belakang kebun luas dengan aneka pohon buah produktif seperti durian dan alpokat";
+    } else if (/kos|kost/i.test(text)) {
+      specialFeature = "area kos-kosan aktif berpotensi passive income";
+    } else if (/jati/i.test(text)) {
+      specialFeature = "interior full kayu jati Grade A";
+    }
+
+    // Price: look for Rp or Milyar/Juta specifically
+    let priceText = "harga terbaik";
+    const priceMatch = text.match(/rp\.?\s*(\d+[\.,]?\d*)\s*(?:milyar|miliar|jt|juta|m\b)?/i)
+      || text.match(/(\d+[\.,]?\d*)\s*(?:milyar|miliar)/i);
+    if (priceMatch) {
+      const num = priceMatch[1] || priceMatch[0].match(/\d+/)?.[0] || "";
+      const isMiliar = /milyar|miliar|m\b/i.test(priceMatch[0]) || /milyar|miliar/i.test(text.slice(text.indexOf(num)));
+      priceText = "Rp " + num + (isMiliar ? " Miliar" : "");
+    }
+
+    return {
+      location,
+      landArea,
+      proximityText,
+      specialFeature,
+      priceText,
+    };
+  };
+
+  const propFacts = extractPropertyFacts(topic);
   const scenes: UgcScene[] = [];
 
   // Pacing script generator helper
@@ -769,8 +837,8 @@ function generateCleanStudioFallback(params: any) {
       lightingAnchor: lensLighting,
       voiceoverScriptId: isProperty
         ? getScript(
-            "[excited] Rumah 1.100 meter di Cakung ini megah banget! [pause] Plus kos-kosan aktif yang bayarin cicilannya sendiri!",
-            "[excited] Siapa bilang rumah mewah di Jakarta bikin boncos? [pause] Rumah 1.100 meter di komplek Pertamina Cakung ini punya interior jati Grade A plus kos aktif yang bayarin cicilannya sendiri!"
+            `[excited] Cari rumah idaman di ${propFacts.location}? [pause] Halaman luas ${propFacts.landArea} dengan ${propFacts.specialFeature}!`,
+            `[excited] Cari hunian asri di ${propFacts.location}? [pause] Rumah luas ${propFacts.landArea} ini super strategis cuma ${propFacts.proximityText} dan ditawarkan ${propFacts.priceText}!`
           )
         : isFood
         ? getScript(
@@ -783,7 +851,7 @@ function generateCleanStudioFallback(params: any) {
           ),
       cameraDirective: "Dynamic macro push-in 35mm to eye-level / soft ambient rim light",
       flowVisualPrompt: isProperty
-        ? "@character_1 stands in front of @setting_1, pointing towards the majestic facade, warm daylight, crisp 4K fidelity."
+        ? `@character_1 stands in front of @setting_1, pointing towards the property in ${propFacts.location}, warm daylight, crisp 4K fidelity.`
         : "@character_1 hooks audience looking directly into camera with engaging smile.",
       audioSoundscapePrompt: "Crisp clean vocal, subtle warm room ambience, light modern acoustic guitar chord swell.",
       keyVisualBeat: "Klip singkat 10 detik langsung memikat dengan ekspresi autentik.",
@@ -796,76 +864,76 @@ function generateCleanStudioFallback(params: any) {
     // 4 Scenes (for <=40s / gemini-40s) or 8 Scenes (for multi-part)
     const propertyTemplates = [
       {
-        stage: "HOOK & FASAD RUMAH MEGAH",
+        stage: "HOOK & FASAD PROPERTI",
         roll: "A-Roll",
-        normal: "[excited] Siapa sangka di Cakung ada rumah seluas 1.100 meter? [pause] Megah, asri, dan bebas banjir!",
-        fast: "[excited] Siapa bilang cari hunian tenang di Jakarta itu susah? [pause] Ini rumah megah 1.100 meter di komplek Pertamina Cakung, bebas banjir, asri, dan super strategis!",
+        normal: `[excited] Cari rumah idaman di ${propFacts.location}? [pause] Halaman luas ${propFacts.landArea} dengan akses jalan dua mobil!`,
+        fast: `[excited] Siapa bilang cari hunian asri di ${propFacts.location} itu susah? [pause] Rumah luas ${propFacts.landArea} ini posisinya super strategis dan bebas banjir!`,
         cam: "Slow sweeping crane down from wide facade to eye-level medium shot in front of @character_1",
-        visual: "@character_1 stands proudly on the red brick pathway in front of the grand mansion @setting_1, gesturing to the architecture.",
+        visual: "@character_1 stands proudly on the pathway in front of the property facade @setting_1, gesturing to the environment.",
         settingTag: "@setting_1",
       },
       {
-        stage: "INTERIOR MEWAH FULL KAYU JATI",
+        stage: "HIGHLIGHT BANGUNAN & KEUNGGULAN",
         roll: "B-Roll",
-        normal: "[warm] Masuk ke dalam, interiornya full kayu jati Grade A. [pause] Langit-langit tinggi berasa istana!",
-        fast: "[warm] Masuk ke dalam, interiornya full kayu jati kualitas Grade A terbaik. [pause] Dari void tangga melengkung sampai lemari ukir antik, auranya megah banget layaknya istana!",
-        cam: "Smooth gliding push-in 24mm across the polished marble floor towards the carved teakwood gallery",
-        visual: "Camera glides through @setting_2 showcasing magnificent carved teakwood ceiling, grand chandelier, and polished floor.",
+        normal: `[warm] Bangunannya kokoh terawat, [pause] plus ${propFacts.specialFeature} yang super adem!`,
+        fast: `[warm] Masuk ke area dalam, bangunannya permanen dan terawat rapi. [pause] Ditambah ${propFacts.specialFeature}, bikin suasananya tenang banget buat keluarga!`,
+        cam: "Smooth gliding push-in 24mm showcasing the architecture and surrounding space",
+        visual: "Camera glides through @setting_2 showcasing the architectural details and lush surrounding environment.",
         settingTag: "@setting_2",
       },
       {
-        stage: "DETAIL KAMAR & LEMARI JATI KLASIK",
+        stage: "AKSES STRATEGIS & KONEKTIVITAS",
         roll: "A-Roll",
-        normal: "[whisper] Kamar tidurnya luas 6+1, lengkap dengan lemari jati jumbo [pause] dan rooftop santai.",
-        fast: "[whisper] Kamar tidurnya ada 6+1 dengan lemari jati dinding jumbo kualitas Grade A. [pause] Ada rooftop santai, garasi luas, dan halaman depan muat enam mobil!",
-        cam: "Medium pan 35mm from grand wardrobe mirror to @character_1 smiling",
-        visual: "Inside the spacious master bedroom @setting_3, camera pans across majestic teak wardrobe, soft daylight.",
+        normal: `[curious] Lokasinya super strategis, [pause] cuma ${propFacts.proximityText}!`,
+        fast: `[curious] Mau ke mana-mana gampang banget! [pause] Posisinya cuma ${propFacts.proximityText}, pas banget buat hunian keluarga atau aset investasi bernilai tinggi!`,
+        cam: "Medium portrait 50mm / natural daylight with attractive property angle background",
+        visual: "@character_1 explains with confident, trustworthy posture in front of @setting_3, pointing out accessibility.",
         settingTag: "@setting_3",
       },
       {
-        stage: "CLIFFHANGER / RAHASIA AREA KOS-KOSAN",
+        stage: "LEGALITAS SHM & CALL TO ACTION",
         roll: "A-Roll",
-        normal: "[curious] Tapi tunggu dulu... [pause] di belakang rumah megah ini, ada area rahasia penghasil uang!",
-        fast: "[curious] Tapi tunggu sampai kalian lihat area belakangnya! [pause] Ada 10 kamar kos aktif yang otomatis bikin rumah ini bayar cicilannya sendiri! Lanjut tonton Part 2!",
-        cam: "Eye-level handheld tracking 35mm with intriguing smile and finger pointing to the back courtyard",
-        visual: "@character_1 smiles conspiratorially, walking towards the garden corridor leading to the boarding house area.",
-        settingTag: "@setting_4",
+        normal: `[excited] Legalitas aman sertifikat SHM, ditawarkan ${propFacts.priceText}. [pause] Yuk survey sekarang!`,
+        fast: `[excited] Legalitas aman sertifikat sudah SHM lengkap, harga ${propFacts.priceText} nego sampai jadi! [pause] Hubungi kami sekarang dan jadwalkan survey minggu ini!`,
+        cam: "Slow tracking in 35mm to confident inviting closing smile",
+        visual: "@character_1 gives an inviting gesture with friendly smile, inviting viewer for private survey.",
+        settingTag: "@setting_1",
       },
       // Part 2 Scenes (for 8-scene multi-part)
       {
-        stage: "BRIDGE PART 2 & AREA KOS-KOSAN 800M2",
+        stage: "BRIDGE PART 2 & EKSPLORASI DETAIL",
         roll: "A-Roll",
-        normal: "[excited] Melanjutkan Part 1, ini dia area kos-kosan 800 meter! [pause] 10 kamar aktif tersewa!",
-        fast: "[excited] Melanjutkan Part 1! Di belakang rumah induk, ada area kos-kosan seluas 800 meter dengan 10 kamar mandiri yang sudah terisi penyewa!",
-        cam: "Wide establishing pedestal shot revealing the neat 2-story boarding house building @setting_4",
-        visual: "@character_1 welcomes viewers into the green lawn courtyard of the boarding house complex @setting_4.",
+        normal: `[excited] Melanjutkan Part 1, mari kita eksplor lebih dalam! [pause] Ini dia detail keunggulan properti ini!`,
+        fast: `[excited] Melanjutkan Part 1! Sekarang kita masuk ke area highlight kedua seluas ${propFacts.landArea} yang bikin properti ini beda dari yang lain!`,
+        cam: "Wide establishing pedestal shot revealing the wider courtyard @setting_4",
+        visual: "@character_1 welcomes viewers into the spacious outdoor area @setting_4.",
         settingTag: "@setting_4",
       },
       {
-        stage: "POTENSI PASSIVE INCOME & FASILITAS KOS",
+        stage: "POTENSI NILAI INVESTASI",
         roll: "B-Roll",
-        normal: "[warm] Masing-masing kamar ada token listrik sendiri, [pause] halaman luas, siap jadi mesin uang!",
-        fast: "[warm] Setiap kamar sudah dilengkapi token listrik terpisah dan halaman parkir luas. [pause] Jadi kalian tinggal nikmati passive income jutaan rupiah tiap bulan!",
-        cam: "Smooth tracking shot along the boarding house corridor showing individual electric meters and clean rooms",
-        visual: "Smooth tracking across boarding house rooms, neat doors, individual power meters, green grass.",
+        normal: `[warm] Nilai tanah terus naik di ${propFacts.location}, [pause] cocok banget buat investasi jangka panjang!`,
+        fast: `[warm] Kawasan ${propFacts.location} terus berkembang pesat setiap tahun. [pause] Beli unit ini bukan cuma dapet hunian asri, tapi juga tabungan investasi masa depan yang aman!`,
+        cam: "Smooth tracking shot along the property perimeter showing good road access",
+        visual: "Smooth tracking across property grounds, wide access road, neat landscaping.",
         settingTag: "@setting_4",
       },
       {
-        stage: "LOKASI EMAS & LEGALITAS SHM",
+        stage: "FASILITAS SEKITAR & AKSESIBILITAS",
         roll: "A-Roll",
-        normal: "[warm] Lokasinya dekat Terminal Terpadu Pulo Gebang dan Walikota. [pause] Sertifikat SHM aman terjamin!",
-        fast: "[warm] Lokasinya super strategis di komplek Pertamina Cakung, dekat Terminal Terpadu Pulo Gebang dan Kantor Walikota Jakarta Timur. [pause] Sertifikat sudah SHM lengkap!",
+        normal: `[warm] Dekat ke berbagai fasilitas penting: [pause] ${propFacts.proximityText}!`,
+        fast: `[warm] Dari pusat pendidikan sampai tol cuma hitungan menit: [pause] ${propFacts.proximityText}! Benar-benar memudahkan mobilitas harian Anda!`,
         cam: "Medium portrait 50mm / warm daylight with lush garden background",
-        visual: "@character_1 explains with confident, trustworthy posture in front of the manicured yard.",
+        visual: "@character_1 explains with confident posture in front of @setting_1.",
         settingTag: "@setting_1",
       },
       {
-        stage: "CALL TO ACTION & PENUTUP",
+        stage: "CALL TO ACTION FINAL & KONTAK",
         roll: "A-Roll",
-        normal: "[excited] Kesempatan langka punya rumah megah sekaligus kosan aktif. [pause] Hubungi sekarang sebelum keduluan!",
-        fast: "[excited] Kesempatan emas punya rumah mewah 1.100 meter plus kos-kosan aktif 800 meter di Jakarta Timur! [pause] Langsung klik link di bio atau DM sekarang sebelum unitnya terjual!",
+        normal: `[excited] Unit langka dengan harga ${propFacts.priceText}. [pause] Jangan sampai keduluan, hubungi sekarang!`,
+        fast: `[excited] Kesempatan emas memiliki properti ${propFacts.landArea} di ${propFacts.location} dengan harga ${propFacts.priceText}! [pause] Langsung hubungi kami untuk info detail dan survey lokasi!`,
         cam: "Slow tracking in 35mm to confident inviting closing smile",
-        visual: "@character_1 gives an inviting gesture with friendly smile, holding property brochure.",
+        visual: "@character_1 gives an inviting gesture with friendly smile, pointing to contact link.",
         settingTag: "@setting_1",
       },
     ];

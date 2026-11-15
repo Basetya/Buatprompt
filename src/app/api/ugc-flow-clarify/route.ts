@@ -61,7 +61,11 @@ export async function POST(req: NextRequest) {
       objectCount = 0,
     } = body;
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const rawApiKey = process.env.GEMINI_API_KEY || "";
+    const apiKeys = rawApiKey
+      .split(",")
+      .map((k) => k.trim())
+      .filter((k) => k.length > 20);
     const isShortClip = targetDuration === "<=10s";
     const isGeminiChain =
       targetDuration === "gemini-5clip" ||
@@ -169,10 +173,11 @@ export async function POST(req: NextRequest) {
       },
     ];
 
-    if (apiKey) {
-      try {
-        const ai = new GoogleGenAI({ apiKey });
-        const systemPrompt = `Anda adalah Creative Video Director & Prompt Architect kelas dunia.
+    if (apiKeys.length > 0) {
+      for (const apiKey of apiKeys) {
+        try {
+          const ai = new GoogleGenAI({ apiKey });
+          const systemPrompt = `Anda adalah Creative Video Director & Prompt Architect kelas dunia.
 Tugas: Buat 4 pertanyaan klarifikasi pilihan ganda yang cerdas, tajam, dan membantu kreator video memilih arah produksi klip ${targetDuration} untuk ${engineTarget}.
 
 WAJIB SERTAKAN:
@@ -196,7 +201,7 @@ Format Output JSON:
   ]
 }`;
 
-        const prompt = `Topik: "${topic}"
+          const prompt = `Topik: "${topic}"
 Durasi: ${targetDuration}
 Engine Target: ${engineTarget} ${engineTarget === "llm-native" ? `(${llmModel})` : ""}
 Genre: ${styleGenre}
@@ -205,23 +210,24 @@ Preferensi Kamera: ${cameraArchetype}
 
 Buatkan 4 pertanyaan klarifikasi terstruktur dalam JSON.`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3.5-flash-lite",
-          contents: prompt,
-          config: {
-            systemInstruction: systemPrompt,
-            responseMimeType: "application/json",
-            temperature: 0.3,
-          },
-        });
+          const response = await ai.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: prompt,
+            config: {
+              systemInstruction: systemPrompt,
+              responseMimeType: "application/json",
+              temperature: 0.3,
+            },
+          });
 
-        const text = response.text || "";
-        const parsed = JSON.parse(text);
-        if (parsed.questions && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
-          return NextResponse.json({ success: true, questions: parsed.questions, engine: "gemini-3.5-flash-lite" });
+          const text = response.text || "";
+          const parsed = JSON.parse(text);
+          if (parsed.questions && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+            return NextResponse.json({ success: true, questions: parsed.questions, engine: "gemini-3.5-flash" });
+          }
+        } catch (geminiErr) {
+          console.warn("Gemini dynamic clarify notice on key, trying next:", geminiErr);
         }
-      } catch (geminiErr) {
-        console.warn("Gemini dynamic clarify notice, using director rules:", geminiErr);
       }
     }
 
