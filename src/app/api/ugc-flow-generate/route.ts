@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
       .map(([k, v]) => `- ${k}: ${v}`)
       .join("\n");
 
-    const isLlmNative = engineTarget === "llm-native" || targetDuration === "<=10s" || isGemini40s;
+    const isLlmNative = engineTarget === "llm-native";
 
     // RULE 2: Speech pacing word budgets
     const wordBudgetGuidance =
@@ -177,7 +177,11 @@ export async function POST(req: NextRequest) {
 
     // Multi-part instruction (RULE 3)
     const multiPartInstruction =
-      sceneCount > 4
+      !isLlmNative
+        ? `STRUKTUR MULTI-SHOT KHUSUS ${engineTarget.toUpperCase()}:
+- Susun ${sceneCount} shot video berkualitas tinggi tanpa instruksi percakapan chat LLM.
+- Gunakan format teknis resmi ${engineTarget.toUpperCase()}: slash commands (/camera, /lighting, /motion), tag aset multimodal (@character_1, @setting_1), dialog, dan foley soundscape.`
+        : sceneCount > 4
         ? `STRUKTUR 2 TOPIK BERURUTAN (MULTI-PART SPLITTER):
 - Karena durasi melebihi 4 video (>40 detik), bagilah video menjadi 2 TOPIK / BAGIAN YANG SALING NYAMBUNG:
   * BAGIAN 1 (Adegan 1–4, Sesi Gemini 1, Maks 40s): Hook viral, pengenalan masalah/properti utama, eksplorasi highlight awal, dan diakhiri dengan CLIFFHANGER penasaran ("Mau tahu area rahasia yang bikin rumah ini bisa bayar cicilannya sendiri? Lanjut di Part 2!").
@@ -629,7 +633,7 @@ ${hasParts ? "- Part 1 (Klip 1–4): Potong klip ke-4 tepat di cliffhanger untuk
 }
 
 function buildEngineDirectPrompt(parsed: any, topic: string, hostName: string, engineTarget: string, llmModel: string): string {
-  const isLlmNative = engineTarget === "llm-native" || parsed.totalDuration === "<=10s" || parsed.totalDuration === "gemini-40s";
+  const isLlmNative = engineTarget === "llm-native";
   if (isLlmNative) {
     return (
       `=== MASTER PROMPT UGC LENGKAP SIAP PAKAI KE ${llmModel.toUpperCase()} ===\n\nTopik: ${parsed.projectTitle || topic}\nDurasi Total: ${parsed.totalDuration} (${parsed.scenes.length} Adegan @ 10s)\nHost: ${parsed.hostProfile?.name || hostName}\nPacing: ${parsed.pacingMode === "fast" ? "Cepat (24–28 kata/adegan)" : "Normal (14–18 kata/adegan)"}\n\n[ATURAN SINKRONISASI MUTLAK]: Seluruh efek suara foley WAJIB terlihat aksi fisiknya secara nyata di layar.\n\nDAFTAR ADEGAN & NASKAH LENGKAP:\n` +
@@ -639,6 +643,38 @@ function buildEngineDirectPrompt(parsed: any, topic: string, hostName: string, e
             `[Adegan ${s.sceneNumber} (${s.timeRange || ""}) - ${s.stageName || ""}]\n- Setting Ref: ${s.settingRefTag || "@setting_1"}\n- Naskah Dialog: "${s.voiceoverScriptId}"\n- Arahan Kamera: ${s.cameraDirective}\n- Visual Prompt: ${s.flowVisualPrompt}\n- Soundscape: ${s.audioSoundscapePrompt}`
         )
         .join("\n\n")
+    );
+  }
+
+  if (engineTarget === "google-flow") {
+    return (
+      `=== MASTER PROMPT GOOGLE FLOW (VEO 3.1 / GEMINI OMNI FLASH) ===\n\n` +
+      `Proyek: ${parsed.projectTitle || topic}\n` +
+      `Karakter: ${parsed.hostProfile?.name || hostName} (@character_1)\n` +
+      `Durasi Total: ${parsed.totalDuration} (${parsed.scenes.length} Shots)\n\n` +
+      `[PANDUAN EKSEKUSI DI GOOGLE FLOW]:\n` +
+      `- Buka Google Flow (https://flow.google)\n` +
+      `- Buat canvas/timeline project baru\n` +
+      `- Unggah foto referensi di Asset Manager (@character_1 untuk Host, @setting_1 untuk Ruangan/Properti)\n` +
+      `- Tempelkan prompt per Shot di bawah ini ke masing-masing shot card/node\n` +
+      `- Bebas batasan kuota chat, render langsung seluruh shot secara konsisten!\n\n` +
+      `==================================================\n` +
+      `URUTAN SHOT & PROMPT GOOGLE FLOW:\n` +
+      `==================================================\n\n` +
+      parsed.scenes
+        .map(
+          (s: any) =>
+            `--- SHOT ${s.sceneNumber}: ${(s.stageName || "").toUpperCase()} (${s.timeRange || ""}) ---\n` +
+            `[CAMERA & SLASH COMMAND]:\n` +
+            `${(s.cameraDirective || "").startsWith("/") ? s.cameraDirective : `/camera ${s.cameraDirective || "handheld medium shot"}`}\n\n` +
+            `[MASTER VISUAL PROMPT (GOOGLE FLOW)]:\n` +
+            `${s.flowVisualPrompt}\n\n` +
+            `[SPOKEN DIALOGUE]:\n` +
+            `"${s.voiceoverScriptId}"\n\n` +
+            `[SOUNDSCAPE & SFX (ACTION-COUPLED)]:\n` +
+            `${s.audioSoundscapePrompt}`
+        )
+        .join("\n\n--------------------------------------------------\n\n")
     );
   }
 
@@ -964,11 +1000,24 @@ function generateCleanStudioFallback(params: any) {
       pacingMode,
       hostProfile: { name: hostName },
     }, topic, hostName, engineTarget, llmModel),
-    operatorGuide: [
-      "1. Eksekusi Klip 1 s/d 4 di satu utas sesi Gemini yang sama.",
-      "2. Lampirkan foto referensi yang sesuai.",
-      "3. Jika ada Part 2, lanjutkan setelah kuota tersedia untuk menyelesaikan video kedua.",
-    ],
+    operatorGuide: engineTarget === "google-flow"
+      ? [
+          "1. Buka Google Flow (flow.google / Veo Studio) dan buat canvas project baru.",
+          "2. Buka Asset Manager, unggah foto Host (@character_1) dan foto Properti/Ruangan (@setting_1).",
+          "3. Salin dan tempelkan prompt masing-masing Shot (Shot 1 s/d 4) ke setiap timeline node / shot card.",
+          "4. Klik Generate. Flow akan me-render seluruh shot tanpa batasan kuota chat 5 jam.",
+        ]
+      : engineTarget === "llm-native"
+      ? [
+          "1. Eksekusi Klip 1 s/d 4 di satu utas sesi Gemini yang sama.",
+          "2. Lampirkan foto referensi yang sesuai.",
+          "3. Jika ada Part 2, lanjutkan setelah kuota tersedia untuk menyelesaikan video kedua.",
+        ]
+      : [
+          `1. Buka tools video ${engineTarget.toUpperCase()}.`,
+          "2. Masukkan foto referensi karakter dan setting.",
+          "3. Masukkan prompt per shot sesuai urutan storyboard.",
+        ],
   };
 }
 

@@ -240,7 +240,7 @@ export default function UgcFlowStudioPage() {
   const [topic, setTopic] = useState("");
   const [targetDuration, setTargetDuration] = useState<TargetDurationOption>("gemini-40s");
   const [pacingMode, setPacingMode] = useState<"normal" | "fast">("normal");
-  const [engineCategory, setEngineCategory] = useState<"video-ai" | "llm-native">("llm-native");
+  const [engineCategory, setEngineCategory] = useState<"video-ai" | "llm-native">("video-ai");
   const [videoTool, setVideoTool] = useState<VideoAiEngine>("google-flow");
   const [llmModel, setLlmModel] = useState<LlmModelType>("gemini");
 
@@ -405,7 +405,7 @@ export default function UgcFlowStudioPage() {
   // Auto-switch engine when <=10s is selected
   const handleDurationChange = (dur: TargetDurationOption) => {
     setTargetDuration(dur);
-    if (dur === "<=10s" || dur === "gemini-40s") {
+    if (dur === "<=10s" && engineCategory !== "video-ai") {
       setEngineCategory("llm-native");
       setLlmModel("gemini");
     }
@@ -491,9 +491,16 @@ export default function UgcFlowStudioPage() {
         data.data.settingImage = environmentImages[0]?.url || settingImage;
         data.data.pacingMode = pacingMode;
         setMasterResult(data.data);
-        setSelectedEngineTarget(data.data.engineTarget || "google-flow");
+        const resolvedEngine = data.data.engineTarget || activeEngineTarget || "google-flow";
+        setSelectedEngineTarget(resolvedEngine);
         setWorkflowStep(3);
-        setActiveBoardTab("gemini-chain");
+
+        // Intelligently select tab based on chosen engine
+        if (engineCategory === "video-ai" || resolvedEngine !== "llm-native") {
+          setActiveBoardTab("direct-prompt");
+        } else {
+          setActiveBoardTab("gemini-chain");
+        }
         setActivePartTab(0);
       }
     } catch (err) {
@@ -588,36 +595,46 @@ ${hasProdImg ? "- @hero_object: Maintain 100% strict visual consistency matching
     }
 
     if (targetEngine === "google-flow") {
+      const envTagsList =
+        result.environmentImages && result.environmentImages.length > 0
+          ? result.environmentImages
+              .map((env, i) => `  * @setting_${i + 1}: ${env.label || `Latar / Ruangan ${i + 1}`}`)
+              .join("\n")
+          : `  * @setting_1: ${result.environmentProfile.name || "Setting Properti / Ruangan"}`;
+
       const scenesText = result.scenes
         .map(
           (s) =>
             `--- SHOT ${s.sceneNumber}: ${s.stageName.toUpperCase()} (${s.timeRange}) ---
-[SPOKEN DIALOGUE]:
-"${s.voiceoverScriptId}"
-
 [CAMERA & SLASH COMMAND]:
-${s.cameraDirective.startsWith("/") ? s.cameraDirective : `/camera ${s.cameraDirective}`}
+${s.cameraDirective.startsWith("/") ? s.cameraDirective : `/camera ${s.cameraDirective}`} /lighting natural warm morning daylight /motion medium
 
 [MASTER VISUAL PROMPT (GOOGLE FLOW)]:
 ${s.flowVisualPrompt}
 
-[SOUNDSCAPE]:
+[SPOKEN DIALOGUE]:
+"${s.voiceoverScriptId}"
+
+[SOUNDSCAPE & SFX (ACTION-COUPLED)]:
 ${s.audioSoundscapePrompt}`
         )
-        .join("\n\n");
+        .join("\n\n--------------------------------------------------\n\n");
 
       return `=== MASTER PROMPT: ${result.projectTitle.toUpperCase()} ===
 Engine Target: GOOGLE FLOW (VEO 3.1 / GEMINI OMNI FLASH)
 Durasi: ${result.totalDuration} (${result.scenes.length} Shots)
 
-${visualContinuitySection}[ASSET CONSISTENCY TAGS]:
-- Character Tag: ${result.hostProfile.anchorTag} -> ${result.hostProfile.masterCharacterPrompt}
-- Environment Tag: ${result.environmentProfile.anchorTag} -> ${result.environmentProfile.masterSettingPrompt}
-- Object Tag: ${result.objectProfile.anchorTag} -> ${result.objectProfile.masterObjectPrompt}
+[MULTIMODAL ASSET CONSISTENCY TAGS]:
+- Character Tag (@host): ${result.hostProfile.anchorTag} -> ${result.hostProfile.masterCharacterPrompt}
+- Environment Tags (@setting):
+${envTagsList}
+- Object Tag (@object): ${result.objectProfile.anchorTag} -> ${result.objectProfile.masterObjectPrompt}
 
-[ATURAN KAUSALITAS AUDIO-VISUAL]:
-1. Action-Coupled SFX: Seluruh suara foley (kriuk/gigitan/sentuhan) wajib memiliki aksi fisik visual di detik terkait.
-2. Gunakan slash command resmi Google Flow (/camera, /lens, /motion, /lighting).
+[PANDUAN EKSEKUSI DI GOOGLE FLOW]:
+1. Buka Google Flow (https://flow.google) dan buat timeline project baru.
+2. Lampirkan foto referensi di Asset Manager (@character_1 untuk Host, @setting_1 s/d @setting_n untuk Ruangan/Properti).
+3. Salin prompt Shot 1 s/d ${result.scenes.length} ke masing-masing node atau shot box.
+4. Render langsung tanpa batas jeda kuota 5 jam.
 
 ==================================================
 URUTAN SHOT & NASKAH LENGKAP:
@@ -850,6 +867,54 @@ ${s.audioSoundscapePrompt}
 
 [ENDING POSE TITIK SAMBUNG]:
 ${s.endingFrame || "@character_1 menyelesaikan aksi dengan ekspresi puas dan bersiap untuk adegan selanjutnya."}`;
+  };
+
+  // Format single shot for dedicated AI Video tool (Google Flow, Kling, Runway, Leonardo, etc.)
+  const formatSingleShotForTool = (
+    result: MasterDirectiveData,
+    s: UgcScene,
+    tool: VideoAiEngine
+  ): string => {
+    if (tool === "google-flow") {
+      const cam = s.cameraDirective.startsWith("/")
+        ? s.cameraDirective
+        : `/camera ${s.cameraDirective}`;
+      return `${cam} /lighting natural warm morning interior daylight /motion medium
+${s.flowVisualPrompt}
+
+[SPOKEN DIALOGUE]:
+"${s.voiceoverScriptId}"
+
+[SOUNDSCAPE & SFX (ACTION-COUPLED)]:
+${s.audioSoundscapePrompt}`;
+    }
+    if (tool === "kling-ai") {
+      const cleanVisual = s.flowVisualPrompt
+        .replace(/@character_\d+/g, "featured host")
+        .replace(/@setting_\d+/g, "luxurious architectural space")
+        .replace(/@object_\d+/g, "featured object");
+      return `${cleanVisual}
+
+[KLING CAMERA]: ${s.cameraDirective.replace(/^\/camera\s*/i, "")}
+[DIALOGUE]: "${s.voiceoverScriptId}"
+[SOUND EFFECT]: ${s.audioSoundscapePrompt}`;
+    }
+    if (tool === "runway-gen3") {
+      const cleanVisual = s.flowVisualPrompt
+        .replace(/@character_\d+/g, "presenter")
+        .replace(/@setting_\d+/g, "interior setting");
+      return `Cinematic shot. ${s.cameraDirective}. ${cleanVisual}
+Dialogue: "${s.voiceoverScriptId}"`;
+    }
+    // Universal format for Leonardo, Dreamina, Hailuo, Wan, CapCut
+    const cam = s.cameraDirective.startsWith("/")
+      ? s.cameraDirective
+      : `/camera ${s.cameraDirective}`;
+    return `[SHOT ${s.sceneNumber}: ${s.stageName.toUpperCase()}]
+${cam}
+${s.flowVisualPrompt}
+[DIALOGUE]: "${s.voiceoverScriptId}"
+[AUDIO]: ${s.audioSoundscapePrompt}`;
   };
 
   // Generate complete Gemini chain text file
@@ -1798,8 +1863,8 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
                 </h3>
                 <p className="text-xs text-[#8c857c] font-mono mt-0.5">
                   Durasi: {masterResult.totalDuration} • {masterResult.scenes.length} Adegan • Format Tool:{" "}
-                  <span className="text-[#c29b74] uppercase font-bold">{masterResult.engineTarget}</span>
-                  {masterResult.engineTarget === "llm-native" && masterResult.llmModel && (
+                  <span className="text-[#c29b74] uppercase font-bold">{selectedEngineTarget}</span>
+                  {selectedEngineTarget === "llm-native" && masterResult.llmModel && (
                     <span> ({masterResult.llmModel.toUpperCase()})</span>
                   )}
                 </p>
@@ -1829,19 +1894,34 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
 
             {/* Board Navigation Tabs */}
             <div className="flex border-b border-[#282624] gap-1 overflow-x-auto">
-              {[
-                { id: "gemini-chain", label: `Gemini Chain (${masterResult.scenes.length} Klip)`, icon: Sparkles },
-                { id: "capcut-guide", label: "Panduan Edit CapCut", icon: Film },
-                { id: "storyboard", label: `Naskah & Adegan (${masterResult.scenes.length})`, icon: Film },
-                {
-                  id: "direct-prompt",
-                  label: `Master Prompt (${selectedEngineTarget.toUpperCase()})`,
-                  icon: MessageSquare,
-                },
-                { id: "character", label: "Pilar Konsistensi (@host)", icon: Users },
-                { id: "environment", label: "Setting & Objek", icon: Boxes },
-                { id: "guide", label: "Alur Eksekusi", icon: Compass },
-              ].map((tab) => {
+              {(engineCategory === "video-ai" || selectedEngineTarget !== "llm-native"
+                ? [
+                    {
+                      id: "direct-prompt",
+                      label: `Prompt Studio (${selectedEngineTarget.toUpperCase()})`,
+                      icon: Sparkles,
+                    },
+                    { id: "storyboard", label: `Naskah & Storyboard (${masterResult.scenes.length})`, icon: Film },
+                    { id: "capcut-guide", label: "Panduan Edit CapCut", icon: Film },
+                    { id: "character", label: "Pilar Konsistensi (@host)", icon: Users },
+                    { id: "environment", label: "Setting & Objek", icon: Boxes },
+                    { id: "gemini-chain", label: `Gemini Chain (${masterResult.scenes.length} Klip)`, icon: MessageSquare },
+                    { id: "guide", label: "Alur Eksekusi", icon: Compass },
+                  ]
+                : [
+                    { id: "gemini-chain", label: `Gemini Chain (${masterResult.scenes.length} Klip)`, icon: Sparkles },
+                    { id: "capcut-guide", label: "Panduan Edit CapCut", icon: Film },
+                    { id: "storyboard", label: `Naskah & Adegan (${masterResult.scenes.length})`, icon: Film },
+                    {
+                      id: "direct-prompt",
+                      label: `Master Prompt (${selectedEngineTarget.toUpperCase()})`,
+                      icon: MessageSquare,
+                    },
+                    { id: "character", label: "Pilar Konsistensi (@host)", icon: Users },
+                    { id: "environment", label: "Setting & Objek", icon: Boxes },
+                    { id: "guide", label: "Alur Eksekusi", icon: Compass },
+                  ]
+              ).map((tab) => {
                 const Icon = tab.icon;
                 return (
                   <button
@@ -2466,6 +2546,52 @@ ${result.operatorGuide.map((g, idx) => `${idx + 1}. ${g}`).join("\n")}
 
                 <div className="rounded-xl border border-[#262422] bg-[#111214] p-4 font-mono text-xs text-[#cfc8bf] leading-relaxed whitespace-pre-wrap select-all">
                   {formatEnginePrompt(masterResult, selectedEngineTarget)}
+                </div>
+
+                {/* Per-Shot Quick Copy Cards for Google Flow & Video AI Engines */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#242220] pt-4">
+                    <div>
+                      <h5 className="text-xs font-mono font-semibold text-[#f5f1eb] uppercase tracking-wider flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-[#c29b74]" />
+                        <span>Prompt Per-Shot ({selectedEngineTarget.toUpperCase()}):</span>
+                      </h5>
+                      <p className="text-[11px] text-[#8c857c] font-sans mt-0.5">
+                        Salin satu-per-satu ke kolom prompt / node di {selectedEngineTarget.toUpperCase()} tanpa perlu salin manual seluruh teks.
+                      </p>
+                    </div>
+                    <span className="text-[11px] font-mono text-[#c29b74] bg-[#c29b74]/10 border border-[#c29b74]/20 px-2.5 py-1 rounded-full">
+                      Total {masterResult.scenes.length} Shot
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3">
+                    {masterResult.scenes.map((scene) => {
+                      const shotPrompt = formatSingleShotForTool(masterResult, scene, selectedEngineTarget);
+                      const shotKey = `shot-tool-${scene.sceneNumber}`;
+                      return (
+                        <div key={scene.sceneNumber} className="rounded-xl border border-[#282624] bg-[#121315] p-4 space-y-2.5">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-xs font-mono font-bold text-[#f5f1eb] flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-full bg-[#c29b74]" />
+                              Shot {scene.sceneNumber}: {scene.stageName} ({scene.timeRange})
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => copyText(shotPrompt, shotKey)}
+                              className="flex items-center gap-1.5 rounded-lg bg-[#c29b74] px-3 py-1 text-xs font-mono font-semibold text-[#121315] hover:bg-[#d1aa82] transition-colors"
+                            >
+                              {copiedKey === shotKey ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                              <span>{copiedKey === shotKey ? "Shot Tersalin!" : `Salin Shot ${scene.sceneNumber} (${selectedEngineTarget.toUpperCase()})`}</span>
+                            </button>
+                          </div>
+                          <div className="rounded-lg border border-[#22201e] bg-[#0b0c0d] p-3 text-xs font-mono text-[#cfc8bf] leading-relaxed whitespace-pre-wrap select-all">
+                            {shotPrompt}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Callout Panduan Langkah Manusia Terpisah */}
